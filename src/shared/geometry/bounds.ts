@@ -1,0 +1,103 @@
+import type { SceneNode, SvgDocument } from "../document/types";
+import { applyMat, transformToMatrix } from "./transform";
+
+export interface Bounds {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export function emptyBounds(): Bounds {
+  return { x: 0, y: 0, w: 0, h: 0 };
+}
+
+export function unionBounds(a: Bounds, b: Bounds): Bounds {
+  if (a.w <= 0 && a.h <= 0) return b;
+  if (b.w <= 0 && b.h <= 0) return a;
+  const x1 = Math.min(a.x, b.x);
+  const y1 = Math.min(a.y, b.y);
+  const x2 = Math.max(a.x + a.w, b.x + b.w);
+  const y2 = Math.max(a.y + a.h, b.y + b.h);
+  return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+}
+
+function localBounds(node: SceneNode): Bounds {
+  switch (node.type) {
+    case "rect":
+      return { x: 0, y: 0, w: node.width, h: node.height };
+    case "ellipse":
+      return { x: -node.rx, y: -node.ry, w: node.rx * 2, h: node.ry * 2 };
+    case "line":
+      return {
+        x: Math.min(0, node.x2),
+        y: Math.min(0, node.y2),
+        w: Math.abs(node.x2),
+        h: Math.abs(node.y2),
+      };
+    case "text":
+      return { x: 0, y: -node.fontSize, w: node.content.length * node.fontSize * 0.55, h: node.fontSize * node.lineHeight };
+    case "image":
+      return { x: 0, y: 0, w: node.width, h: node.height };
+    case "symbolInstance":
+      return { x: 0, y: 0, w: node.width, h: node.height };
+    case "path": {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const sp of node.subpaths) {
+        for (const p of sp.points) {
+          minX = Math.min(minX, p.x);
+          minY = Math.min(minY, p.y);
+          maxX = Math.max(maxX, p.x);
+          maxY = Math.max(maxY, p.y);
+          if (p.handleIn) {
+            minX = Math.min(minX, p.handleIn.x);
+            minY = Math.min(minY, p.handleIn.y);
+            maxX = Math.max(maxX, p.handleIn.x);
+            maxY = Math.max(maxY, p.handleIn.y);
+          }
+          if (p.handleOut) {
+            minX = Math.min(minX, p.handleOut.x);
+            minY = Math.min(minY, p.handleOut.y);
+            maxX = Math.max(maxX, p.handleOut.x);
+            maxY = Math.max(maxY, p.handleOut.y);
+          }
+        }
+      }
+      if (!Number.isFinite(minX)) return emptyBounds();
+      return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    }
+    case "group":
+      return emptyBounds();
+  }
+}
+
+export function nodeWorldBounds(doc: SvgDocument, id: string): Bounds {
+  const node = doc.nodes[id];
+  if (!node) return emptyBounds();
+  if (node.type === "group") {
+    let b = emptyBounds();
+    for (const cid of node.children) {
+      b = unionBounds(b, nodeWorldBounds(doc, cid));
+    }
+    return b;
+  }
+  const lb = localBounds(node);
+  const m = transformToMatrix(node.transform);
+  const corners = [
+    applyMat(m, lb.x, lb.y),
+    applyMat(m, lb.x + lb.w, lb.y),
+    applyMat(m, lb.x + lb.w, lb.y + lb.h),
+    applyMat(m, lb.x, lb.y + lb.h),
+  ];
+  const xs = corners.map((c) => c.x);
+  const ys = corners.map((c) => c.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  return { x: minX, y: minY, w: Math.max(...xs) - minX, h: Math.max(...ys) - minY };
+}
+
+export function selectionBounds(doc: SvgDocument, ids: string[]): Bounds {
+  let b = emptyBounds();
+  for (const id of ids) b = unionBounds(b, nodeWorldBounds(doc, id));
+  return b;
+}

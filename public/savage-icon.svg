@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="256"
+     height="256"
+     viewBox="0 0 256 256">
+
+  <defs>
+    <linearGradient id="dragon"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#D3EE22"/>
+    </linearGradient>
+
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="256"
+        height="256"
+        rx="52"
+        fill="#0B1220"/>
+
+  <!-- SVG Hex Framework 
+  <polygon points="128,28 208,74 208,182 128,228 48,182 48,74"
+           fill="none"
+           stroke="#223046"
+           stroke-width="6"/> -->
+
+  <!-- Dragon-S Shape -->
+  <path d="
+      M165 70
+      C145 55 118 56 102 72
+      C85 89 88 108 112 120
+      C143 136 165 138 165 158
+      C165 180 142 194 115 194
+      C98 194 83 188 72 177"
+
+      fill="none"
+      stroke="url(#dragon)"
+      stroke-width="18"
+      stroke-linecap="round"
+      filter="url(#glow)"/> 
+
+  <!-- SVG Nodes 
+  <circle cx="128" cy="28" r="6" fill="#22D3EE"/>
+  <circle cx="208" cy="74" r="6" fill="#B1A616"/>
+  <circle cx="208" cy="182" r="6" fill="#22D3EE"/>
+  <circle cx="128" cy="228" r="6" fill="#EEE022"/>
+  <circle cx="48" cy="182" r="6" fill="#22D3EE"/>
+  <circle cx="48" cy="74" r="6" fill="#EEE022"/> -->
+
+  <defs>
+    <!-- V Shape -->
+    <!-- Chrome gradient -->
+    <linearGradient
+      id="silver-metal"
+      x1="0"
+      y1="0"
+      x2="0"
+      y2="1"
+    >
+      <stop offset="0%"   stop-color="#475569"/>
+      <stop offset="18%"  stop-color="#cbd5e1"/>
+      <stop offset="40%"  stop-color="#ffffff"/>
+      <stop offset="52%"  stop-color="#64748b"/>
+      <stop offset="70%"  stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+
+    <!-- Shadow -->
+    <filter id="shadow"
+            x="-10%"
+            y="-100%"
+            width="120%"
+            height="300%">
+      <feDropShadow
+        dx="0"
+        dy="3"
+        stdDeviation="3"
+        flood-color="#000000"
+        flood-opacity="0.5"
+      />
+    </filter>
+  </defs>
+
+  <!-- MASTER CONTROL: Scale the entire V shape together -->
+  <!-- Adjust the scale(1) below, or add transform-origin if scaling via CSS -->
+  <g id="v-shape-global" transform="scale(1.)">
+
+    <!-- Chrome line 1 (Individual Control) -->
+    <g id="v-line-1" transform="rotate(65.5, 23, 130) scale(.265, .75)">
+      <rect
+        x="50"
+        y="67"
+        width="400"
+        height="16"
+        rx="15"
+        fill="url(#silver-metal)"
+        filter="url(#shadow)"
+      />
+    </g>
+
+    <!-- Chrome line 2 (Individual Control) -->
+    <g id="v-line-2" transform="rotate(114.5, 80.5, 123.5) scale(.265, .75)">
+      <rect
+        x="50"
+        y="67"
+        width="400"
+        height="16"
+        rx="15"
+        fill="url(#silver-metal)"
+        filter="url(#shadow)"
+      />
+      <!-- Bright chrome highlight -->
+      <rect
+        x="56"
+        y="69"
+        width="389"
+        height="3"
+        rx="1.75"
+        fill="#ffffff"
+        opacity="0.65"
+      />
+    </g>
+
+  </g>
+
+</svg>

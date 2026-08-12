@@ -1,0 +1,117 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg"
+     width="900"
+     height="200"
+     viewBox="0 0 900 200">
+
+  <defs>
+
+    <linearGradient id="bg"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%">
+      <stop offset="0%" stop-color="#0B1118"/>
+      <stop offset="100%" stop-color="#182433"/>
+    </linearGradient>
+
+    <linearGradient id="metal"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%">
+      <stop offset="0%" stop-color="#F8FAFC"/>
+      <stop offset="20%" stop-color="#B8C3CF"/>
+      <stop offset="50%" stop-color="#EDF2F7"/>
+      <stop offset="75%" stop-color="#808C9C"/>
+      <stop offset="100%" stop-color="#D8E1EA"/>
+    </linearGradient>
+
+    <linearGradient id="accent"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+   
+    <linearGradient id="svg-accent"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%">
+      <stop offset="0%" stop-color="#F43F5E"/>
+      <stop offset="100%" stop-color="#FB923C"/>
+    </linearGradient>
+
+  </defs>
+
+  <!-- Background -->
+  <rect width="900"
+        height="200"
+        rx="32"
+        fill="url(#bg)"/>
+
+  <!-- Dragon Symbol -->
+
+  <g transform="translate(30,5)">
+
+    <!-- Dragon Neck / Hidden S -->
+
+    <path d="
+        M90 140
+        C90 80 130 40 190 40
+        L215 60
+        L195 85
+        C170 72 145 78 132 110
+        C120 140 135 165 162 177
+        C183 187 190 205 170 220
+        C145 238 112 232 88 212"
+        fill="none"
+        stroke="url(#svg-accent)"
+        stroke-width="22"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+    <!-- Horn -->
+
+    <path d="
+        M172 32
+        L215 5
+        L190 45"
+        fill="url(#metal)"/>
+
+    <!-- Eye SVG Node -->
+
+    <circle cx="180"
+            cy="60"
+            r="8"
+            fill="#22D3EE"/>
+
+ 
+
+  </g>
+
+  <!-- Wordmark Branding Group -->
+  <g id="wordmark-section">
+
+    <!-- Title Text -->
+    <text x="280"
+          y="155"
+          font-size="96"
+          font-family="Segoe UI, Arial, sans-serif"
+          font-weight="700">
+      <tspan fill="url(#svg-accent)">S</tspan><tspan fill="#F8FAFC">a</tspan><tspan fill="url(#svg-accent)">V</tspan><tspan fill="#F8FAFC">a</tspan><tspan fill="url(#svg-accent)">G</tspan><tspan fill="#F8FAFC">e</tspan>
+    </text>
+
+    <!-- Accent Line -->
+    <rect x="282"
+          y="178"
+          width="340"
+          height="6"
+          rx="3"
+          fill="url(#accent)"/>
+
+  </g>
+
+</svg>

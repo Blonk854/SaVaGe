@@ -1,0 +1,44 @@
+{
+  "name": "savage",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "manual:pdf": "pnpm dlx md-to-pdf USER_MANUAL.md --config-file ./md-to-pdf.config.cjs && node -e \"const fs=require('fs');fs.mkdirSync('docs',{recursive:true});fs.mkdirSync('src-tauri/resources',{recursive:true});fs.copyFileSync('USER_MANUAL.pdf','docs/USER_MANUAL.pdf');fs.copyFileSync('USER_MANUAL.pdf','src-tauri/resources/USER_MANUAL.pdf');console.log('Synced PDF to docs/ and src-tauri/resources/')\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "^5.2.5",
+    "@fontsource-variable/syne": "^5.2.5",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-fs": "^2",
+    "@tauri-apps/plugin-shell": "^2",
+    "clsx": "^2.1.1",
+    "immer": "^10.1.1",
+    "nanoid": "^5.1.5",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zundo": "^2.3.0",
+    "zustand": "^5.0.6"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "@tauri-apps/cli": "^2",
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4",
+    "vitest": "^3.2.4"
+  }
+}
