@@ -43,7 +43,7 @@ export interface RadialGradientPaint {
   stops: GradientStop[];
 }
 
-/** Grid mesh gradient (Coons-style bilinear cells). Not native SVG — exported as image pattern. */
+/** Grid mesh gradient (Coons-style bilinear cells). Exported as SVG 2 `<meshgradient>`. */
 export interface MeshGradientPaint {
   type: "mesh";
   columns: number;

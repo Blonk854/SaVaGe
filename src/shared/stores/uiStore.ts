@@ -47,6 +47,7 @@ interface UiState {
   dirty: boolean;
   booleanPreview: BooleanPreviewState | null;
   shapeBuilderActive: boolean;
+  pendingConvertPath: string | null;
   setMode: (mode: AppMode) => void;
   setActiveTool: (tool: ToolId) => void;
   setRightTab: (tab: RightTab) => void;
@@ -61,6 +62,7 @@ interface UiState {
   setHoverNodeId: (id: string | null) => void;
   setBooleanPreview: (preview: BooleanPreviewState | null) => void;
   setShapeBuilderActive: (v: boolean) => void;
+  setPendingConvertPath: (path: string | null) => void;
   markDirty: () => void;
   clearDirty: () => void;
 }
@@ -82,6 +84,7 @@ export const useUiStore = create<UiState>((set) => ({
   dirty: true,
   booleanPreview: null,
   shapeBuilderActive: false,
+  pendingConvertPath: null,
   setMode: (mode) => set({ mode, dirty: true }),
   setActiveTool: (activeTool) =>
     set({ activeTool, booleanPreview: null, dirty: true }),
@@ -106,6 +109,7 @@ export const useUiStore = create<UiState>((set) => ({
   setHoverNodeId: (hoverNodeId) => set({ hoverNodeId, dirty: true }),
   setBooleanPreview: (booleanPreview) => set({ booleanPreview, dirty: true }),
   setShapeBuilderActive: (shapeBuilderActive) => set({ shapeBuilderActive, dirty: true }),
+  setPendingConvertPath: (pendingConvertPath) => set({ pendingConvertPath }),
   markDirty: () => set({ dirty: true }),
   clearDirty: () => set({ dirty: false }),
 }));

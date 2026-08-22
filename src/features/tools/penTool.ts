@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { useDocumentStore } from "../../shared/stores/documentStore";
+import { useUiStore } from "../../shared/stores/uiStore";
 import {
   defaultStroke,
   defaultTransform,
@@ -47,7 +48,8 @@ export const penTool: Tool = {
     const points = path.subpaths[0].points;
     if (points.length >= 3) {
       const first = points[0];
-      if (Math.hypot(e.wx - first.x, e.wy - first.y) < 8) {
+      const zoom = useUiStore.getState().zoom;
+      if (Math.hypot(e.wx - first.x, e.wy - first.y) < 8 / Math.max(zoom, 0.05)) {
         store.updateNode(path.id, {
           subpaths: [{ ...path.subpaths[0], closed: true }],
         });
@@ -92,19 +94,30 @@ export const penTool: Tool = {
   },
   onKeyDown(e) {
     if (e.key === "Enter" || e.key === "Escape") {
+      e.preventDefault();
       activeId = null;
       lastPointId = null;
     }
     if (e.key === "Backspace" && activeId) {
+      e.preventDefault();
       const path = getPath();
       if (!path) return;
       const points = path.subpaths[0].points.slice(0, -1);
+      if (!points.length) {
+        useDocumentStore.getState().deleteNodes([path.id]);
+        resetPenTool();
+        return;
+      }
       useDocumentStore.getState().updateNode(path.id, {
         subpaths: [{ ...path.subpaths[0], points }],
       });
     }
   },
 };
+
+export function isPenDrawing() {
+  return activeId !== null;
+}
 
 export function resetPenTool() {
   activeId = null;

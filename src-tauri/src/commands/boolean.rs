@@ -94,3 +94,36 @@ pub fn boolean_op(request: BooleanRequest) -> Result<BooleanResult, String> {
 
     Ok(BooleanResult { shapes })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rule_maps_known_ops() {
+        assert!(matches!(rule("union"), Ok(OverlayRule::Union)));
+        assert!(matches!(rule("intersection"), Ok(OverlayRule::Intersect)));
+        assert!(matches!(rule("difference"), Ok(OverlayRule::Difference)));
+        assert!(matches!(rule("xor"), Ok(OverlayRule::Xor)));
+        assert!(rule("nope").is_err());
+    }
+
+    #[test]
+    fn union_overlapping_squares() {
+        let square = |x: f64, y: f64| {
+            vec![vec![[x, y], [x + 10.0, y], [x + 10.0, y + 10.0], [x, y + 10.0]]]
+        };
+        let result = boolean_op(BooleanRequest {
+            subjects: vec![square(0.0, 0.0)],
+            clips: vec![square(5.0, 5.0)],
+            op: "union".into(),
+        })
+        .expect("union");
+        assert!(!result.shapes.is_empty());
+        let points: Vec<[f64; 2]> = result.shapes.iter().flatten().flatten().cloned().collect();
+        let min_x = points.iter().map(|p| p[0]).fold(f64::INFINITY, f64::min);
+        let max_x = points.iter().map(|p| p[0]).fold(f64::NEG_INFINITY, f64::max);
+        assert!(min_x <= 0.5);
+        assert!(max_x >= 14.5);
+    }
+}

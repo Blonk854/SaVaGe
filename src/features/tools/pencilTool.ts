@@ -47,6 +47,7 @@ export const pencilTool: Tool = {
     samples = [{ x: e.wx, y: e.wy }];
     const node = toPath(samples);
     nodeId = node.id;
+    useDocumentStore.temporal.getState().pause();
     useDocumentStore.getState().addNode(node);
   },
   onPointerMove(e) {
@@ -60,8 +61,12 @@ export const pencilTool: Tool = {
     });
   },
   onPointerUp() {
+    const id = nodeId;
+    const count = samples.length;
     drawing = false;
     nodeId = null;
     samples = [];
+    useDocumentStore.temporal.getState().resume();
+    if (id && count < 2) useDocumentStore.getState().deleteNodes([id]);
   },
 };

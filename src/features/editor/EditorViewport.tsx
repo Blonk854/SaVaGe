@@ -4,28 +4,11 @@ import { useUiStore } from "../../shared/stores/uiStore";
 import { screenToWorld } from "../../shared/geometry/transform";
 import { drawDocument, drawGrid, drawOverlays } from "./renderer/drawDocument";
 import { drawSelectionChrome } from "./renderer/drawHandles";
-import { selectTool, setSelectHandles, setSelectHitContext } from "../tools/selectTool";
-import {
-  ellipseTool,
-  lineTool,
-  polygonTool,
-  rectTool,
-  starTool,
-} from "../tools/shapeTools";
-import { penTool } from "../tools/penTool";
-import { pencilTool } from "../tools/pencilTool";
-import { brushTool } from "../tools/brushTool";
-import {
-  patternBrushTool,
-  scatterBrushTool,
-} from "../tools/patternScatterBrushes";
-import {
-  shapeBuilderTool,
-  clearShapeBuilderSession,
-  beginShapeBuilder,
-} from "../tools/shapeBuilderTool";
-import { directSelectTool } from "../tools/directSelectTool";
-import type { Tool, ToolEvent } from "../tools/types";
+import { setSelectHandles, setSelectHitContext } from "../tools/selectTool";
+import { penTool, isPenDrawing } from "../tools/penTool";
+import { activateEditorTool } from "../tools/activateTool";
+import { finishEditorTool, FREEHAND_TOOLS, getEditorTool } from "../tools/registry";
+import type { ToolEvent } from "../tools/types";
 import { nanoid } from "nanoid";
 import {
   defaultStroke,
@@ -37,37 +20,12 @@ import { copySelection, pasteClipboard } from "./clipboard";
 import { TextEditOverlay } from "./TextEditOverlay";
 import { fitToArtboard, fitToSelection, setZoomCentered } from "./camera";
 import { hitTestTopNode } from "../../shared/geometry/hitTest";
-import { snapToPerspective } from "../../shared/geometry/perspective";
+import { snapWorldPoint } from "../../shared/geometry/snap";
 
-function getTool(id: string): Tool {
-  switch (id) {
-    case "directSelect":
-      return directSelectTool;
-    case "rect":
-      return rectTool;
-    case "ellipse":
-      return ellipseTool;
-    case "line":
-      return lineTool;
-    case "polygon":
-      return polygonTool;
-    case "star":
-      return starTool;
-    case "pen":
-      return penTool;
-    case "pencil":
-      return pencilTool;
-    case "brush":
-      return brushTool;
-    case "patternBrush":
-      return patternBrushTool;
-    case "scatterBrush":
-      return scatterBrushTool;
-    case "shapeBuilder":
-      return shapeBuilderTool;
-    default:
-      return selectTool;
-  }
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
 }
 
 export function EditorViewport() {
@@ -154,8 +112,13 @@ export function EditorViewport() {
     const sy = e.clientY - rect.top;
     const ui = useUiStore.getState();
     let world = screenToWorld(sx, sy, ui.zoom, ui.panX, ui.panY);
-    if (ui.snap && ui.perspective.mode !== "off") {
-      world = snapToPerspective(world.x, world.y, ui.perspective, 16 / ui.zoom);
+    if (ui.snap && !FREEHAND_TOOLS.has(ui.activeTool)) {
+      world = snapWorldPoint(world.x, world.y, {
+        zoom: ui.zoom,
+        showGrid: ui.showGrid,
+        perspective: ui.perspective,
+        doc: useDocumentStore.getState().doc,
+      });
     }
     return {
       sx,
@@ -171,14 +134,20 @@ export function EditorViewport() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return;
       const store = useDocumentStore.getState();
       const ui = useUiStore.getState();
       const temporal = useDocumentStore.temporal.getState();
 
       if (e.code === "Space") spacePan.current = true;
       if (e.key === "Delete" || e.key === "Backspace") {
-        if ((e.target as HTMLElement)?.tagName === "INPUT") return;
+        if (ui.activeTool === "pen" && isPenDrawing()) {
+          e.preventDefault();
+          penTool.onKeyDown?.(e);
+          return;
+        }
         store.deleteNodes(store.selection);
+        e.preventDefault();
       }
       if (e.ctrlKey && e.key.toLowerCase() === "z") {
         e.preventDefault();
@@ -237,19 +206,16 @@ export function EditorViewport() {
         o: "ellipse",
         l: "line",
         p: "pen",
+        n: "pencil",
         b: "brush",
         t: "text",
         s: "shapeBuilder",
+        z: "zoom",
       };
       if (!e.ctrlKey && toolMap[e.key.toLowerCase()]) {
-        const next = toolMap[e.key.toLowerCase()];
-        if (ui.activeTool === "shapeBuilder" && next !== "shapeBuilder") {
-          clearShapeBuilderSession();
-        }
-        ui.setActiveTool(next);
-        if (next === "shapeBuilder") void beginShapeBuilder();
+        activateEditorTool(toolMap[e.key.toLowerCase()]);
       }
-      getTool(ui.activeTool).onKeyDown?.(e);
+      getEditorTool(useUiStore.getState().activeTool).onKeyDown?.(e);
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space") spacePan.current = false;
@@ -276,6 +242,17 @@ export function EditorViewport() {
           }
           if (ui.activeTool === "text") {
             const ev = toEvent(e);
+            const ctx = canvasRef.current?.getContext("2d");
+            const store = useDocumentStore.getState();
+            if (ctx) {
+              const hit = hitTestTopNode(ctx, store.doc, ev.wx, ev.wy, ui.zoom);
+              const existing = hit ? store.doc.nodes[hit] : null;
+              if (existing?.type === "text") {
+                store.setSelection([hit!]);
+                setEditingTextId(hit);
+                return;
+              }
+            }
             const node: TextNode = {
               id: nanoid(10),
               name: "Text",
@@ -300,7 +277,7 @@ export function EditorViewport() {
             setEditingTextId(node.id);
             return;
           }
-          getTool(ui.activeTool).onPointerDown(toEvent(e));
+          getEditorTool(ui.activeTool).onPointerDown(toEvent(e));
           (e.target as HTMLElement).setPointerCapture(e.pointerId);
           ui.markDirty();
         }}
@@ -313,7 +290,7 @@ export function EditorViewport() {
             useDocumentStore.getState().doc,
             ev.wx,
             ev.wy,
-            1,
+            useUiStore.getState().zoom,
           );
           if (!hit) return;
           const node = useDocumentStore.getState().doc.nodes[hit];
@@ -331,12 +308,17 @@ export function EditorViewport() {
             ui.setPan(ui.panX + dx, ui.panY + dy);
             return;
           }
-          getTool(ui.activeTool).onPointerMove(toEvent(e));
+          getEditorTool(ui.activeTool).onPointerMove(toEvent(e));
           ui.markDirty();
         }}
         onPointerUp={(e) => {
           panning.current = false;
-          getTool(useUiStore.getState().activeTool).onPointerUp(toEvent(e));
+          getEditorTool(useUiStore.getState().activeTool).onPointerUp(toEvent(e));
+          useUiStore.getState().markDirty();
+        }}
+        onPointerCancel={() => {
+          panning.current = false;
+          finishEditorTool(useUiStore.getState().activeTool);
           useUiStore.getState().markDirty();
         }}
         onWheel={(e) => {

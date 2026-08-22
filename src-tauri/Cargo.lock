@@ -3058,6 +3058,7 @@ name = "savage"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "i_overlay",
  "image 0.25.10",
  "resvg",

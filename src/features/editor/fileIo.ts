@@ -4,28 +4,29 @@ import { useDocumentStore } from "../../shared/stores/documentStore";
 import { useUiStore } from "../../shared/stores/uiStore";
 import { documentToSvgString } from "../../shared/document/serialize";
 import { svgStringToDocument } from "../../shared/document/deserialize";
+import { parseSavageDocument } from "../../shared/document/parseSavage";
 
-const RASTER_EXT = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff"];
+import { isRasterPath, RASTER_EXTENSIONS } from "../converter/rasterFiles";
 
 export async function openFile() {
   const selected = await open({
     multiple: false,
     filters: [
-      { name: "SaVaGe / SVG / Images", extensions: ["savage", "svg", ...RASTER_EXT] },
+      { name: "SaVaGe / SVG / Images", extensions: ["savage", "svg", ...RASTER_EXTENSIONS] },
     ],
   });
   if (typeof selected !== "string") return;
 
-  const lower = selected.toLowerCase();
-  if (RASTER_EXT.some((ext) => lower.endsWith(`.${ext}`))) {
-    useUiStore.getState().setMode("convert");
+  if (isRasterPath(selected)) {
+    const ui = useUiStore.getState();
+    ui.setPendingConvertPath(selected);
+    ui.setMode("convert");
     return selected;
   }
 
   const text = await invoke<string>("read_text_file", { path: selected });
-  if (lower.endsWith(".savage")) {
-    const doc = JSON.parse(text);
-    useDocumentStore.getState().loadDocument(doc);
+  if (selected.toLowerCase().endsWith(".savage")) {
+    useDocumentStore.getState().loadDocument(parseSavageDocument(text));
   } else {
     useDocumentStore.getState().loadDocument(svgStringToDocument(text));
   }

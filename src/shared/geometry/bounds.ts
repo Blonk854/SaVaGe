@@ -1,4 +1,4 @@
-import type { SceneNode, SvgDocument } from "../document/types";
+import type { SceneNode, SvgDocument, Transform2D } from "../document/types";
 import { applyMat, transformToMatrix } from "./transform";
 
 export interface Bounds {
@@ -94,6 +94,22 @@ export function nodeWorldBounds(doc: SvgDocument, id: string): Bounds {
   const minX = Math.min(...xs);
   const minY = Math.min(...ys);
   return { x: minX, y: minY, w: Math.max(...xs) - minX, h: Math.max(...ys) - minY };
+}
+
+/** Scale a node's transform so its world bounds match the given width/height. */
+export function transformForWorldSize(
+  transform: Transform2D,
+  bounds: Bounds,
+  width: number,
+  height: number,
+): Transform2D {
+  const w = Math.max(0.01, width);
+  const h = Math.max(0.01, height);
+  return {
+    ...transform,
+    scaleX: bounds.w > 1e-6 ? (w / bounds.w) * transform.scaleX : transform.scaleX,
+    scaleY: bounds.h > 1e-6 ? (h / bounds.h) * transform.scaleY : transform.scaleY,
+  };
 }
 
 export function selectionBounds(doc: SvgDocument, ids: string[]): Bounds {

@@ -1,58 +1,80 @@
 import { useDocumentStore } from "../../shared/stores/documentStore";
-import type { PathNode } from "../../shared/document/types";
-import { transformToMatrix } from "../../shared/geometry/transform";
+import { useUiStore } from "../../shared/stores/uiStore";
+import type { PathNode, PathPoint } from "../../shared/document/types";
+import { applyMat, invertMat, transformToMatrix } from "../../shared/geometry/transform";
 import type { Tool } from "./types";
-import { setSelectHandles } from "./selectTool";
 
 let draggingId: string | null = null;
+let draggingNodeId: string | null = null;
 let mode: "move" | "width" = "move";
-let start = { x: 0, y: 0 };
 let origin = { x: 0, y: 0 };
+let startWorld = { x: 0, y: 0 };
 let originWidth = 2;
+
+export function nearestPathPoint(
+  wx: number,
+  wy: number,
+  threshold: number,
+): { nodeId: string; point: PathPoint; dist: number } | null {
+  const doc = useDocumentStore.getState().doc;
+  let best: { nodeId: string; point: PathPoint; dist: number } | null = null;
+  for (const node of Object.values(doc.nodes)) {
+    if (node.type !== "path" || !node.visible || node.locked) continue;
+    const m = transformToMatrix(node.transform);
+    for (const sp of node.subpaths) {
+      for (const pt of sp.points) {
+        const world = applyMat(m, pt.x, pt.y);
+        const dist = Math.hypot(wx - world.x, wy - world.y);
+        if (dist < threshold && (!best || dist < best.dist)) {
+          best = { nodeId: node.id, point: pt, dist };
+        }
+      }
+    }
+  }
+  return best;
+}
 
 export const directSelectTool: Tool = {
   id: "directSelect",
   onPointerDown(e) {
+    const zoom = useUiStore.getState().zoom;
+    const thresh = 8 / Math.max(zoom, 0.05);
+    const hit = nearestPathPoint(e.wx, e.wy, thresh);
+    if (!hit) return;
     const store = useDocumentStore.getState();
-    const id = store.selection[0];
-    const node = id ? store.doc.nodes[id] : null;
-    if (!node || node.type !== "path") return;
-    const m = transformToMatrix(node.transform);
-    for (const sp of node.subpaths) {
-      for (const pt of sp.points) {
-        const wx = m.a * pt.x + m.c * pt.y + m.e;
-        const wy = m.b * pt.x + m.d * pt.y + m.f;
-        if (Math.hypot(e.wx - wx, e.wy - wy) < 6) {
-          draggingId = pt.id;
-          start = { x: e.wx, y: e.wy };
-          origin = { x: pt.x, y: pt.y };
-          originWidth = pt.strokeWidth ?? node.stroke.width;
-          mode = e.altKey ? "width" : "move";
-          return;
-        }
-      }
-    }
+    store.setSelection([hit.nodeId]);
+    draggingId = hit.point.id;
+    draggingNodeId = hit.nodeId;
+    origin = { x: hit.point.x, y: hit.point.y };
+    startWorld = { x: e.wx, y: e.wy };
+    const node = store.doc.nodes[hit.nodeId];
+    originWidth =
+      hit.point.strokeWidth ?? (node?.type === "path" ? node.stroke.width : 2);
+    mode = e.altKey ? "width" : "move";
+    useDocumentStore.temporal.getState().pause();
   },
   onPointerMove(e) {
-    if (!draggingId) return;
+    if (!draggingId || !draggingNodeId) return;
     const store = useDocumentStore.getState();
-    const id = store.selection[0];
-    const node = id ? store.doc.nodes[id] : null;
+    const node = store.doc.nodes[draggingNodeId];
     if (!node || node.type !== "path") return;
-    const dx = e.wx - start.x;
-    const dy = e.wy - start.y;
 
     if (mode === "width") {
-      const nextW = Math.max(0.5, originWidth + dx * 0.35);
+      const nextW = Math.max(0.5, originWidth + (e.wx - startWorld.x) * 0.35);
       const subpaths = node.subpaths.map((sp) => ({
         ...sp,
         points: sp.points.map((p) =>
           p.id === draggingId ? { ...p, strokeWidth: nextW } : p,
         ),
       }));
-      store.updateNode(id, { subpaths } as Partial<PathNode>);
+      store.updateNode(node.id, { subpaths } as Partial<PathNode>);
       return;
     }
+
+    const inv = invertMat(transformToMatrix(node.transform));
+    const local = inv ? applyMat(inv, e.wx, e.wy) : { x: e.wx, y: e.wy };
+    const dx = local.x - origin.x;
+    const dy = local.y - origin.y;
 
     const subpaths = node.subpaths.map((sp) => ({
       ...sp,
@@ -72,12 +94,12 @@ export const directSelectTool: Tool = {
           : p,
       ),
     }));
-    store.updateNode(id, { subpaths } as Partial<PathNode>);
+    store.updateNode(node.id, { subpaths } as Partial<PathNode>);
   },
   onPointerUp() {
+    if (draggingId) useDocumentStore.temporal.getState().resume();
     draggingId = null;
+    draggingNodeId = null;
     mode = "move";
   },
 };
-
-void setSelectHandles;

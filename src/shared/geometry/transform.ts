@@ -42,6 +42,20 @@ export function applyMat(m: Mat2D, x: number, y: number): { x: number; y: number
   };
 }
 
+export function invertMat(m: Mat2D): Mat2D | null {
+  const det = m.a * m.d - m.b * m.c;
+  if (Math.abs(det) < 1e-12) return null;
+  const id = 1 / det;
+  return {
+    a: m.d * id,
+    b: -m.b * id,
+    c: -m.c * id,
+    d: m.a * id,
+    e: (m.c * m.f - m.d * m.e) * id,
+    f: (m.b * m.e - m.a * m.f) * id,
+  };
+}
+
 export function screenToWorld(
   sx: number,
   sy: number,

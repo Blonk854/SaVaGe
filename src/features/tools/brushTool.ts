@@ -81,6 +81,7 @@ export const brushTool: Tool = {
     samples = [{ x: e.wx, y: e.wy, w: MAX_W * 0.7, t }];
     const node = toNode(samples);
     nodeId = node.id;
+    useDocumentStore.temporal.getState().pause();
     useDocumentStore.getState().addNode(node);
   },
   onPointerMove(e) {
@@ -97,8 +98,12 @@ export const brushTool: Tool = {
     useDocumentStore.getState().updateNode(nodeId, { subpaths: node.subpaths });
   },
   onPointerUp() {
+    const id = nodeId;
+    const count = samples.length;
     drawing = false;
     nodeId = null;
     samples = [];
+    useDocumentStore.temporal.getState().resume();
+    if (id && count < 2) useDocumentStore.getState().deleteNodes([id]);
   },
 };

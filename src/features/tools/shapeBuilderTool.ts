@@ -42,9 +42,10 @@ export async function beginShapeBuilder(): Promise<boolean> {
 }
 
 async function ensureSession(): Promise<Session | null> {
-  if (session && !session.busy) return session;
+  if (session?.busy) return session;
+  if (session) return session;
   const store = useDocumentStore.getState();
-  const ids = store.selection.filter((id) => store.doc.nodes[id]).slice(0, 4);
+  const ids = store.selection.filter((id) => store.doc.nodes[id]);
   const shapes = ids
     .map((id) => flattenNodeToShape(store.doc, id))
     .filter((s): s is ShapeContours => !!s && s.length > 0);

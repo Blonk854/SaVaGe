@@ -109,7 +109,7 @@ export function flattenNodeToShape(doc: SvgDocument, id: string): ShapeContours 
           sp.points[0].x - sp.points[sp.points.length - 1].x,
           sp.points[0].y - sp.points[sp.points.length - 1].y,
         ) < 0.5;
-      if (!closed && sp.points.length < 3) continue;
+      if (!closed) continue;
       const local = pathPointsToContour(sp.points, true);
       if (local.length >= 3) contours.push(toWorld(local, node));
     }

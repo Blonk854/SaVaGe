@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { useCallback, useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import wordmarkUrl from "../../assets/logo.svg";
 import bssMarkUrl from "../../assets/bss-mark.svg";
 import { Button } from "../../shared/ui/Button";
@@ -25,21 +25,30 @@ export function ConverterView() {
   const [error, setError] = useState<string | null>(null);
 
   const converting = useUiStore((s) => s.converting);
+  const pendingConvertPath = useUiStore((s) => s.pendingConvertPath);
   const setConverting = useUiStore((s) => s.setConverting);
   const setMode = useUiStore((s) => s.setMode);
   const replaceFromSvg = useDocumentStore((s) => s.replaceFromSvg);
 
-  const onFile = async (filePath: string) => {
+  const onFile = useCallback(async (filePath: string) => {
     setPath(filePath);
     setError(null);
     setSvgMarkup(null);
-    // convertFileSrc for preview when available
     try {
-      setRasterUrl(convertFileSrc(filePath));
-    } catch {
+      const url = await invoke<string>("read_image_preview", { path: filePath });
+      setRasterUrl(url);
+    } catch (e) {
       setRasterUrl(null);
+      setError(e instanceof Error ? e.message : String(e));
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!pendingConvertPath) return;
+    const filePath = pendingConvertPath;
+    useUiStore.getState().setPendingConvertPath(null);
+    void onFile(filePath);
+  }, [pendingConvertPath, onFile]);
 
   const runConvert = async () => {
     if (!path) return;
@@ -49,7 +58,6 @@ export function ConverterView() {
       const svg = await convertImageToSvg(path, options);
       setSvgMarkup(svg);
       replaceFromSvg(svg, path.split(/[/\\]/).pop() || "Converted");
-      setMode("edit");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -67,7 +75,7 @@ export function ConverterView() {
             className="converter__wordmark"
           />
         </div>
-        <DropZone disabled={converting} onFile={onFile} />
+        <DropZone disabled={converting} onFile={onFile} attachedPath={path} />
         {converting && <div className="progress-shimmer" aria-label="Converting" />}
         {error && <p className="err">{error}</p>}
         <div className="converter__actions">
@@ -80,7 +88,11 @@ export function ConverterView() {
             </Button>
           )}
         </div>
-        <ConvertPreview rasterUrl={rasterUrl} svgMarkup={svgMarkup} />
+        <ConvertPreview
+          rasterUrl={rasterUrl}
+          svgMarkup={svgMarkup}
+          rasterLabel={path?.split(/[/\\]/).pop()}
+        />
         <div className="converter__credit">
           <img
             src={bssMarkUrl}

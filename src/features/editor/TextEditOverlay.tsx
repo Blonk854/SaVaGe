@@ -47,8 +47,7 @@ export function TextEditOverlay({ nodeId, onClose }: Props) {
         onClose();
       }}
       onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-        if (e.key === "Escape") onClose();
+        if (e.key === "Enter" || e.key === "Escape") (e.target as HTMLInputElement).blur();
         e.stopPropagation();
       }}
     />

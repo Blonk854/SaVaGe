@@ -3,27 +3,23 @@ import { createEmptyDocument } from "./emptyDocument";
 import {
   defaultStroke,
   defaultTransform,
-  solidFill,
   type NodeId,
   type PathPoint,
   type PathSubpath,
   type SceneNode,
   type SvgDocument,
-  type Paint,
   type StrokeStyle,
 } from "./types";
+import {
+  collectPaintServers,
+  resolvePaint,
+  SKIP_TAGS,
+  type PaintServerMap,
+} from "./svgPaints";
 
-function parsePaint(el: Element, attr: "fill" | "stroke"): Paint {
-  const raw = el.getAttribute(attr);
-  if (!raw || raw === "none") return { type: "none" };
-  const opacityAttr = el.getAttribute(`${attr}-opacity`);
-  const opacity = opacityAttr ? Number(opacityAttr) : 1;
-  return solidFill(raw, Number.isFinite(opacity) ? opacity : 1);
-}
-
-function parseStroke(el: Element): StrokeStyle {
+function parseStroke(el: Element, servers: PaintServerMap): StrokeStyle {
   const stroke = defaultStroke();
-  stroke.paint = parsePaint(el, "stroke");
+  stroke.paint = resolvePaint(el, "stroke", servers);
   const w = el.getAttribute("stroke-width");
   if (w) stroke.width = Number(w) || 1;
   const cap = el.getAttribute("stroke-linecap");
@@ -71,7 +67,7 @@ function baseFromEl(el: Element, name: string, id?: string) {
   };
 }
 
-/** Minimal path `d` parser for M/L/C/Z (absolute & relative). */
+/** Path `d` parser: M/L/H/V/C/S/Q/T/A/Z (absolute & relative). Arcs become line segments. */
 export function parsePathD(d: string): PathSubpath[] {
   const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g) ?? [];
   const subpaths: PathSubpath[] = [];
@@ -80,6 +76,12 @@ export function parsePathD(d: string): PathSubpath[] {
   let cx = 0;
   let cy = 0;
   let current: PathSubpath | null = null;
+  let lastCx1 = 0;
+  let lastCy1 = 0;
+  let lastQx = 0;
+  let lastQy = 0;
+  let haveCubic = false;
+  let haveQuad = false;
 
   const num = () => Number(tokens[i++]);
   const pushPoint = (x: number, y: number, type: PathPoint["type"] = "corner") => {
@@ -109,6 +111,8 @@ export function parsePathD(d: string): PathSubpath[] {
         current = { closed: false, points: [] };
         subpaths.push(current);
         pushPoint(cx, cy);
+        haveCubic = false;
+        haveQuad = false;
         cmd = rel ? "l" : "L";
         break;
       }
@@ -120,6 +124,8 @@ export function parsePathD(d: string): PathSubpath[] {
         cx = rel ? cx + x : x;
         cy = rel ? cy + y : y;
         pushPoint(cx, cy);
+        haveCubic = false;
+        haveQuad = false;
         break;
       }
       case "H":
@@ -127,6 +133,8 @@ export function parsePathD(d: string): PathSubpath[] {
         const x = num();
         cx = cmd === "h" ? cx + x : x;
         pushPoint(cx, cy);
+        haveCubic = false;
+        haveQuad = false;
         break;
       }
       case "V":
@@ -134,6 +142,8 @@ export function parsePathD(d: string): PathSubpath[] {
         const y = num();
         cy = cmd === "v" ? cy + y : y;
         pushPoint(cx, cy);
+        haveCubic = false;
+        haveQuad = false;
         break;
       }
       case "C":
@@ -167,11 +177,147 @@ export function parsePathD(d: string): PathSubpath[] {
           handleIn: { x: absX2, y: absY2 },
           type: "smooth",
         });
+        lastCx1 = absX2;
+        lastCy1 = absY2;
+        haveCubic = true;
+        haveQuad = false;
+        break;
+      }
+      case "S":
+      case "s": {
+        const rel = cmd === "s";
+        const x2 = num();
+        const y2 = num();
+        const x = num();
+        const y = num();
+        const absX2 = rel ? cx + x2 : x2;
+        const absY2 = rel ? cy + y2 : y2;
+        const absX1 = haveCubic ? 2 * cx - lastCx1 : cx;
+        const absY1 = haveCubic ? 2 * cy - lastCy1 : cy;
+        if (current && current.points.length) {
+          const prev = current.points[current.points.length - 1];
+          prev.handleOut = { x: absX1, y: absY1 };
+          prev.type = "smooth";
+        }
+        cx = rel ? cx + x : x;
+        cy = rel ? cy + y : y;
+        if (!current) {
+          current = { closed: false, points: [] };
+          subpaths.push(current);
+        }
+        current.points.push({
+          id: nanoid(8),
+          x: cx,
+          y: cy,
+          handleIn: { x: absX2, y: absY2 },
+          type: "smooth",
+        });
+        lastCx1 = absX2;
+        lastCy1 = absY2;
+        haveCubic = true;
+        haveQuad = false;
+        break;
+      }
+      case "Q":
+      case "q": {
+        const rel = cmd === "q";
+        const x1 = num();
+        const y1 = num();
+        const x = num();
+        const y = num();
+        const qx = rel ? cx + x1 : x1;
+        const qy = rel ? cy + y1 : y1;
+        const px = current?.points.length
+          ? current.points[current.points.length - 1].x
+          : cx;
+        const py = current?.points.length
+          ? current.points[current.points.length - 1].y
+          : cy;
+        const c1 = { x: px + (2 / 3) * (qx - px), y: py + (2 / 3) * (qy - py) };
+        cx = rel ? cx + x : x;
+        cy = rel ? cy + y : y;
+        const c2 = { x: cx + (2 / 3) * (qx - cx), y: cy + (2 / 3) * (qy - cy) };
+        if (current && current.points.length) {
+          const prev = current.points[current.points.length - 1];
+          prev.handleOut = c1;
+          prev.type = "smooth";
+        }
+        if (!current) {
+          current = { closed: false, points: [] };
+          subpaths.push(current);
+        }
+        current.points.push({
+          id: nanoid(8),
+          x: cx,
+          y: cy,
+          handleIn: c2,
+          type: "smooth",
+        });
+        lastQx = qx;
+        lastQy = qy;
+        haveQuad = true;
+        haveCubic = false;
+        break;
+      }
+      case "T":
+      case "t": {
+        const rel = cmd === "t";
+        const x = num();
+        const y = num();
+        const qx = haveQuad ? 2 * cx - lastQx : cx;
+        const qy = haveQuad ? 2 * cy - lastQy : cy;
+        const px = current?.points.length
+          ? current.points[current.points.length - 1].x
+          : cx;
+        const py = current?.points.length
+          ? current.points[current.points.length - 1].y
+          : cy;
+        const c1 = { x: px + (2 / 3) * (qx - px), y: py + (2 / 3) * (qy - py) };
+        cx = rel ? cx + x : x;
+        cy = rel ? cy + y : y;
+        const c2 = { x: cx + (2 / 3) * (qx - cx), y: cy + (2 / 3) * (qy - cy) };
+        if (current && current.points.length) {
+          const prev = current.points[current.points.length - 1];
+          prev.handleOut = c1;
+        }
+        if (!current) {
+          current = { closed: false, points: [] };
+          subpaths.push(current);
+        }
+        current.points.push({
+          id: nanoid(8),
+          x: cx,
+          y: cy,
+          handleIn: c2,
+          type: "smooth",
+        });
+        lastQx = qx;
+        lastQy = qy;
+        haveQuad = true;
+        haveCubic = false;
+        break;
+      }
+      case "A":
+      case "a": {
+        num();
+        num();
+        num();
+        num();
+        num();
+        const x = num();
+        const y = num();
+        cx = cmd === "a" ? cx + x : x;
+        cy = cmd === "a" ? cy + y : y;
+        pushPoint(cx, cy);
+        haveCubic = false;
+        haveQuad = false;
         break;
       }
       case "Z":
       case "z": {
         if (current) current.closed = true;
+        haveCubic = false;
+        haveQuad = false;
         cmd = "";
         break;
       }
@@ -189,12 +335,13 @@ function ingestElement(
   el: Element,
   doc: SvgDocument,
   parentChildren: NodeId[],
+  servers: PaintServerMap,
 ): void {
-  const tag = el.tagName.toLowerCase();
-  if (tag === "defs" || el.hasAttribute("data-artboard")) return;
+  const tag = (el.localName || el.tagName).toLowerCase();
+  if (SKIP_TAGS.has(tag) || el.hasAttribute("data-artboard")) return;
   if (tag === "svg") {
     for (const child of Array.from(el.children)) {
-      ingestElement(child, doc, parentChildren);
+      ingestElement(child, doc, parentChildren, servers);
     }
     return;
   }
@@ -212,7 +359,7 @@ function ingestElement(
     doc.nodes[id] = node;
     parentChildren.push(id);
     for (const child of Array.from(el.children)) {
-      ingestElement(child, doc, children);
+      ingestElement(child, doc, children, servers);
     }
     return;
   }
@@ -223,8 +370,8 @@ function ingestElement(
       ...baseFromEl(el, "Path", id),
       type: "path",
       subpaths: parsePathD(el.getAttribute("d") || ""),
-      fill: parsePaint(el, "fill"),
-      stroke: parseStroke(el),
+      fill: resolvePaint(el, "fill", servers),
+      stroke: parseStroke(el, servers),
       fillRule: el.getAttribute("fill-rule") === "evenodd" ? "evenodd" : "nonzero",
     };
   } else if (tag === "rect") {
@@ -242,8 +389,8 @@ function ingestElement(
       height: Number(el.getAttribute("height") ?? 0),
       rx: Number(el.getAttribute("rx") ?? 0),
       ry: Number(el.getAttribute("ry") ?? 0),
-      fill: parsePaint(el, "fill"),
-      stroke: parseStroke(el),
+      fill: resolvePaint(el, "fill", servers),
+      stroke: parseStroke(el, servers),
     };
   } else if (tag === "ellipse" || tag === "circle") {
     const id = el.getAttribute("id") || nanoid(10);
@@ -259,8 +406,8 @@ function ingestElement(
       type: "ellipse",
       rx: tag === "circle" ? r : Number(el.getAttribute("rx") ?? 0),
       ry: tag === "circle" ? r : Number(el.getAttribute("ry") ?? 0),
-      fill: parsePaint(el, "fill"),
-      stroke: parseStroke(el),
+      fill: resolvePaint(el, "fill", servers),
+      stroke: parseStroke(el, servers),
     };
   } else if (tag === "line") {
     const id = el.getAttribute("id") || nanoid(10);
@@ -275,7 +422,7 @@ function ingestElement(
       type: "line",
       x2: Number(el.getAttribute("x2") ?? 0) - x1,
       y2: Number(el.getAttribute("y2") ?? 0) - y1,
-      stroke: parseStroke(el),
+      stroke: parseStroke(el, servers),
     };
   } else if (tag === "polygon" || tag === "polyline") {
     const id = el.getAttribute("id") || nanoid(10);
@@ -292,8 +439,8 @@ function ingestElement(
       ...baseFromEl(el, tag === "polygon" ? "Polygon" : "Polyline", id),
       type: "path",
       subpaths: [{ closed: tag === "polygon", points }],
-      fill: parsePaint(el, "fill"),
-      stroke: parseStroke(el),
+      fill: resolvePaint(el, "fill", servers),
+      stroke: parseStroke(el, servers),
       fillRule: "nonzero",
     };
   } else if (tag === "text") {
@@ -307,8 +454,8 @@ function ingestElement(
       fontWeight: Number(el.getAttribute("font-weight") ?? 400),
       letterSpacing: Number(el.getAttribute("letter-spacing") ?? 0),
       lineHeight: 1.2,
-      fill: parsePaint(el, "fill"),
-      stroke: parseStroke(el),
+      fill: resolvePaint(el, "fill", servers),
+      stroke: parseStroke(el, servers),
     };
   }
 
@@ -317,7 +464,7 @@ function ingestElement(
     parentChildren.push(node.id);
   } else {
     for (const child of Array.from(el.children)) {
-      ingestElement(child, doc, parentChildren);
+      ingestElement(child, doc, parentChildren, servers);
     }
   }
 }
@@ -346,6 +493,7 @@ export function svgStringToDocument(svg: string, name = "Converted"): SvgDocumen
     doc.artboards[0].width = viewBox.w;
     doc.artboards[0].height = viewBox.h;
   }
-  ingestElement(root, doc, doc.rootChildIds);
+  const servers = collectPaintServers(root);
+  ingestElement(root, doc, doc.rootChildIds, servers);
   return doc;
 }

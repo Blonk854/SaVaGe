@@ -1,7 +1,6 @@
 # SaVaGe User Manual
 
-**Product:** SaVaGe — desktop image→SVG converter and vector editor  
-**Platform:** Windows-first (Tauri 2)  
+**Product:** SaVaGe — image-to-SVG converter and vector editor for Windows  
 **Document version:** matches application v0.1.0
 
 ---
@@ -12,9 +11,9 @@
 |---|---|
 | New to vector graphics | [Quick start](#1-quick-start) → [Convert](#3-convert-mode) → [Edit basics](#4-edit-mode-basics) |
 | Comfortable with Illustrator / Inkscape | [Workspace map](#2-workspace-map) → [Tools reference](#5-tools-reference) → [Advanced](#8-advanced-editing) |
-| Integrating or extending SaVaGe | [File formats](#9-files-export--clipboard) → [Plugins](#10-plugins) → [Limitations](#12-known-limitations--best-practices) |
+| Looking up a menu or key | [Menus](#7-menus) → [Keyboard shortcuts](#11-keyboard-shortcuts-cheat-sheet) |
 
-In the app: **Help → User Manual (PDF)…** opens this guide in your system PDF viewer.
+Inside SaVaGe, **Help → User Manual (PDF)…** opens this guide in your usual PDF viewer.
 
 Keyboard shortcuts appear in **bold** (for example **V** for Select). Menu paths use **File → Open…** style.
 
@@ -42,18 +41,16 @@ Keyboard shortcuts appear in **bold** (for example **V** for Select). Menu paths
 
 ### 1.1 Launch
 
-Run SaVaGe from your project folder (developer build):
+Open SaVaGe the same way you open any Windows app:
 
-```powershell
-$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-pnpm tauri:dev
-```
+- Double-click the **SaVaGe** shortcut on the desktop or in the Start menu, or  
+- Double-click `SaVaGe.exe` in the folder where you installed it.
 
-Or open the installed desktop app if you built a release with `pnpm tauri:build`.
+SaVaGe opens in **Convert** mode: dark graphite window, lime accent, SaVaGe wordmark.
 
-SaVaGe opens in **Convert** mode: dark graphite UI, lime accent, SaVaGe wordmark.
+You do not need a terminal, PowerShell, or developer tools to run the program.
 
-### 1.2 Your first conversion (beginner path)
+### 1.2 Your first conversion
 
 1. Drag a PNG, JPEG, WEBP, GIF, BMP, or TIFF onto the drop zone — or click **Open Image…**.
 2. Pick a preset that matches the art:
@@ -63,18 +60,21 @@ SaVaGe opens in **Convert** mode: dark graphite UI, lime accent, SaVaGe wordmark
    - **Pixel** — pixel art / hard block shapes  
 3. Optionally tweak **Color precision**, **Filter speckle**, **Corner threshold**, **Path precision**, and **Mode**.
 4. Click **Convert to SVG**.
-5. When tracing finishes, SaVaGe switches to **Edit** mode with vector layers ready to refine.
+5. Check the side-by-side **Raster | SVG** preview.
+6. Click **Open in Editor** (or switch the toolbar to **Edit**) to refine the vectors.
+
+You can also start from **File → Open…**: choosing a photo or PNG switches you to Convert and attaches that file automatically.
 
 ### 1.3 Your first edit
 
-1. Press **V** (Select). Click a shape; drag to move. Use corner/edge handles to resize; use the rotate handle to rotate.
-2. Open the **Props** tab on the right. Change fill color or opacity.
+1. Press **V** (Select). Click a shape; drag to move. Use corner and edge handles to resize; use the rotate handle to rotate.
+2. Open the **Props** tab on the right. Change fill color or opacity. **W** and **H** set the object’s on-canvas size.
 3. **File → Save Project…** and save a `.savage` file (best fidelity).  
    Or **File → Export SVG…** / **Export PNG…** for delivery.
 
-### 1.4 Five-minute power path (experienced users)
+### 1.4 Five-minute power path
 
-Convert with **Logo** preset → Edit → boolean Unite overlapping paths → Shape Builder (**S**) to carve → Create Symbol → Mesh fill on a hero shape → Export SVG + keep `.savage` master.
+Convert with **Logo** preset → **Open in Editor** → Unite overlapping paths → Shape Builder (**S**) to carve → Create Symbol → Mesh fill on a hero shape → Export SVG and keep a `.savage` master.
 
 ---
 
@@ -82,9 +82,9 @@ Convert with **Logo** preset → Edit → boolean Unite overlapping paths → Sh
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ TitleBar: SaVaGe · File  Edit  Object  View  Help             │
+│ Title bar: SaVaGe · File  Edit  Object  View  Help           │
 ├──────────────────────────────────────────────────────────────┤
-│ Toolbar: Convert | Edit · Zoom · Fit · Grid · Snap · Persp │
+│ Toolbar: Convert | Edit · Zoom · Fit · Grid · Snap · Persp   │
 ├────┬───────────────────────────────────────────┬─────────────┤
 │    │                                           │ Layers      │
 │ T  │         Main: Convert UI or Canvas        │ Props       │
@@ -93,78 +93,83 @@ Convert with **Logo** preset → Edit → boolean Unite overlapping paths → Sh
 │ l  │                                           │ Plug        │
 │ s  │                                           │ Align/Bool  │
 ├────┴───────────────────────────────────────────┴─────────────┤
-│ Status: zoom · selection count · mode · tool · frame ms      │
+│ Status: zoom · selection count · mode · tool · refresh time  │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+The left tool rail is active in **Edit** mode only.
 
 ### 2.1 Modes
 
 | Mode | Purpose |
 |---|---|
-| **Convert** | Import raster art and trace it to SVG with vtracer (Rust) |
-| **Edit** | Full vector scene: draw, style, boolean, symbols, export |
+| **Convert** | Import a bitmap and trace it to editable SVG |
+| **Edit** | Draw, style, boolean, symbols, and export |
 
-Switch with the **Convert | Edit** control in the toolbar. Successful conversion also jumps to Edit automatically.
+Switch with the **Convert | Edit** control in the toolbar. After a successful trace, stay on Convert to compare the preview, then click **Open in Editor** when you are ready.
 
 ### 2.2 Status bar
 
-Bottom strip shows:
+The bottom strip shows:
 
 - Zoom percentage  
-- Number of selected objects  
+- How many objects are selected  
 - Current mode and active tool  
-- Last frame time in milliseconds (warns visually when over ~16 ms)
+- Last screen-refresh time (turns amber when the drawing is heavy)
 
-Transient toasts (boolean results, clip masks, plugin messages) appear over the main view.
+Short confirmation messages (boolean results, clip masks, plugin actions) appear as toasts over the main view.
 
 ---
 
 ## 3. Convert mode
 
-Convert turns bitmaps into editable vector paths. Tracing runs in Rust (`vtracer`) for speed and quality.
+Convert turns bitmaps into editable vector paths.
 
 ### 3.1 Loading an image
 
 | Method | Notes |
 |---|---|
-| Drag and drop | Preferred; uses the file path from the OS drop |
+| Drag and drop | Drop a raster file onto the large drop zone |
 | **Open Image…** | File dialog for png / jpg / jpeg / gif / webp / bmp / tif / tiff |
+| **File → Open…** | Same raster types; SaVaGe switches to Convert and attaches the file |
 
-While converting, the drop zone is disabled and a progress indicator appears.
+A thumbnail of the source appears after the file is attached. While converting, the drop zone is disabled and a progress indicator appears. Non-image files dropped on Convert are ignored.
 
 ### 3.2 Presets (start here)
 
 Presets apply a full option set. Choose the closest match, then fine-tune.
 
-| Preset | Best for | Technical tendency |
+| Preset | Best for | Tendency |
 |---|---|---|
-| **Logo / flat** | Logos, icons, UI graphics | Color mode; moderate color precision; light speck filtering; spline paths |
-| **Photo** | Photos, soft shading | Slightly coarser color, stronger speck filter |
-| **Line art** | Ink drawings, comics | Binary-style color treatment; very low color precision |
-| **Pixel** | Pixel art | Pixel path mode; path precision 0; no speck filter |
+| **Logo / flat** | Logos, icons, UI graphics | Solid colors, light cleanup, smooth curves |
+| **Photo** | Photos, soft shading | Fewer colors, stronger speck cleanup |
+| **Line art** | Ink drawings, comics | High-contrast, few colors |
+| **Pixel** | Pixel art | Blocky 1:1 pixel shapes |
 
-### 3.3 Trace options (detail)
+### 3.3 Trace options
 
-| Control | What it does | Amateur tip | Pro tip |
+| Control | What it does | Tip | Power user |
 |---|---|---|---|
-| **Color precision** | How finely colors are quantized | Higher = more colors / heavier SVG | Lower for flat brand marks; raise for photos |
-| **Filter speckle** | Removes tiny islands | Increase if noisy | Trade detail vs cleanliness before Simplify Path |
+| **Color precision** | How many distinct colors to keep | Higher = more colors and a heavier file | Lower for flat brand marks; raise for photos |
+| **Filter speckle** | Removes tiny islands of noise | Increase if the result looks speckled | Clean up here before **Simplify Path** |
 | **Corner threshold** | Corner vs curve bias | Default is fine for logos | Lower for sharper corners; higher for smoother bends |
-| **Path precision** | Numeric / geometric fidelity of paths | Leave default unless SVG is huge | Lower to reduce node count after convert |
-| **Mode** | `spline` / `polygon` / `pixel` | Use **spline** for logos | **polygon** for faceted look; **pixel** for 1:1 pixel blocks |
+| **Path precision** | How tightly paths follow the original | Leave default unless the SVG is huge | Lower to reduce point count |
+| **Mode** | Spline / Polygon / Pixel | Use **Spline** for logos | **Polygon** for a faceted look; **Pixel** for 1:1 blocks |
 
-Some engine knobs (splice threshold, hierarchical clustering, layer difference, max dimension) are applied by presets internally and are not all exposed in the form.
+A few extra engine settings come with each preset and are not shown as separate sliders.
 
 ### 3.4 Preview and continue
 
-After conversion you get a side-by-side **Raster | SVG** preview when available. SaVaGe loads the SVG into the document store and opens **Edit**.
+After conversion you get a side-by-side **Raster | SVG** preview. The traced drawing is already loaded into the document.
 
-**Open in Editor** is available if SVG markup was already produced and you stayed on Convert.
+- Click **Open in Editor** to refine it on the canvas.  
+- Or switch the toolbar to **Edit** at any time.  
+- Stay on Convert if you want to change options and convert again before editing.
 
 ### 3.5 Convert workflow tips
 
 - Start with the smallest useful image that still has clean edges (very large photos produce heavy path sets).  
-- Logo art with solid fills converts cleaner than anti-aliased soft shadows.  
+- Logo art with solid fills converts cleaner than soft, anti-aliased shadows.  
 - After convert, use **Object → Simplify Path** on noisy selections before booleans.
 
 ---
@@ -176,31 +181,35 @@ After conversion you get a side-by-side **Raster | SVG** preview when available.
 | Action | How |
 |---|---|
 | Pan | **H** (Pan tool), hold **Space** + drag, or middle-mouse drag |
-| Zoom | Scroll wheel (zooms toward cursor) |
+| Zoom toward cursor | Scroll wheel |
+| Zoom tool | **Z** — click to zoom in, **Alt-click** to zoom out |
 | Zoom buttons | Toolbar **−** / **%** / **+** |
 | Fit active artboard | Toolbar **Fit**, **View → Fit Artboard**, or **Ctrl+0** |
 | Fit selection | **View → Fit Selection** or **Ctrl+2** |
-| Zoom 100% | Click zoom %, **View → Zoom 100%**, or **Ctrl+1** |
+| Zoom 100% | Click the zoom %, **View → Zoom 100%**, or **Ctrl+1** |
+| Zoom 50% / 200% | **View** menu |
 
 ### 4.2 Selecting and transforming
 
 1. Activate **Select** (**V**).  
-2. Click an object. **Shift+click** to add/remove from the selection.  
-3. Drag the body to move.  
-4. Drag handles to resize (**Shift** constrains).  
-5. Use the rotate handle to rotate.  
+2. Click an object. **Shift+click** to add or remove from the selection.  
+3. Drag the object to move it.  
+4. Drag handles to resize. The opposite edge or corner stays put. **Shift** keeps proportions.  
+5. Use the rotate handle to rotate around the selection’s center.  
 6. Arrow keys nudge 1 px; **Shift+arrows** nudge 10 px.
 
-**Ctrl+A** selects all. **Delete** / **Backspace** deletes the selection (ignored while typing in fields).
+**Ctrl+A** selects all. **Delete** or **Backspace** deletes the selection. While you are typing in a field (Properties, text overlay, and similar), those keys edit the field instead of the canvas.
+
+Clicking empty canvas clears the selection. Locked objects cannot be clicked; unlock them in Layers first.
 
 ### 4.3 Undo and history
 
 | Action | Shortcut / menu |
 |---|---|
-| Undo | **Ctrl+Z** · Edit → Undo |
-| Redo | **Ctrl+Shift+Z** or **Ctrl+Y** · Edit → Redo |
+| Undo | **Ctrl+Z** · **Edit → Undo** |
+| Redo | **Ctrl+Shift+Z** or **Ctrl+Y** · **Edit → Redo** |
 
-History is document-scoped (Zundo). Prefer finishing a stroke before undoing mid-drag when possible.
+A full drag, stroke, or resize counts as one undo step. Switching tools while you are still dragging finishes that shape first.
 
 ### 4.4 Layers at a glance
 
@@ -210,41 +219,48 @@ Open the **Layers** tab:
 - Click to select  
 - Toggle visibility and lock  
 - Double-click to rename  
-- Drag to reorder among root items  
+- Drag to reorder among top-level items  
 - Groups show nested children indented
 
 ### 4.5 Properties at a glance
 
-Open **Props** (first selected object):
+Open **Props** (it always inspects the **first** object in the selection):
 
-- Position **X / Y**, rotation **R**, opacity  
-- **W / H** are informational (resize on-canvas with handles)  
-- Fill and stroke paint editors  
+- Position **X / Y**, size **W / H**, rotation **R**, opacity  
+- Fill and stroke  
 - Stroke width  
 - Effects: blur, drop shadow  
-- Text and symbol-specific controls when relevant  
+- Extra controls for text and symbols when those are selected  
+
+Changing **W** or **H** scales the object to that size on the canvas.
 
 ---
 
 ## 5. Tools reference
 
-Tools live in the left rail (Edit mode only). Click an icon or use a shortcut.
+Tools live in the left rail (Edit mode only). Click an icon or use a shortcut. Hover an icon to see its name.
+
+A click without a drag is ignored for drawing tools (no leftover 1-pixel specks). Switching to another tool while drawing finishes the current shape.
 
 ### 5.1 Navigation & selection
 
 #### Select — **V**
 
-Hit-tests objects under the pointer. Supports move, multi-select (**Shift**), scale, and rotate via chrome handles.
+Click objects to select them. Move, multi-select (**Shift**), scale, and rotate with the handles around the selection.
 
 #### Direct Select — **A**
 
-Edits individual path points (anchors). Drag a point to move it (handles move with the point when present).
+Edits individual path points. Click near an anchor (on any path) to select that path and drag the point. Curve handles travel with the point.
 
-**Variable width:** hold **Alt** and drag a point horizontally to change that point’s local stroke width. See [Variable-width strokes](#85-variable-width-strokes).
+**Variable width:** hold **Alt** and drag a point to change that point’s local stroke width. See [Variable-width strokes](#85-variable-width-strokes).
 
 #### Pan — **H**
 
-Drag the canvas. Prefer Space-pan for temporary panning without leaving your draw tool.
+Drag the canvas. Hold **Space** for a temporary pan without leaving your current drawing tool.
+
+#### Zoom — **Z**
+
+Click the canvas to zoom in around the pointer. **Alt-click** zooms out. The scroll wheel still zooms toward the cursor at any time.
 
 ### 5.2 Shape tools
 
@@ -252,63 +268,66 @@ Drag the canvas. Prefer Space-pan for temporary panning without leaving your dra
 |---|---|---|---|
 | Rectangle | **R** | Drag | **Shift** square · **Alt** from center |
 | Ellipse | **O** | Drag | **Shift** circle · **Alt** from center |
-| Line | **L** | Drag | — |
-| Polygon | — | Drag radius | Regular hexagon (6 sides) |
-| Star | — | Drag radius | 5-point star |
+| Line | **L** | Drag | **Shift** snaps to horizontal, vertical, or 45° |
+| Polygon | — | Drag out the radius | Regular hexagon (6 sides) |
+| Star | — | Drag out the radius | 5-point star |
 
-Shapes land as scene nodes with default fill/stroke (brand lime accent where applicable).
+New shapes use the lime accent fill where it fits the tool.
 
 ### 5.3 Path tools
 
 #### Pen — **P**
 
-Click to place corner anchors. Drag while placing to create Bézier handles. Click near the first point to close.  
+Click to place corner anchors. Drag while placing to create Bézier handles. Click near the first point (the snap distance stays the same at any zoom) to close the path.
 
 | Key | Action |
 |---|---|
-| **Enter** or **Esc** | Finish the path |
-| **Backspace** | Remove the last point |
+| **Enter** or **Esc** | Finish the path (leave it on the canvas) |
+| **Backspace** | Remove the last point (does not delete the whole path) |
 
-#### Pencil
+Leaving the Pen tool also finishes the current path so the next Pen session starts fresh.
 
-Freehand stroke simplified into an open path. Good for roughing silhouettes; refine with Direct Select or Simplify Path.
+#### Pencil — **N**
+
+Freehand stroke, simplified into an open path. Good for roughing silhouettes; refine with Direct Select or **Simplify Path**. Grid snap is off while you draw so the stroke follows your hand.
 
 #### Brush (calligraphy) — **B**
 
-Speed-sensitive calligraphy: faster motion → thinner ribbon. Result is a **closed filled path** (not a uniform stroke), which booleans and fills treat as solid geometry.
+Speed-sensitive calligraphy: faster motion → thinner ribbon. The result is a **closed filled path** (not a simple outline), so fills and booleans treat it as solid geometry. Grid snap is off while you draw.
 
 ### 5.4 Pattern Brush & Scatter Brush
 
 | Tool | Result |
 |---|---|
-| **Pattern Brush** | Chevron motifs stamped along your stroke at regular spacing, tangent-aligned, grouped |
-| **Scatter Brush** | Leaf-like motifs with position jitter, rotation noise, and scale variation, grouped |
+| **Pattern Brush** | Chevron motifs stamped along your stroke at regular spacing, grouped |
+| **Scatter Brush** | Leaf-like motifs with position jitter, rotation, and scale variation, grouped |
 
-**How to use:** select the tool → drag a gesture → release. SaVaGe creates a group containing stamp paths.
+**How to use:** choose the tool → drag a gesture → release. SaVaGe creates a group of stamp paths. A click without a drag does nothing. Grid snap is off while you stroke.
 
-**Pro note:** stamps are real vector paths. Ungroup (or expand by detaching structure manually) if you need per-stamp boolean work. Spacing/jitter are currently fixed in-tool (not yet exposed as brush settings UI).
+Stamps are ordinary vector paths. Ungroup if you need to edit or boolean individual stamps. Spacing and jitter are fixed in this release (not yet shown as sliders).
 
 ### 5.5 Shape Builder — **S**
 
-Interactive region sculpting for overlapping filled shapes (rect, ellipse, closed path; up to **four** selected shapes).
+Interactive region sculpting for overlapping filled shapes (rectangles, ellipses, closed paths).
 
 1. Select two or more overlapping shapes.  
-2. Activate **Shape Builder** (**S**). SaVaGe decomposes atomic regions.  
+2. Activate **Shape Builder** (**S**). SaVaGe splits them into atomic regions.  
 3. Regions tint **green** (kept) or **red** (discarded). Click a region to toggle.  
-4. Press **Enter** (or **Object → Commit Shape Builder** / sidebar button) to union kept regions into one path and remove sources.  
+4. Press **Enter** (or **Object → Commit Shape Builder**, or the sidebar button) to merge kept regions into one path and remove the originals.  
 5. **Esc** cancels and returns to Select.
 
-Requires flattenable closed geometry. Open strokes and text are not valid region sources until converted/outlined.
+Works on closed fills only. Open pencil strokes and live text are not valid sources until you convert them (for text: **Object → Convert Text to Outlines**). You can sculpt more than a handful of overlapping shapes in one pass.
 
 ### 5.6 Text — **T**
 
-Click the canvas to place a text object (default “Text”), then edit inline. Double-click existing text to edit.  
+- Click empty canvas to place a new text object (starts as “Text”) and type.  
+- Click an existing text object with the Text tool — or double-click it with Select — to edit it.  
 
-**Enter** commits; **Esc** cancels the overlay edit.  
+**Enter** or **Esc** finishes editing and keeps what you typed. Click away from the field to do the same.
 
-Typography fields: content, font size, weight (Props). Face defaults to the UI family (`DM Sans Variable`).
+Typography fields in Props: content, font size, weight. New text uses **DM Sans**.
 
-**Convert Text to Outlines:** Object menu or Props button. Implementation rasterizes the text glyph silhouette and extracts contours — useful for logo lockups, not a full font-outline engine. Prefer outlining late in the pipeline.
+**Convert Text to Outlines:** **Object** menu or the button in Props. SaVaGe turns the letters into real paths using the bundled faces **DM Sans** and **Syne**. Outline late if you still need to edit the live wording. Other font names will outline with the closest bundled face.
 
 ---
 
@@ -316,39 +335,39 @@ Typography fields: content, font size, weight (Props). Face defaults to the UI f
 
 ### 6.1 Layers
 
-Hierarchical list of the scene graph. Use it for selection, visibility, locking, naming, and root reordering. Nested group children appear indented.
+Hierarchical list of everything on the canvas. Use it for selection, visibility, locking, naming, and reordering. Nested group children appear indented.
 
 ### 6.2 Props (Properties)
 
-Context-sensitive inspector for the **first** selected node.
+Context-sensitive inspector for the **first** selected object.
 
-#### Paint editor (fill / stroke)
+#### Paint (fill / stroke)
 
 | Type | Behavior |
 |---|---|
 | **Solid** | Single color |
 | **Linear** | Linear gradient with editable stop colors |
 | **Radial** | Radial gradient with editable stop colors |
-| **Mesh** | Grid mesh gradient; edit corner (control point) colors |
+| **Mesh** | Grid mesh gradient; edit corner colors |
 | **None** | No paint |
 
-Stroke width uses a slider. Mesh fills are rasterized for canvas preview; SVG export approximates mesh with a patterned set of flat polygons (see limitations).
+Stroke width uses a slider. Mesh fills look correct on the SaVaGe canvas. Exported SVG uses a native mesh gradient that Inkscape understands. Many web browsers still do not paint mesh fills — keep a `.savage` master or export PNG when the raster look must match.
 
 #### Path: variable width
 
 For path objects:
 
-- **Taper ends** — applies a sine-like width profile along each subpath  
-- **Clear profile** — removes per-point widths (returns to uniform stroke width)
+- **Taper ends** — applies a width profile along each subpath  
+- **Clear profile** — removes per-point widths (back to a uniform stroke)
 
 #### Effects
 
-- **Blur** — Gaussian-style blur via canvas filter / SVG filter on export  
-- **Drop shadow** — offset, blur, color/opacity (enable via shadow controls)
+- **Blur** — softens the object  
+- **Drop shadow** — offset, blur, color, and opacity  
 
 #### Clip
 
-If the node has a clip mask, release it from Props or Object menu. Otherwise a short tip explains the make-mask workflow.
+If the object has a clip mask, release it from Props or **Object → Release Clip Mask**. Otherwise a short tip explains how to make one.
 
 ### 6.3 Boards (Artboards)
 
@@ -356,29 +375,29 @@ Multiple artboards live in one document.
 
 | Action | How |
 |---|---|
-| Activate | Click a board (fits view to it) |
+| Activate | Click a board (fits the view to it) |
 | Add | **+** or **Object → New Artboard** |
 | Rename | Double-click the name |
 | Delete | × (at least one board must remain) |
 
-The active artboard draws with a stronger accent frame and label on the canvas. View → **Fit All Artboards** frames every board.
+The active artboard draws with a stronger accent frame and label. **View → Fit All Artboards** frames every board.
 
 ### 6.4 Symbols
 
-Reusable masters stored outside the main drawing tree; instances reference a master.
+Reusable masters stored once; instances on the canvas all follow that master.
 
 | Action | How |
 |---|---|
-| Create | Select artwork → **+** / Create from selection / **Object → Create Symbol** |
+| Create | Select artwork → **+** in the panel, or **Object → Create Symbol** |
 | Place | Click a symbol name in the panel |
-| Detach | Select an instance → Detach (panel, Props, or Object menu) |
-| Delete definition | × on the symbol row (instances may draw empty if master is gone) |
+| Detach | Select an instance → Detach (panel, Props, or **Object → Detach Symbol**) |
+| Delete definition | × on the symbol row — placed copies are expanded into ordinary objects first so artwork is not lost |
 
 Creating a symbol replaces the selection with an instance of the new master.
 
 ### 6.5 Plug (Plugins)
 
-Lists registered plugins and runs their commands. Ships with three built-ins (see [Plugins](#10-plugins)).
+Lists built-in extras and runs their commands. See [Plugins](#10-plugins).
 
 ### 6.6 Align & Boolean (sidebar)
 
@@ -395,7 +414,7 @@ Always visible in Edit mode under the right panels.
 | M | Vertical middle |
 | B | Bottom |
 
-Distribute-horizontal / distribute-vertical exist in code but are not exposed in this UI build.
+Even spacing (distribute) is not in the sidebar in this release.
 
 #### Boolean
 
@@ -403,12 +422,12 @@ Distribute-horizontal / distribute-vertical exist in code but are not exposed in
 |---|---|
 | Unite | Union |
 | Inter | Intersection |
-| Sub | Subtract (first minus others) |
+| Sub | Subtract (first minus the others) |
 | Xor | Exclusive or / exclude |
 
-**Live preview:** hover (or focus) a boolean button to see a translucent lime ghost of the result. Click to commit. Preview clears when the pointer leaves the boolean group. The same preview works from **Object** menu items.
+**Live preview:** hover a boolean button to see a translucent lime ghost of the result. Click to commit. The preview clears when the pointer leaves the boolean group. The same preview works from **Object** menu items.
 
-Booleans require at least two selected **filled** shapes that can be flattened (rect, ellipse, closed path, groups of those). Results become polygonal path geometry (curves are sampled).
+Booleans need at least two selected **filled** shapes that can be treated as closed regions (rectangle, ellipse, closed path, or groups of those). Results become path geometry (smooth curves are sampled into polygons). Open strokes are skipped.
 
 ---
 
@@ -418,30 +437,37 @@ Booleans require at least two selected **filled** shapes that can be flattened (
 
 | Command | Behavior |
 |---|---|
-| **Open…** | Opens `.savage` or `.svg` into Edit. Raster types switch to Convert mode (load the image via the Convert drop zone / Open Image). |
-| **Save Project…** | Writes full document JSON as `.savage` |
-| **Export SVG…** | Writes serialized SVG |
-| **Export PNG…** | Renders via Rust (`resvg`), typically at 2× scale |
+| **Open…** | Opens `.savage` or `.svg` into Edit. Photos and PNG/JPEG/WEBP/GIF/BMP/TIFF switch to Convert and attach the file. A damaged project file shows an error instead of crashing. |
+| **Save Project…** | Writes the full document as `.savage` |
+| **Export SVG…** | Writes an SVG file |
+| **Export PNG…** | Writes a PNG snapshot (typically at 2× resolution) |
+
+There is no separate “New” command: start from Convert, or **Open…** another file.
 
 ### 7.2 Edit
 
-Undo, Redo, Copy, Paste — see shortcuts table.
+| Command | Behavior |
+|---|---|
+| **Undo** | **Ctrl+Z** |
+| **Redo** | **Ctrl+Shift+Z** / **Ctrl+Y** |
+| **Copy** | **Ctrl+C** |
+| **Paste** | **Ctrl+V** |
 
 ### 7.3 Object
 
 | Command | Behavior |
 |---|---|
-| Group / Ungroup | Group selection; ungroup primary selection |
+| Group / Ungroup | Group the selection; ungroup the primary selection |
 | Unite / Intersect / Subtract / Exclude | Boolean ops + live hover preview |
 | Simplify Path | Reduces complexity of selected paths |
-| Convert Text to Outlines | Contour extraction from text |
-| Make Clip Mask | Last selected shape is the mask; earlier selection is clipped; mask is hidden |
-| Release Clip Mask | Restores mask visibility; clears clip links on selection |
+| Convert Text to Outlines | Turns live text into paths |
+| Make Clip Mask | Last selected shape is the mask; earlier selection is clipped; the mask is hidden |
+| Release Clip Mask | Removes the clip from the selection; the mask reappears only when nothing else still uses it |
 | Create Symbol / Detach Symbol | Symbol workflows |
-| Commit Shape Builder | Finalize Shape Builder session |
+| Commit Shape Builder | Finalize a Shape Builder session |
 | New Artboard | Adds a board and fits the view |
 
-**Clip mask recipe:** select content first, then the mask shape last → **Make Clip Mask**. Mask must be a path, rect, or ellipse.
+**Clip mask recipe:** select the content first, then the mask shape last → **Make Clip Mask**. The mask must be a path, rectangle, or ellipse. If the command cannot run, a toast explains what to select.
 
 ### 7.4 View
 
@@ -451,9 +477,7 @@ Fit Artboard, Fit All Artboards, Fit Selection, Zoom 50% / 100% / 200%.
 
 | Command | Behavior |
 |---|---|
-| **User Manual (PDF)…** | Opens the bundled `USER_MANUAL.pdf` in the system PDF viewer |
-
-Regenerate the PDF after editing the Markdown with `pnpm manual:pdf`.
+| **User Manual (PDF)…** | Opens this guide in your system PDF viewer |
 
 ---
 
@@ -461,20 +485,19 @@ Regenerate the PDF after editing the Markdown with `pnpm manual:pdf`.
 
 ### 8.1 Artboards (multi-board documents)
 
-Treat artboards as design frames (icons set, poster variants, mobile screens). Export SVG can include all boards or focus workflows around the active board (fit / PNG export uses the document serialization path — prefer saving `.savage` when board metadata matters).
+Treat artboards as design frames (icon set, poster variants, screens). Objects sit in shared drawing space; artboards are frames, not automatic clip parents (clip separately if you need that).
 
-Activate a board before drawing if you want new content mentally scoped to that frame; nodes are free-positioned in world space (artboards are guides/frames, not strict clip parents unless you clip).
+Activate a board before you draw if you want to work in that frame. Save `.savage` when board names, sizes, and layout must survive a reopen. SVG export is the interchange format; PNG is a picture of the current document.
 
-### 8.2 Symbols / components
+### 8.2 Symbols
 
 **When to use:** repeating logos, icons, UI chrome.
 
-**Instance vs detach:**
+- Keep instances linked when many copies should stay identical.  
+- **Detach** turns one instance into ordinary editable objects.  
+- Deleting a symbol definition expands remaining instances first.
 
-- Keep instances linked when you want many copies of one master definition in the file.  
-- **Detach** expands an instance into ordinary editable nodes (independent copies).
-
-SVG export emits `<symbol>` definitions and `<use>` instances where possible.
+SVG export writes symbol definitions and instances where possible.
 
 ### 8.3 Shape Builder (professional use)
 
@@ -483,9 +506,9 @@ Ideal for logo marks and icon negative space:
 1. Build overlapping primitives.  
 2. Run Shape Builder; discard outer waste; keep the silhouette regions.  
 3. Commit once.  
-4. Optionally Simplify Path and convert remaining pieces into a Symbol.
+4. Optionally Simplify Path and turn remaining pieces into a Symbol.
 
-Region decomposition uses boolean intersect/subtract over selection subsets (capped at four shapes). Complex illustrations may need staged builds (boolean first, then Shape Builder).
+Very dense stacks may still be faster if you Unite or Subtract first.
 
 ### 8.4 Mesh gradients
 
@@ -493,13 +516,11 @@ Region decomposition uses boolean intersect/subtract over selection subsets (cap
 2. Props → Fill → **Mesh**.  
 3. Edit corner / control-point color swatches.
 
-Canvas preview bilinear-samples the mesh into a pattern clipped to the shape.  
-
-**Export note:** SVG mesh gradients are not a portable SVG standard feature. SaVaGe approximates with a `<pattern>` of polygons. For maximum fidelity across editors, keep a `.savage` master and export PNG for final raster deliverables when mesh appearance is critical.
+The canvas preview matches what you edit. Exported SVG keeps the mesh so Inkscape (and SaVaGe itself) can reopen it. Browsers that do not implement mesh fills will show a missing fill — export PNG when a raster deliverable must match the canvas.
 
 ### 8.5 Variable-width strokes
 
-Uniform strokes use `StrokeStyle.width`. Paths may also store per-point `strokeWidth`.
+Uniform strokes use the stroke width in Props. Paths may also store a width at each point.
 
 | Method | Result |
 |---|---|
@@ -507,7 +528,7 @@ Uniform strokes use `StrokeStyle.width`. Paths may also store per-point `strokeW
 | Direct Select + **Alt-drag** | Manual width at a point |
 | Props → **Clear profile** | Back to uniform |
 
-When any point width differs from the base width, SaVaGe draws a **filled ribbon** outline instead of a canvas `stroke()`. That ribbon is editable geometry only insofar as the centerline points and widths change — it is not a separate expanded outline node unless you otherwise convert it.
+When point widths differ, SaVaGe draws a **filled ribbon** around the centerline. You edit the ribbon by moving points and widths — it is not a separate expanded outline unless you convert it some other way.
 
 ### 8.6 Perspective grid
 
@@ -519,11 +540,17 @@ Toolbar **Persp**:
 | 1-pt | Horizon + fan from one vanishing point |
 | 2-pt | Horizon + fans from two vanishing points |
 
-Enable **Snap** to pull drawing coordinates onto the nearest guide ray (threshold scales with zoom).  
+Turn **Snap** on to pull drawing coordinates onto:
 
-**Important:** Snap here means **perspective ray snap**, not general document-grid snap. Grid is a visual overlay toggled separately.
+- Nearby objects (bounding-box corners and midpoints)  
+- Path anchors  
+- Artboard corners and midpoints  
+- The document grid (when **Grid** is visible) — 32 units  
+- Perspective rays (when Persp is not Off)  
 
-Vanishing points are initialized from the document view box; v0.1 does not expose interactive VP handles in the UI.
+The snap distance stays comfortable at any zoom. Pencil, Brush, Pattern Brush, and Scatter Brush do not snap while you stroke, so freehand stays smooth.
+
+Vanishing points start from the document frame. This release does not include draggable vanishing-point handles.
 
 ### 8.7 Brushes compared
 
@@ -539,73 +566,68 @@ Vanishing points are initialized from the document view box; v0.1 does not expos
 
 ### 9.1 Formats
 
-| Format | Role | Fidelity |
+| Format | Role | What it keeps |
 |---|---|---|
-| **`.savage`** | Native project (JSON scene graph) | Full: artboards, symbols, mesh, effects, widths |
-| **`.svg`** | Interchange / web | High for solids and basic gradients; mesh approximated; some import gaps |
-| **PNG** | Raster export | Visual snapshot (scaled render) |
-| Raster inputs | Convert only | Become vectors after trace |
+| **`.savage`** | Native project | Everything: artboards, symbols, mesh, effects, widths |
+| **`.svg`** | Handoff / web | Solids, linear and radial gradients, and mesh fills that Inkscape can reopen; some browsers skip mesh paint |
+| **PNG** | Picture export | Visual snapshot |
+| Photos and bitmaps | Convert only | Become vectors after you trace |
+
+Opening a `.svg` restores solids, linear/radial gradients, and mesh fills when they are present. Opening a damaged `.savage` file shows an error toast rather than a blank crash.
 
 ### 9.2 Recommended save strategy
 
 1. Always keep a `.savage` working file.  
-2. Export SVG for handoff to web / other editors.  
+2. Export SVG for handoff to web or other editors.  
 3. Export PNG for previews, social, or mesh-critical stills.  
-4. Re-open SVG when you must — but expect gradient/`url(#…)` paints to simplify on import (solids preferred for SVG round-trips in v0.1).
+4. Re-open SVG when you must — colors, gradients, and meshes come back into the document.
 
 ### 9.3 Clipboard
 
 **Copy** writes:
 
-- SVG text to the system clipboard (when permitted)  
-- An internal session snapshot (including symbol masters referenced by copied instances)
+- SVG text to the system clipboard (when Windows allows it)  
+- An internal snapshot (including symbol masters used by copied instances)
 
-**Paste** prefers the internal snapshot, then falls back to parsing SVG from the clipboard. Pasted objects offset by +24,+24 world units.
+**Paste** prefers that internal snapshot, then falls back to SVG on the clipboard. Pasted objects offset slightly so they do not sit exactly on the originals.
 
 ### 9.4 Duplicate
 
-**Ctrl+D** duplicates the selection in-document (fast iteration without clipboard).
+**Ctrl+D** duplicates the selection in the document (including groups and their children as independent copies). Duplicates sit 16 units down and to the right, next to the original in the same group or layer.
 
 ---
 
 ## 10. Plugins
 
-### 10.1 Built-in commands (Plug tab)
+The **Plug** tab lists extras that ship with SaVaGe.
 
 | Plugin | What it does |
 |---|---|
-| **Duplicate & Offset** | Copies selected non-group objects +24,+24 |
-| **Randomize Fills** | Assigns random palette fills to selected fillable nodes |
+| **Duplicate & Offset** | Copies selected objects (not groups) 24 units down and right |
+| **Randomize Fills** | Assigns random palette fills to selected objects that have a fill |
 | **Add Guide Rect** | Inserts a translucent cyan rectangle as a layout guide |
 
-Commands toast status messages when finished.
-
-### 10.2 For developers (plugin API)
-
-SaVaGe exposes a lightweight in-app plugin registry:
-
-- `registerPlugin({ id, name, description?, commands[] })`  
-- Each command receives an API: selection, get/update/add/delete nodes, export SVG string, notify, markDirty  
-- `runPluginCommand(pluginId, commandId)`  
-- UI lists whatever is registered (built-ins register on app start)
-
-This is an in-process TypeScript extension surface (not a sandboxed third-party store). Suitable for studio scripts and experimental tools.
+Each command shows a short toast when it finishes. Use **Edit → Undo** if you want to reverse it.
 
 ---
 
 ## 11. Keyboard shortcuts cheat sheet
 
-### Global (canvas focused)
+Shortcuts apply when the canvas is focused — not while a text field is active.
+
+### Global
 
 | Shortcut | Action |
 |---|---|
 | **V** | Select |
 | **A** | Direct Select |
 | **H** | Pan |
+| **Z** | Zoom tool |
 | **R** | Rectangle |
 | **O** | Ellipse |
 | **L** | Line |
 | **P** | Pen |
+| **N** | Pencil |
 | **B** | Calligraphy Brush |
 | **S** | Shape Builder |
 | **T** | Text |
@@ -622,6 +644,8 @@ This is an in-process TypeScript extension surface (not a sandboxed third-party 
 | **Arrows** | Nudge 1 px |
 | **Shift+Arrows** | Nudge 10 px |
 
+Polygon, Star, Pattern Brush, and Scatter Brush have no letter shortcut — click them on the tool rail.
+
 ### Tool-specific
 
 | Shortcut | Context | Action |
@@ -630,12 +654,14 @@ This is an in-process TypeScript extension surface (not a sandboxed third-party 
 | **Backspace** | Pen | Drop last point |
 | **Enter** | Shape Builder | Commit |
 | **Esc** | Shape Builder | Cancel |
-| **Enter** / **Esc** | Text overlay | Commit / cancel |
-| **Shift** | Select / shapes | Multi-select / constrain |
+| **Enter** / **Esc** | Text overlay | Keep the text and close the field |
+| **Shift** | Select | Add/remove from selection |
+| **Shift** | Shapes | Constrain (square, circle, 45° line) |
 | **Alt** | Shape tools | Draw from center |
+| **Alt-click** | Zoom tool | Zoom out |
 | **Alt+drag** | Direct Select | Edit point stroke width |
 
-Menu items do not display accelerator labels in the title bar; shortcuts are handled by the editor viewport.
+Menu items do not show key badges in the title bar; the shortcuts above still work on the canvas.
 
 ---
 
@@ -643,37 +669,37 @@ Menu items do not display accelerator labels in the title bar; shortcuts are han
 
 ### 12.1 Limitations (v0.1)
 
-1. **Mesh → SVG** is an approximation (`<pattern>` polygons), not a native SVG mesh.  
-2. **Opening SVG** currently restores solid/`none` paints reliably; `url(#gradient)` fills may not fully round-trip — use `.savage` for gradient/mesh masters.  
-3. **File → Open** on a raster switches to Convert but does not auto-attach the file to the drop zone; use Convert’s Open Image / drag-drop.  
-4. **Snap** is perspective-ray snap only (when Persp ≠ Off).  
-5. **Props W/H** are read-only; transform on canvas.  
-6. **Shape Builder** supports up to four selected flattenable shapes.  
-7. **Text → outlines** uses raster contouring, not TrueType/CFF glyph extraction.  
-8. **Help** menu is empty; distribute-align UI is not exposed yet.  
-9. Pattern/Scatter brush parameters are fixed in this release.
+1. **Distribute / even spacing** is not in the Align bar yet (left/center/right/top/middle/bottom are).  
+2. Pattern Brush and Scatter Brush spacing and jitter are fixed (no sliders yet).  
+3. Perspective vanishing points are not draggable.  
+4. Text outlines use the bundled **DM Sans** and **Syne** faces.  
+5. Some web browsers will not paint mesh-gradient fills in exported SVG.
 
 ### 12.2 Best practices
 
 | Goal | Practice |
 |---|---|
-| Logo from PNG | Logo preset → Simplify → Boolean/Shape Builder → Symbol |
+| Logo from PNG | Logo preset → preview → Open in Editor → Simplify → Boolean / Shape Builder → Symbol |
 | Editable master file | Always save `.savage` |
-| Web SVG | Prefer solids + linear/radial; expand critical meshes to PNG or simplified geometry |
-| Clean booleans | Work with closed fills; convert text/strokes to fills first |
-| Performance | Watch status-bar ms; simplify dense converts; hide unused boards’ complexity by deleting unused paths |
-| Repeat UI chrome | Symbols over raw duplicates |
-| Perspective sketching | Persp 1-pt/2-pt + Snap on while blocking shapes |
+| Web SVG | Prefer solids and linear/radial gradients; use PNG for mesh-critical stills |
+| Clean booleans | Work with closed fills; outline text first; skip open pencil strokes |
+| Snappy drawing | Watch the status-bar time; simplify dense converts; hide or delete unused paths |
+| Repeat UI chrome | Symbols over raw copies |
+| Perspective sketching | Persp 1-pt or 2-pt + Snap on while blocking shapes |
 
 ### 12.3 Troubleshooting
 
 | Symptom | Try |
 |---|---|
-| Boolean fails | Ensure ≥2 filled closed shapes; ungroup if needed; convert strokes to filled ribbons or shapes |
-| Shape Builder empty | Select overlapping flattenable shapes first; max 4 |
-| Mesh looks banded in SVG | Expected approximation; use PNG or `.savage` |
-| Paste did nothing | Focus canvas; ensure clipboard has SVG or a prior SaVaGe copy |
-| Heavy lag | Simplify paths; reduce convert color precision; hide effects temporarily |
+| Convert drop does nothing | Drop a PNG, JPEG, WEBP, GIF, BMP, or TIFF — other files are ignored |
+| Converted, but still on Convert | Click **Open in Editor** (that is expected) |
+| Boolean fails | Select at least two filled closed shapes; ungroup if needed |
+| Shape Builder empty | Select overlapping closed shapes first |
+| Mesh looks empty in a browser | Open it in SaVaGe or Inkscape, or export PNG |
+| Paste did nothing | Click the canvas first; copy from SaVaGe or paste SVG |
+| Open failed | The file may not be a valid `.savage` project or SVG — check the toast |
+| Heavy lag | Simplify paths; lower convert color precision; hide blur/shadow temporarily |
+| Clicking a tool key types a letter | Click the canvas so a Properties field is not focused |
 
 ---
 
@@ -681,38 +707,36 @@ Menu items do not display accelerator labels in the title bar; shortcuts are han
 
 | Term | Meaning in SaVaGe |
 |---|---|
-| **Artboard** | Named frame/guide with size and background; multi-board documents supported |
-| **Boolean** | Path union / intersection / difference / xor via Rust `i_overlay` |
-| **Clip mask** | One shape clipping others via `clipPath` |
-| **Instance** | Placed reference to a symbol master |
-| **Mesh** | Grid of colored control points interpolated as a fill |
-| **Ribbon** | Variable-width stroke drawn as a filled outline around a centerline |
-| **Scene graph** | Typed document nodes (`SvgDocument`) — source of truth while editing |
-| **Shape Builder** | Interactive keep/discard of boolean regions |
-| **Speckle** | Tiny unwanted regions removed during tracing |
-| **vtracer** | Rust vectorization engine behind Convert |
-| **`.savage`** | Native JSON project format |
+| **Artboard** | Named frame with size and background; several can live in one file |
+| **Boolean** | Combine shapes: unite, intersect, subtract, or exclude |
+| **Clip mask** | One shape hiding parts of others |
+| **Instance** | A placed copy of a symbol master |
+| **Mesh** | A grid of colored points interpolated as a fill |
+| **Ribbon** | A variable-width stroke drawn as a filled outline around a centerline |
+| **Shape Builder** | Click regions of overlapping shapes to keep or discard them |
+| **Speckle** | Tiny unwanted islands removed during tracing |
+| **`.savage`** | SaVaGe’s native project file (full document) |
 
 ---
 
 ## Appendix A — Suggested learning path
 
-1. Convert a simple logo PNG.  
+1. Convert a simple logo PNG; use **Open in Editor**.  
 2. Recolor with Props; rename layers.  
 3. Draw primitives; Unite; Shape Builder.  
 4. Create a Symbol; place twice; detach one.  
-5. Try Brush, Pattern, Scatter.  
+5. Try Brush, Pattern, and Scatter.  
 6. Enable 1-pt perspective and sketch with Snap.  
-7. Save `.savage`; export SVG and PNG; reopen both and compare fidelity.  
+7. Save `.savage`; export SVG and PNG; reopen both and compare.  
 8. Run Plug → Randomize Fills once for fun, then Undo.
 
 ---
 
-## Appendix B — Support & product identity
+## Appendix B — Product identity
 
-**SaVaGe** blends **SVG** with a bold “savage” craft aesthetic: graphite UI (`#0B0D10`), lime accent (`#B8FF3C`), and expressive typography (Syne / DM Sans).
+**SaVaGe** blends **SVG** with a bold craft aesthetic: graphite interface, lime accent, and expressive typography (Syne / DM Sans).
 
-For development builds, issues, and roadmap context, see the project plan (`savage_svg_studio_2bf62e1a.plan.md`) and `checklist.md` in the repository.
+For help in the app, use **Help → User Manual (PDF)…**.
 
 ---
 

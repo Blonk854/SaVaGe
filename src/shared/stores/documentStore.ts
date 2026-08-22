@@ -44,8 +44,8 @@ interface DocumentState {
   addArtboard: (partial?: Partial<Artboard>) => void;
   updateArtboard: (id: NodeId, patch: Partial<Artboard>) => void;
   removeArtboard: (id: NodeId) => void;
-  applyClipMask: () => void;
-  releaseClipMask: () => void;
+  applyClipMask: () => boolean;
+  releaseClipMask: () => boolean;
   createSymbolFromSelection: (name?: string) => void;
   placeSymbol: (symbolId: NodeId) => void;
   detachSymbol: (instanceId?: NodeId) => void;
@@ -203,27 +203,52 @@ export const useDocumentStore = create<DocumentState>()(
         ),
 
       duplicateSelection: () => {
-        const { selection } = get();
+        const { selection, doc } = get();
         if (!selection.length) return;
+        const created: SceneNode[] = [];
+        const cloneSubtree = (id: NodeId, asRoot: boolean): NodeId | null => {
+          const src = doc.nodes[id];
+          if (!src) return null;
+          const copy = structuredClone(src) as SceneNode;
+          copy.id = nanoid(10);
+          if (asRoot) copy.name = `${src.name} copy`;
+          if (copy.type === "group") {
+            const childIds = src.type === "group" ? src.children : [];
+            copy.children = childIds
+              .map((cid) => cloneSubtree(cid, false))
+              .filter((cid): cid is NodeId => !!cid);
+          }
+          created.push(copy);
+          return copy.id;
+        };
+        const plans = selection.flatMap((id) => {
+          const src = doc.nodes[id];
+          const copyId = cloneSubtree(id, true);
+          if (!src || !copyId) return [];
+          return [{ id, copyId, x: src.transform.x + 16, y: src.transform.y + 16 }];
+        });
+        if (!plans.length) return;
         set(
           produce((state: DocumentState) => {
-            const newIds: NodeId[] = [];
-            for (const id of selection) {
-              const src = state.doc.nodes[id];
-              if (!src) continue;
-              const copy = structuredClone(src) as SceneNode;
-              copy.id = nanoid(10);
-              copy.name = `${src.name} copy`;
-              copy.transform = {
-                ...src.transform,
-                x: src.transform.x + 16,
-                y: src.transform.y + 16,
-              };
-              state.doc.nodes[copy.id] = copy;
-              state.doc.rootChildIds.push(copy.id);
-              newIds.push(copy.id);
+            for (const node of created) state.doc.nodes[node.id] = node;
+            for (const plan of plans) {
+              const copy = state.doc.nodes[plan.copyId];
+              copy.transform = { ...copy.transform, x: plan.x, y: plan.y };
+              const parentId = findParent(state.doc, plan.id);
+              if (parentId && state.doc.nodes[parentId]?.type === "group") {
+                const children = (state.doc.nodes[parentId] as GroupNode).children;
+                const idx = children.indexOf(plan.id);
+                children.splice(idx < 0 ? children.length : idx + 1, 0, plan.copyId);
+              } else {
+                const idx = state.doc.rootChildIds.indexOf(plan.id);
+                state.doc.rootChildIds.splice(
+                  idx < 0 ? state.doc.rootChildIds.length : idx + 1,
+                  0,
+                  plan.copyId,
+                );
+              }
             }
-            state.selection = newIds;
+            state.selection = plans.map((p) => p.copyId);
           }),
         );
       },
@@ -299,40 +324,49 @@ export const useDocumentStore = create<DocumentState>()(
           }),
         ),
 
-      applyClipMask: () =>
+      applyClipMask: () => {
+        const { selection, doc } = get();
+        const ids = selection.filter((id) => doc.nodes[id]);
+        if (ids.length < 2) return false;
+        const maskId = ids[ids.length - 1];
+        const mask = doc.nodes[maskId];
+        if (!mask || (mask.type !== "path" && mask.type !== "rect" && mask.type !== "ellipse")) {
+          return false;
+        }
         set(
           produce((state: DocumentState) => {
-            // Selection: [target..., mask] — last selected is the clip path
-            const ids = state.selection.filter((id) => state.doc.nodes[id]);
-            if (ids.length < 2) return;
-            const maskId = ids[ids.length - 1];
-            const mask = state.doc.nodes[maskId];
-            if (!mask || (mask.type !== "path" && mask.type !== "rect" && mask.type !== "ellipse")) {
-              return;
-            }
             const targets = ids.slice(0, -1);
             for (const tid of targets) {
               const t = state.doc.nodes[tid];
               if (t) t.clipPathId = maskId;
             }
-            // Hide mask visually but keep for clip geometry
-            mask.visible = false;
+            const next = state.doc.nodes[maskId];
+            if (next) next.visible = false;
             state.selection = targets;
           }),
-        ),
+        );
+        return true;
+      },
 
-      releaseClipMask: () =>
+      releaseClipMask: () => {
+        const { selection, doc } = get();
+        const clipped = selection.filter((id) => doc.nodes[id]?.clipPathId);
+        if (!clipped.length) return false;
         set(
           produce((state: DocumentState) => {
-            for (const id of state.selection) {
+            for (const id of clipped) {
               const node = state.doc.nodes[id];
               if (!node?.clipPathId) continue;
-              const mask = state.doc.nodes[node.clipPathId];
-              if (mask) mask.visible = true;
+              const maskId = node.clipPathId;
               node.clipPathId = null;
+              const stillUsed = Object.values(state.doc.nodes).some((n) => n.clipPathId === maskId);
+              const maskNode = state.doc.nodes[maskId];
+              if (maskNode && !stillUsed) maskNode.visible = true;
             }
           }),
-        ),
+        );
+        return true;
+      },
 
       createSymbolFromSelection: (name) =>
         set(
@@ -418,13 +452,21 @@ export const useDocumentStore = create<DocumentState>()(
           }),
         ),
 
-      deleteSymbol: (symbolId) =>
+      deleteSymbol: (symbolId) => {
+        const instances = Object.values(get().doc.nodes)
+          .filter((n) => n.type === "symbolInstance" && n.symbolId === symbolId)
+          .map((n) => n.id);
+        for (const id of instances) get().detachSymbol(id);
+        const leftover = Object.values(get().doc.nodes)
+          .filter((n) => n.type === "symbolInstance" && n.symbolId === symbolId)
+          .map((n) => n.id);
+        if (leftover.length) get().deleteNodes(leftover);
         set(
           produce((state: DocumentState) => {
             delete state.doc.symbols[symbolId];
-            // Detach lingering instances by converting to empty placeholder groups? Keep instances; they'll draw nothing
           }),
-        ),
+        );
+      },
     }),
     { limit: 100 },
   ),

@@ -109,6 +109,21 @@ describe("booleanCore", () => {
     expect(regions.length).toBeGreaterThan(0);
     expect(regions.some((r) => r.mask === 3)).toBe(true);
   });
+
+  it("decomposes more than four overlapping shapes", async () => {
+    const regions = await decomposeShapeRegions(
+      [
+        rect(0, 0, 10, 10),
+        rect(5, 0, 10, 10),
+        rect(10, 0, 10, 10),
+        rect(15, 0, 10, 10),
+        rect(20, 0, 10, 10),
+      ],
+      aabbOverlay,
+    );
+    expect(regions.length).toBeGreaterThan(0);
+    expect(regions.some((r) => r.mask & (1 << 4))).toBe(true);
+  });
 });
 
 describe("shapeBuilder toggle", () => {

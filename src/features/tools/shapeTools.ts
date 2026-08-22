@@ -116,6 +116,7 @@ function makeShapeTool(id: ToolId): Tool {
       drawing = true;
       kind = id;
       start = { x: e.wx, y: e.wy };
+      useDocumentStore.temporal.getState().pause();
       nodeId = ensureNode(id, e.wx, e.wy);
     },
     onPointerMove(e) {
@@ -162,10 +163,18 @@ function makeShapeTool(id: ToolId): Tool {
           ry,
         } as Partial<EllipseNode>);
       } else if (node.type === "line") {
+        let x2 = e.wx - start.x;
+        let y2 = e.wy - start.y;
+        if (e.shiftKey) {
+          const ang = Math.round(Math.atan2(y2, x2) / (Math.PI / 4)) * (Math.PI / 4);
+          const len = Math.hypot(x2, y2);
+          x2 = Math.cos(ang) * len;
+          y2 = Math.sin(ang) * len;
+        }
         store.updateNode(nodeId, {
           transform: { ...node.transform, x: start.x, y: start.y },
-          x2: e.wx - start.x,
-          y2: e.wy - start.y,
+          x2,
+          y2,
         } as Partial<LineNode>);
       } else if (node.type === "path") {
         const r = Math.max(1, Math.hypot(e.wx - start.x, e.wy - start.y));
@@ -177,8 +186,24 @@ function makeShapeTool(id: ToolId): Tool {
       }
     },
     onPointerUp() {
+      const id = nodeId;
       drawing = false;
       nodeId = null;
+      useDocumentStore.temporal.getState().resume();
+      if (!id) return;
+      const store = useDocumentStore.getState();
+      const node = store.doc.nodes[id];
+      if (!node) return;
+      const tiny =
+        (node.type === "rect" && (node.width < 2 || node.height < 2)) ||
+        (node.type === "ellipse" && (node.rx < 2 || node.ry < 2)) ||
+        (node.type === "line" && Math.hypot(node.x2, node.y2) < 2) ||
+        (node.type === "path" &&
+          Math.max(
+            0,
+            ...((node.subpaths[0]?.points ?? []).map((p) => Math.hypot(p.x, p.y))),
+          ) < 2);
+      if (tiny) store.deleteNodes([id]);
     },
   };
 }

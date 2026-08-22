@@ -1,15 +1,20 @@
 interface Props {
   rasterUrl: string | null;
   svgMarkup: string | null;
+  rasterLabel?: string;
 }
 
-export function ConvertPreview({ rasterUrl, svgMarkup }: Props) {
+export function ConvertPreview({ rasterUrl, svgMarkup, rasterLabel }: Props) {
   if (!rasterUrl && !svgMarkup) return null;
   return (
     <div className="preview">
       <div className="preview__pane">
         <span>Raster</span>
-        {rasterUrl ? <img src={rasterUrl} alt="Source" /> : <div className="ph" />}
+        {rasterUrl ? (
+          <img src={rasterUrl} alt={rasterLabel || "Selected image"} />
+        ) : (
+          <div className="ph" />
+        )}
       </div>
       <div className="preview__pane">
         <span>SVG</span>

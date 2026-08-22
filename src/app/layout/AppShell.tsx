@@ -68,7 +68,9 @@ export function AppShell() {
   return (
     <div className="shell">
       <TitleBar
-        onOpen={() => void openFile()}
+        onOpen={() =>
+          void openFile().catch((e) => flash(e instanceof Error ? e.message : String(e)))
+        }
         onSave={() => void saveProject()}
         onExportSvg={() => void exportSvg()}
         onExportPng={() =>
@@ -108,12 +110,9 @@ export function AppShell() {
             flash("Select a text object first");
             return;
           }
-          try {
-            convertTextToOutlines(sel);
-            flash("Converted text to outlines");
-          } catch (e) {
-            flash(e instanceof Error ? e.message : String(e));
-          }
+          void convertTextToOutlines(sel)
+            .then(() => flash("Converted text to outlines"))
+            .catch((e) => flash(e instanceof Error ? e.message : String(e)));
         }}
         onFitArtboard={() => {
           const { w, h } = viewportSize();
@@ -132,14 +131,14 @@ export function AppShell() {
           setZoomCentered(z, w, h);
         }}
         onApplyClip={() => {
-          useDocumentStore.getState().applyClipMask();
+          const ok = useDocumentStore.getState().applyClipMask();
           useUiStore.getState().markDirty();
-          flash("Clip mask applied (last selected = mask)");
+          flash(ok ? "Clip mask applied (last selected = mask)" : "Select objects, then the mask last");
         }}
         onReleaseClip={() => {
-          useDocumentStore.getState().releaseClipMask();
+          const ok = useDocumentStore.getState().releaseClipMask();
           useUiStore.getState().markDirty();
-          flash("Clip mask released");
+          flash(ok ? "Clip mask released" : "No clip mask on the selection");
         }}
         onAddArtboard={() => {
           useDocumentStore.getState().addArtboard();

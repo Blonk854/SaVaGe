@@ -34,7 +34,8 @@ describe("mesh serialize", () => {
     doc.nodes[node.id] = node;
     doc.rootChildIds = [node.id];
     const svg = documentToSvgString(doc);
-    expect(svg).toContain("<pattern");
+    expect(svg).toContain("<meshgradient");
+    expect(svg).toContain("data-savage-mesh=");
     expect(svg).toContain('fill="url(#m');
   });
 });

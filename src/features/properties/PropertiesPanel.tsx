@@ -9,7 +9,7 @@ import {
   type SceneNode,
   type TextNode,
 } from "../../shared/document/types";
-import { nodeWorldBounds } from "../../shared/geometry/bounds";
+import { nodeWorldBounds, transformForWorldSize } from "../../shared/geometry/bounds";
 import { PaintEditor, setNodePaint } from "./PaintEditor";
 import { convertTextToOutlines } from "../tools/textToOutlines";
 import { useUiStore } from "../../shared/stores/uiStore";
@@ -81,8 +81,22 @@ export function PropertiesPanel() {
             value={node.transform.y}
             onCommit={(v) => setNodeTransform(id, { ...node.transform, y: v })}
           />
-          <NumField label="W" value={bounds.w} onCommit={() => undefined} />
-          <NumField label="H" value={bounds.h} onCommit={() => undefined} />
+          <NumField
+            label="W"
+            value={bounds.w}
+            onCommit={(v) => {
+              if (!Number.isFinite(v) || v <= 0) return;
+              setNodeTransform(id, transformForWorldSize(node.transform, bounds, v, bounds.h));
+            }}
+          />
+          <NumField
+            label="H"
+            value={bounds.h}
+            onCommit={(v) => {
+              if (!Number.isFinite(v) || v <= 0) return;
+              setNodeTransform(id, transformForWorldSize(node.transform, bounds, bounds.w, v));
+            }}
+          />
           <NumField
             label="R"
             value={node.transform.rotation}
@@ -272,11 +286,7 @@ export function PropertiesPanel() {
             <Button
               variant="subtle"
               onClick={() => {
-                try {
-                  convertTextToOutlines(id);
-                } catch (e) {
-                  console.warn(e);
-                }
+                void convertTextToOutlines(id).catch((e) => console.warn(e));
               }}
             >
               Convert to outlines

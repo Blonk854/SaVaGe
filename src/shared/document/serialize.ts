@@ -14,6 +14,7 @@ import type {
   TextNode,
   Transform2D,
 } from "./types";
+import { serializeMeshGradientDef } from "./meshSvg";
 
 class DefsBuilder {
   private grads: string[] = [];
@@ -32,32 +33,7 @@ class DefsBuilder {
     }
     if (paint.type === "mesh") {
       const id = `m${this.n++}`;
-      let minX = Infinity,
-        minY = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity;
-      for (const p of paint.points) {
-        minX = Math.min(minX, p.x);
-        minY = Math.min(minY, p.y);
-        maxX = Math.max(maxX, p.x);
-        maxY = Math.max(maxY, p.y);
-      }
-      const cells: string[] = [];
-      for (let row = 0; row < paint.rows; row++) {
-        for (let col = 0; col < paint.columns; col++) {
-          const i = (r: number, c: number) => paint.points[r * (paint.columns + 1) + c];
-          const p00 = i(row, col);
-          const p10 = i(row, col + 1);
-          const p01 = i(row + 1, col);
-          const p11 = i(row + 1, col + 1);
-          cells.push(
-            `<polygon points="${p00.x - minX},${p00.y - minY} ${p10.x - minX},${p10.y - minY} ${p11.x - minX},${p11.y - minY} ${p01.x - minX},${p01.y - minY}" fill="${p00.color}" fill-opacity="${(p00.opacity + p10.opacity + p01.opacity + p11.opacity) / 4}" />`,
-          );
-        }
-      }
-      this.grads.push(
-        `<pattern id="${id}" patternUnits="userSpaceOnUse" x="${minX}" y="${minY}" width="${Math.max(1, maxX - minX)}" height="${Math.max(1, maxY - minY)}">${cells.join("")}</pattern>`,
-      );
+      this.grads.push(serializeMeshGradientDef(paint, id));
       return `${attr}="url(#${id})"`;
     }
     const id = `g${this.n++}`;

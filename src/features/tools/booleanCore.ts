@@ -89,32 +89,34 @@ export async function computeBooleanShapes(
   return resultShapes;
 }
 
-/** Atomic face decomposition for up to 4 shapes (subset inclusion masks). */
+/** Atomic face decomposition via incremental split (any number of flattenable shapes). */
 export async function decomposeShapeRegions(
   shapes: ShapeContours[],
   overlay: OverlayFn = tauriOverlay,
 ): Promise<{ mask: number; contours: ShapeContours[] }[]> {
-  const n = Math.min(shapes.length, 4);
-  const regions: { mask: number; contours: ShapeContours[] }[] = [];
-  if (n < 2) return regions;
+  const n = shapes.length;
+  if (n < 2) return [];
 
-  for (let mask = 1; mask < 1 << n; mask++) {
-    const bits: number[] = [];
-    for (let i = 0; i < n; i++) if (mask & (1 << i)) bits.push(i);
+  let regions: { mask: number; contours: ShapeContours[] }[] = [
+    { mask: 1, contours: [shapes[0]] },
+  ];
 
-    let result: ShapeContours[] = [shapes[bits[0]]];
-    for (let k = 1; k < bits.length; k++) {
-      result = await overlay(result, [shapes[bits[k]]], "intersect");
-      if (!result.length) break;
+  for (let i = 1; i < n; i++) {
+    const bit = 1 << i;
+    const next: { mask: number; contours: ShapeContours[] }[] = [];
+    for (const r of regions) {
+      const inside = await overlay(r.contours, [shapes[i]], "intersect");
+      const outside = await overlay(r.contours, [shapes[i]], "subtract");
+      if (inside.length) next.push({ mask: r.mask | bit, contours: inside });
+      if (outside.length) next.push({ mask: r.mask, contours: outside });
     }
-    if (!result.length) continue;
-
-    for (let i = 0; i < n; i++) {
-      if (mask & (1 << i)) continue;
-      result = await overlay(result, [shapes[i]], "subtract");
-      if (!result.length) break;
+    let leftover: ShapeContours[] = [shapes[i]];
+    for (let j = 0; j < i; j++) {
+      leftover = leftover.length ? await overlay(leftover, [shapes[j]], "subtract") : leftover;
+      if (!leftover.length) break;
     }
-    if (result.length) regions.push({ mask, contours: result });
+    if (leftover.length) next.push({ mask: bit, contours: leftover });
+    regions = next;
   }
   return regions;
 }
