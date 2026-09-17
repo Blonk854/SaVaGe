@@ -41,22 +41,23 @@ export function parseRolloutPolicy(value: unknown): RolloutPolicy {
   if (!value || typeof value !== "object") {
     throw new Error("Rollout policy is missing");
   }
-  const policy = value as RolloutPolicy;
-  if (policy.policyVersion !== 1) {
+  const candidate = value as Record<string, unknown>;
+  if (candidate.policyVersion !== 1) {
     throw new Error("Unsupported rollout policy version");
   }
-  if (policy.autoUpdater !== false) {
+  if (candidate.autoUpdater !== false) {
     throw new Error("Automatic updater is not part of this release");
   }
-  if (policy.percentageRollout !== false) {
+  if (candidate.percentageRollout !== false) {
     throw new Error("Percentage rollout is not supported without distribution infrastructure");
   }
-  if (policy.distribution !== "manual-reinstall") {
+  if (candidate.distribution !== "manual-reinstall") {
     throw new Error("Rollout is manual reinstall of a tagged NSIS artifact");
   }
-  if (policy.unsignedMaxChannel === "stable") {
+  if (candidate.unsignedMaxChannel === "stable") {
     throw new Error("Unsigned builds cannot be stable");
   }
+  const policy = value as RolloutPolicy;
   if (policy.beta.minimumTesters < 2) {
     throw new Error("Beta requires at least two named testers");
   }
