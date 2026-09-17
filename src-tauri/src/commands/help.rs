@@ -57,3 +57,18 @@ pub fn open_user_manual(app: AppHandle) -> Result<(), String> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    #[test]
+    fn bundled_manual_source_is_present_for_nsis() {
+        let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/USER_MANUAL.pdf");
+        assert!(
+            source.is_file(),
+            "NSIS resources must include {}",
+            source.display()
+        );
+    }
+}

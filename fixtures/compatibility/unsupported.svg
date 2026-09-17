@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+  <script>window.pwned = true</script>
+  <foreignObject width="100" height="100">
+    <body xmlns="http://www.w3.org/1999/xhtml"><p>html</p></body>
+  </foreignObject>
+  <image href="https://example.com/x.png" width="10" height="10" />
+  <use href="#keep" />
+  <rect id="keep" x="8" y="9" width="12" height="6" fill="#B8FF3C" />
+</svg>

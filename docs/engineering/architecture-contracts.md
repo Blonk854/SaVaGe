@@ -37,6 +37,10 @@ production transform implementation, to pin multiplication order and skew behavi
   saved content clean without storing repaint or selection state in history.
 - New, Open, raster-mode replacement, and Close use one deduplicated Save/Discard/Cancel decision.
   A save followed by a newer edit does not permit replacement.
+- Undo stays on zundo. Snapshots store `{ doc }` only and rely on Immer structural sharing of
+  unchanged nodes. The stack is capped at 100 steps and 48 MiB of unique retained past/future
+  graph. Oldest steps drop first; the live document is never discarded to meet the budget.
+  Derived-cache, diagnostic-ring, and on-disk recovery budgets stay separate.
 
 Focused history and deferred-promise tests enforce these rules, including cancellation,
 out-of-order completion, edit-during-save, prompt deduplication, undo/redo cleanliness, and
@@ -70,6 +74,18 @@ repeat-save fingerprint forwarding.
   valid envelopes are additionally parsed by the normal project validator before recovery.
 - Recovered content opens as a new unsaved session. Opening the original does not apply recovered
   edits, and discarding recovery is explicit.
+- Unsupported recovery format or project schema versions are reported and left in place. They are
+  not migrated, quarantined, or overwritten by a later checkpoint. Corrupt JSON is quarantined
+  by rename only.
+
+## Format Compatibility Contract
+
+- This application reads and writes `.savage` schema 1 only. Unknown future versions fail in
+  memory with an actionable message; Open never writes the source. A newer writer that cannot
+  produce schema 1 must require Save As to a new path and leave the original copy.
+- SVG is a bounded interchange format. Unsupported markup is dropped on import rather than
+  executed or silently claimed as a round trip. The published matrix is
+  [m8-compatibility.md](m8-compatibility.md).
 
 ## Diagnostic Log Contract
 
@@ -175,3 +191,68 @@ repeat-save fingerprint forwarding.
   about 17–19 KiB each. Those weights stay. The static `@fontsource/dm-sans` and
   `@fontsource/syne` packages are not imported; do not delete the copied WOFFs to “save”
   the variable-font UI packages.
+
+## Release Artifact Contract
+
+- A distributable Windows installer is a production NSIS build from a git tag `vX.Y.Z`
+  whose `X.Y.Z` matches `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`,
+  and the user-manual application version.
+- The tagged commit is built with frozen pnpm and locked Cargo dependencies. Release GitHub
+  Actions are pinned by commit SHA. Signing secrets, when they exist, belong only to the
+  protected `release` environment and never to pull-request jobs.
+- Current artifacts are unsigned internal builds. `provenance.json` records `signed: false`.
+  Broad stable distribution waits on Authenticode. Verify SHA-256 sidecars before installing;
+  Windows publisher warnings are expected and are not a vendor signature.
+
+## Install And Uninstall Contract
+
+- The Windows installer is current-user NSIS. It does not require Administrator rights and
+  does not register `.savage` file associations.
+- Missing WebView2 uses the Evergreen download bootstrapper (internet required). A failed
+  bootstrap aborts setup. There is no claimed minimum WebView2 version beyond “the runtime
+  that successfully launches the app.”
+- Application data (`%APPDATA%\com.savage.svgstudio`, including recovery and diagnostics)
+  is separate from the install directory (`%LOCALAPPDATA%\SaVaGe`) and from user project
+  files. Default uninstall keeps app data; the NSIS “Delete the application data” checkbox
+  is the only supported way to remove it.
+- Update/reinstall of tagged builds is allowed. Installing or uninstalling while the app is
+  running must wait until `SaVaGe.exe` exits. A locked project destination must fail the
+  write and leave the original file.
+
+## Staged Rollout Contract
+
+- Channels are internal corpus, named opt-in beta, then stable. Promotion is an explicit
+  gate review, not a percentage of clients. There is no automatic updater.
+- Beta population, feedback interval (7 days), and exit criteria are published before any
+  beta invite. Unsigned artifacts may reach beta; they cannot be stable.
+- Tagged GitHub Releases are prereleases until a signed promotion record unmarks them.
+  Policy and records: [m8-rollout.md](m8-rollout.md).
+
+## Halt And Withdraw Contract
+
+- Promotion stops on confirmed document corruption, missing recovery, a critical or high
+  security defect, or a failed tagged install/upgrade.
+- User `.savage` files and recovery snapshots stay in place. Diagnostics leave the machine
+  only after Help → Export Diagnostics confirmation. There is no automatic upload.
+- Withdraw drafts the GitHub Release and keeps the git tag plus checksum/provenance
+  sidecars. Do not delete the release, the tag, or user files.
+- Offer the last verified installer recorded in [verified-installers.json](verified-installers.json).
+  That list is empty for 0.1.0; do not invent a prior setup. Procedure: [m8-withdraw.md](m8-withdraw.md).
+
+## Rollback Rehearsal Contract
+
+- Installing a previous tagged NSIS must keep application data. `allowDowngrades` is on and the
+  bundle identifier does not change. Uninstall must not use Delete the application data.
+- A binary downgrade is not document rollback. Schema 1 copies still open. Schema ≥2 projects
+  and newer recovery envelopes stay on disk unchanged; Open does not coerce them to version 1.
+- Newer work that the older reader cannot open is recovered with the newer reader, or by an
+  explicit **Save As** schema-1 copy made in that newer writer before the downgrade.
+  Procedure: [m8-rollback.md](m8-rollback.md).
+
+## Artifact Retention Contract
+
+- Previous tagged NSIS installers, SHA-256 sidecars, provenance, and compatibility notes stay
+  available. New tags append to [verified-installers.json](verified-installers.json); they do not
+  replace a different SHA for an existing tag.
+- Distribution is manual reinstall of a retained setup. There is no automatic updater.
+  Executables are not stored in git. Procedure: [m8-retain.md](m8-retain.md).

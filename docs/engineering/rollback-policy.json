@@ -1,0 +1,26 @@
+{
+  "policyVersion": 1,
+  "binaryDowngradeIsDocumentRollback": false,
+  "retainAppData": true,
+  "identifier": "com.savage.svgstudio",
+  "allowDowngrades": true,
+  "compatibleOriginals": [
+    "fixtures/compatibility/legacy-v1.savage",
+    "fixtures/compatibility/skew-nested.savage"
+  ],
+  "newerWork": {
+    "project": "fixtures/compatibility/future-v2.savage",
+    "recovery": "fixtures/compatibility/future-recovery.json",
+    "reader": "unsupported",
+    "onOpen": "leave-in-place",
+    "compatibleExport": "Save As schema 1 from a newer SaVaGe before installing an older binary. This 0.1.0 reader cannot open schema ≥2 to export a copy."
+  },
+  "forbidden": [
+    "treat binary downgrade as document rollback",
+    "silently coerce schema 2 to schema 1 on open",
+    "delete newer-format project files",
+    "delete recovery snapshots",
+    "overwrite source on open",
+    "uninstall with Delete the application data"
+  ]
+}

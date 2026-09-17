@@ -1,0 +1,75 @@
+{
+  "policyVersion": 1,
+  "distribution": "manual-reinstall",
+  "autoUpdater": false,
+  "percentageRollout": false,
+  "channels": ["internal", "beta", "stable"],
+  "unsignedMaxChannel": "beta",
+  "internal": {
+    "name": "internal corpus",
+    "population": "Named Windows operators. Minimum: the person who produced the tagged NSIS artifact plus one other operator, or a recorded solo-operator exception.",
+    "corpus": [
+      "fixtures/compatibility/",
+      "docs/engineering/native-smoke-checklist.md",
+      "docs/engineering/m8-install.md",
+      "docs/engineering/m8-compatibility.md"
+    ],
+    "faultTests": [
+      "src/shared/document/compatibility.test.ts",
+      "src/features/editor/fileIo.test.ts",
+      "src-tauri/src/commands/recovery.rs",
+      "src-tauri/src/commands/export.rs"
+    ]
+  },
+  "beta": {
+    "population": "Named opt-in testers recorded in the promotion record. Not a percentage of users and not an anonymous cohort.",
+    "minimumTesters": 2,
+    "feedbackIntervalDays": 7,
+    "feedback": "Written notes after the interval. Optional Help → Export Diagnostics, user-reviewed; no automatic upload.",
+    "exitCriteria": [
+      "feedbackIntervalDays elapsed with a written report from each of minimumTesters",
+      "no confirmed document corruption",
+      "no missing recovery on crash/restart of accepted fixtures",
+      "no critical or high security defect",
+      "tagged NSIS install/update succeeds on a non-admin account",
+      "compatibility fixtures still pass on the promoted commit",
+      "explicit gate review recorded for this version"
+    ]
+  },
+  "stable": {
+    "requires": [
+      "internal corpus and fault tests recorded",
+      "beta exit criteria met",
+      "explicit gate review",
+      "Authenticode-signed NSIS",
+      "GitHub Release unmarked as prerelease only after sign-off"
+    ]
+  },
+  "halt": {
+    "triggers": [
+      "confirmed-corruption",
+      "missing-recovery",
+      "critical-security",
+      "failed-install"
+    ],
+    "preserve": [
+      "user .savage documents",
+      "recovery snapshots",
+      "diagnostic ring until the user exports or uninstalls with Delete application data"
+    ],
+    "diagnostics": "Help → Export Diagnostics only after confirmation. No automatic upload.",
+    "withdraw": {
+      "github": "draft the GitHub Release and keep it a prerelease. Do not delete the git tag, SHA256SUMS.txt, or provenance.json.",
+      "notify": "Named testers recorded on the promotion record. There is no auto-update to pull the build back.",
+      "offerPrior": "Last installer in verified-installers.json that is not the withdrawn version. Empty list means none to offer.",
+      "forbidden": [
+        "gh release delete",
+        "git tag -d",
+        "delete user project files",
+        "delete recovery snapshots",
+        "uninstall with Delete the application data",
+        "overwrite unknown format versions"
+      ]
+    }
+  }
+}

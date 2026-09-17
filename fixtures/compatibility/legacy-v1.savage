@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "name": "Legacy Poster",
+  "width": 400,
+  "height": 300,
+  "viewBox": { "x": 0, "y": 0, "w": 400, "h": 300 },
+  "background": null,
+  "rootChildIds": ["mark"],
+  "nodes": {
+    "mark": {
+      "id": "mark",
+      "name": "Mark",
+      "type": "rect",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "normal",
+      "transform": { "x": 40, "y": 20, "rotation": 0, "scaleX": 1, "scaleY": 1, "skewX": 0, "skewY": 0 },
+      "width": 80,
+      "height": 40,
+      "rx": 0,
+      "ry": 0,
+      "fill": { "type": "solid", "color": "#B8FF3C", "opacity": 1 },
+      "stroke": {
+        "paint": { "type": "none" },
+        "width": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4,
+        "dashArray": [],
+        "dashOffset": 0,
+        "align": "center"
+      }
+    }
+  },
+  "assets": {},
+  "artboards": [
+    {
+      "id": "ab1",
+      "name": "Artboard 1",
+      "x": 0,
+      "y": 0,
+      "width": 400,
+      "height": 300,
+      "background": "#ffffff"
+    }
+  ],
+  "activeArtboardId": "ab1",
+  "symbols": {}
+}

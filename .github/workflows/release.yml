@@ -1,0 +1,107 @@
+name: Release NSIS
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-nsis-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  nsis:
+    if: github.ref_type == 'tag'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    environment: release
+    steps:
+      - name: Checkout tagged commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
+      - name: Enable pinned pnpm
+        run: corepack enable
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: 1.96.0
+          components: clippy, rustfmt
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check version consistency
+        id: version
+        run: |
+          $version = (node scripts/release-manifest.mjs check).Trim()
+          if ($version -ne "${{ github.ref_name }}".TrimStart("v")) {
+            throw "Tag ${{ github.ref_name }} does not match application version $version"
+          }
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "value=$version"
+
+      - name: Frontend and Rust checks
+        run: pnpm check
+
+      - name: Fetch locked Rust crates
+        run: cargo fetch --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Build unsigned NSIS installer
+        run: pnpm tauri:build -- --ci --bundles nsis
+
+      - name: Write checksums and provenance
+        run: |
+          $version = "${{ steps.version.outputs.value }}"
+          $installer = "src-tauri/target/release/bundle/nsis/SaVaGe_${version}_x64-setup.exe"
+          $pnpm = (pnpm --version).Trim()
+          $rustc = (rustc --version).Split(" ")[1]
+          $node = (node --version).TrimStart("v")
+          node scripts/release-manifest.mjs provenance `
+            --installer $installer `
+            --out (Split-Path $installer) `
+            --commit $env:GITHUB_SHA `
+            --tag $env:GITHUB_REF_NAME `
+            --node $node `
+            --pnpm $pnpm `
+            --rustc $rustc
+
+      - name: Upload unsigned artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: savage-nsis-${{ steps.version.outputs.value }}
+          path: |
+            src-tauri/target/release/bundle/nsis/SaVaGe_${{ steps.version.outputs.value }}_x64-setup.exe
+            src-tauri/target/release/bundle/nsis/SHA256SUMS.txt
+            src-tauri/target/release/bundle/nsis/provenance.json
+          if-no-files-found: error
+
+      - name: Attach GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ steps.version.outputs.value }}"
+          $dir = "src-tauri/target/release/bundle/nsis"
+          $notes = @"
+          Unsigned internal/opt-in NSIS build of SaVaGe $version from tag ${{ github.ref_name }}. This GitHub Release is a prerelease.
+
+          There is no automatic updater. Install by running the tagged setup. Do not mark this release as latest stable until the promotion record and Authenticode signing are complete.
+
+          Keep previous GitHub Releases for older tags. This job only creates the current tag's NSIS, SHA256SUMS.txt, and provenance.json.
+
+          Windows SmartScreen may warn that the publisher is unknown. Compare the installer SHA-256 with SHA256SUMS.txt and provenance.json from this release. Do not treat this artifact as a signed vendor identity.
+          "@
+          gh release create ${{ github.ref_name }} `
+            "$dir/SaVaGe_${version}_x64-setup.exe" `
+            "$dir/SHA256SUMS.txt" `
+            "$dir/provenance.json" `
+            --title "SaVaGe $version" `
+            --prerelease `
+            --notes $notes

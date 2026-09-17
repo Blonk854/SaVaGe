@@ -45,6 +45,15 @@ describe("parseSavageDocument", () => {
     expect(() => parseSavageDocument(JSON.stringify({ hello: true }))).toThrow(/Unrecognized/);
   });
 
+  it("rejects a future schema version with an actionable message", () => {
+    expect(() =>
+      parseSavageDocument(JSON.stringify({ version: 2, nodes: {}, rootChildIds: [] })),
+    ).toThrow(/version 2/);
+    expect(() =>
+      parseSavageDocument(JSON.stringify({ version: 2, nodes: {}, rootChildIds: [] })),
+    ).not.toThrow(/Unrecognized/);
+  });
+
   it("rejects node-map keys that disagree with node ids", () => {
     const doc = createEmptyDocument();
     doc.nodes.key = rect("different-id");

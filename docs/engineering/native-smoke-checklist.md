@@ -3,7 +3,11 @@
 Record the date, commit, Windows version, WebView2 version, account privilege, and artifact
 checksum with each run. Use a copy of every input document.
 
-Artifact: `src-tauri/target/debug/bundle/nsis/SaVaGe_0.1.0_x64-setup.exe`
+Release artifact: `src-tauri/target/release/bundle/nsis/SaVaGe_0.1.0_x64-setup.exe`
+with `SHA256SUMS.txt` and `provenance.json` from the same tagged commit. Debug NSIS
+packages are not release evidence. Current installers are unsigned; confirm the SHA-256 before installing.
+Install/update/uninstall evidence is recorded in
+[m8-install.md](m8-install.md), not from a Vite run.
 
 - [ ] Install as a non-admin user without changing the machine-wide pnpm setup.
 - [ ] Launch the installed application and confirm bundled fonts, icons, and Help render.
@@ -22,7 +26,12 @@ Artifact: `src-tauri/target/debug/bundle/nsis/SaVaGe_0.1.0_x64-setup.exe`
 - [ ] Narrator: F10 File menu, Tab to a layer row, canvas named Artboard, selection count announced.
 - [ ] Reopen after a process kill and confirm the recovery prompt. Recover opens Unsaved work;
       Discard or Open Original does not overwrite the source `.savage`.
-- [ ] Uninstall and confirm user project files remain intact.
+- [ ] Uninstall **without** deleting application data and confirm user project files remain intact.
+- [ ] Reinstall and confirm leftover recovery can still be offered.
+- [ ] If a prior verified NSIS exists: install it without deleting app data, open schema 1
+      copies, and confirm schema ≥2 files and future recovery are left unchanged. Skip and
+      record “no prior installer” for 0.1.0 ([m8-rollback.md](m8-rollback.md)).
+- [ ] **Help → About SaVaGe** shows this version and the unsigned-installer notice.
 - [ ] **Help → User Manual (PDF)…** opens the bundled guide; spot-check Save/Save As and the
       shortcut table against the running menus.
 

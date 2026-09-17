@@ -38,6 +38,7 @@ import {
 import { commitShapeBuilder } from "../../features/tools/shapeBuilderTool";
 import { openUserManual } from "../../features/editor/openManual";
 import { exportDiagnostics } from "../../shared/diagnostics";
+import { showAbout } from "../../shared/release/about";
 import { simplifySelection } from "../../features/tools/simplifyPath";
 import { convertTextToOutlines } from "../../features/tools/textToOutlines";
 import { fitToArtboard, fitToSelection, setZoomCentered } from "../../features/editor/camera";
@@ -262,6 +263,11 @@ export function AppShell() {
             .catch((e) =>
               flash(e instanceof Error ? e.message : "Could not export diagnostics", "error"),
             );
+        }}
+        onAbout={() => {
+          void showAbout().catch((e) =>
+            flash(e instanceof Error ? e.message : "Could not open About", "error"),
+          );
         }}
       />
       <Toolbar />

@@ -50,6 +50,8 @@ Open SaVaGe the same way you open any Windows app:
 
 SaVaGe opens in **Convert** mode: dark graphite window, lime accent, and the same SaVaGe mark used in the title bar.
 
+Current installers are **unsigned internal builds**. Windows may warn that the publisher is unknown. That warning is expected; compare the setup file’s SHA-256 with the checksum published for that version. **Help → About SaVaGe** repeats this notice.
+
 You do not need a terminal, PowerShell, or developer tools to run the program.
 
 ### 1.2 Your first conversion
@@ -79,6 +81,26 @@ An empty artboard offers **Convert an image**, **Draw a rectangle**, or **Open a
 ### 1.4 Five-minute power path
 
 Convert with **Logo** preset → **Open in Editor** → Unite overlapping paths → Shape Builder (**S**) to carve → Create Symbol → Mesh fill on a hero shape → Export SVG and keep a `.savage` master.
+
+### 1.5 Install, update, and uninstall
+
+Install SaVaGe from the tagged NSIS setup (`SaVaGe_<version>_x64-setup.exe`) as your own Windows account. No administrator prompt is required. The program goes under your user folder (typically `%LOCALAPPDATA%\SaVaGe`), with a Start menu shortcut.
+
+Current setups are unsigned, so Windows may warn that the publisher is unknown. Check the SHA-256 published with that version before continuing. **Help → About SaVaGe** repeats this.
+
+SaVaGe needs the Microsoft **WebView2** runtime. Windows 10/11 usually already have it. If it is missing, the installer downloads it (internet required). If that download cannot run, setup stops instead of leaving a broken app.
+
+To update, close SaVaGe and run a newer (or the same) tagged setup. There is no automatic updater. Keep the older setup file if you may need to reinstall it. Current tagged builds are internal or opt-in; they are not a stable channel release. Crash-recovery files stay in `%APPDATA%\com.savage.svgstudio\`. Your `.savage` documents stay wherever you saved them.
+
+To uninstall, use **Apps → Installed apps** or the setup’s uninstaller, and **leave “Delete the application data” unchecked** if you want recovery checkpoints kept. Uninstall does not delete project files. Reinstalling later can still offer Recover for leftover checkpoints.
+
+If a tagged setup is **withdrawn**, keep your `.savage` files. Leave **Delete the application data** unchecked. **Help → Export Diagnostics…** only if you agree to share a redacted log — nothing is uploaded automatically. Install the last verified tagged setup you were given and check its SHA-256. This unsigned 0.1.0 line has no prior verified installer; keep copies of your files and wait for a replacement tag.
+
+If you install an older tagged setup over a newer one, recovery and your `.savage` files stay where they are. That does **not** convert newer documents to version 1. Open version-1 files as usual. A newer project still will not open — use the newer SaVaGe, or **Save As** a version-1 copy from that app before you go back.
+
+SaVaGe does not take over `.savage` in File Explorer in this release — open projects from **File → Open…**.
+
+On a 1080p screen at **200%** display scaling, maximize the window if the work area is tight. The supported minimum is 960×600; Convert and Edit wrap rather than hide required controls.
 
 ---
 
@@ -222,7 +244,7 @@ Clicking empty canvas clears the selection. Locked objects cannot be clicked; un
 | Undo | **Ctrl+Z** · **Edit → Undo** |
 | Redo | **Ctrl+Shift+Z** or **Ctrl+Y** · **Edit → Redo** |
 
-A full drag, stroke, or resize counts as one undo step. Switching tools while you are still dragging finishes that shape first.
+A full drag, stroke, or resize counts as one undo step. Switching tools while you are still dragging finishes that shape first. SaVaGe keeps about the last 100 edits; huge files or very long sessions may drop the oldest steps so memory stays bounded.
 
 ### 4.4 Layers at a glance
 
@@ -498,6 +520,7 @@ Booleans need at least two selected **filled** shapes that can be treated as clo
 |---|---|
 | **User Manual (PDF)…** | Opens this guide in your system PDF viewer |
 | **Export Diagnostics…** | After confirmation, saves a redacted log of recent errors (no document contents, images, or full file paths). Review the file before sharing it. |
+| **About SaVaGe** | Shows the application version and that the current installer is unsigned |
 
 ---
 
@@ -593,7 +616,11 @@ Vanishing points start from the document frame. This release does not include dr
 | **PNG** | Picture export | Visual snapshot |
 | Photos and bitmaps | Convert only | Become vectors after you trace |
 
-Opening a `.svg` restores solids, linear/radial gradients, and mesh fills when they are present. The opened SVG is an Unsaved document until you **Save** it as `.savage`. Opening a damaged `.savage` file shows an error toast rather than a blank crash.
+Opening a `.svg` restores solids, linear/radial gradients, and mesh fills when they are present. The opened SVG is an Unsaved document until you **Save** it as `.savage`. Opening a damaged `.savage` file, or a project newer than version 1, shows an error toast rather than rewriting the file.
+
+This release **reads and writes `.savage` version 1 only**. A future version is left on disk unchanged — open it in a newer SaVaGe, or use that version’s **Save As** to make a version-1 copy. Crash-recovery files from a newer SaVaGe are also left in place.
+
+SVG is a handoff format, not a lossless twin of `.savage`. Import drops scripts, foreignObject, animation, `<use>`, and raster `<image>` elements. Path arcs become straight segments. Skew/matrix transform lists on imported SVG are not parsed. Mesh fills export as SVG 2 and may not paint in every browser.
 
 ### 9.2 Recommended save strategy
 
@@ -716,7 +743,9 @@ Menu items do not show key badges in the title bar; the shortcuts in this sectio
 1. **Pattern Brush and Scatter Brush** spacing and jitter are fixed (no sliders yet).  
 2. Perspective vanishing points are not draggable.  
 3. Text outlines use the bundled **DM Sans** and **Syne** faces.  
-4. Some web browsers will not paint mesh-gradient fills in exported SVG.
+4. Some web browsers will not paint mesh-gradient fills in exported SVG.  
+5. Installers are unsigned until Authenticode signing is added. Windows SmartScreen may warn; verify the SHA-256 from the tagged release before installing.  
+6. `.savage` files from a newer SaVaGe (version 2 or later) will not open in 0.1.0. The file is not converted or overwritten.
 
 ### 12.2 Best practices
 
@@ -743,11 +772,19 @@ Menu items do not show key badges in the title bar; the shortcuts in this sectio
 | Shape Builder empty | Select overlapping closed shapes first |
 | Mesh looks empty in a browser | Open it in SaVaGe or Inkscape, or export PNG |
 | Paste did nothing | Click the canvas first; copy from SaVaGe or paste SVG |
-| Open failed | The file may not be a valid `.savage` project or SVG — check the toast |
+| Open failed | The file may not be a valid version-1 `.savage` project or SVG — check the toast. Newer project versions are not rewritten |
 | Save As cancelled | The previous project path stays current; nothing is written |
 | Export left the project Modified | Expected — export is not a project save |
 | Recovery prompt after a crash | Recover opens Unsaved work; Save As to keep it. Open Original leaves the checkpoint behind |
 | Need error details for support | **Help → Export Diagnostics…**, review the JSON, then share only that file |
+| Windows warns the installer is unknown | Expected for unsigned internal builds. Check **Help → About SaVaGe** and the release SHA-256 |
+| Told a tagged setup was withdrawn | Keep `.savage` files. Leave **Delete the application data** unchecked. Install the last verified setup you were given, or wait if none exists |
+| Installed an older setup on purpose | Version-1 files still open. Newer projects are not converted. Use the newer SaVaGe, or **Save As** a version-1 copy from that app before going back |
+| Need a previous tagged setup | There is no in-app updater. Run the older `SaVaGe_<version>_x64-setup.exe` you kept and check its SHA-256 |
+| Asked for logs after a bad build | **Help → Export Diagnostics…**, review the JSON, share only if you consent. Nothing is uploaded automatically |
+| Setup stops and mentions WebView2 | Connect to the internet and retry, or install the [Evergreen WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/) then run setup again |
+| Uninstall asked to close SaVaGe | Close the app first. Setup will not replace or remove a running `SaVaGe.exe` |
+| Recovery gone after uninstall | The uninstaller’s **Delete the application data** box removes `%APPDATA%\com.savage.svgstudio`. Leave it unchecked to keep checkpoints |
 | Heavy lag | Simplify paths; lower convert color precision; hide blur/shadow temporarily |
 | Clicking a tool key types a letter | Click the canvas so a Properties field is not focused |
 | Window too small / 200% scaling | Maximize; supported minimum is 960×600. Chrome wraps rather than hiding Convert or Edit controls |
@@ -788,7 +825,7 @@ Menu items do not show key badges in the title bar; the shortcuts in this sectio
 
 **SaVaGe** blends **SVG** with a bold craft aesthetic: graphite interface, lime accent, and expressive typography (Syne / DM Sans).
 
-For help in the app, use **Help → User Manual (PDF)…**.
+For help in the app, use **Help → User Manual (PDF)…** or **Help → About SaVaGe**.
 
 ---
 

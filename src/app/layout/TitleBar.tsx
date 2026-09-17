@@ -34,6 +34,7 @@ interface Props {
   onCommitShapeBuilder: () => void;
   onOpenManual: () => void;
   onExportDiagnostics: () => void;
+  onAbout: () => void;
 }
 
 type MenuId = "file" | "edit" | "object" | "view" | "help";
@@ -150,6 +151,7 @@ export function TitleBar({
   onCommitShapeBuilder,
   onOpenManual,
   onExportDiagnostics,
+  onAbout,
 }: Props) {
   const [open, setOpen] = useState<MenuId | null>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -327,6 +329,7 @@ export function TitleBar({
         <Menu id="help" label="Help" open={open} onOpen={setOpen}>
           <MenuItem onClick={run(onOpenManual)}>User Manual (PDF)…</MenuItem>
           <MenuItem onClick={run(onExportDiagnostics)}>Export Diagnostics…</MenuItem>
+          <MenuItem onClick={run(onAbout)}>About SaVaGe</MenuItem>
         </Menu>
       </nav>
       <div

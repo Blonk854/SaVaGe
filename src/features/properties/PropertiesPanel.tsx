@@ -16,10 +16,6 @@ import { PaintEditor, setNodePaint } from "./PaintEditor";
 import { convertTextToOutlines } from "../tools/textToOutlines";
 import { useUiStore } from "../../shared/stores/uiStore";
 
-function sameNodeList(a: Array<SceneNode | undefined>, b: Array<SceneNode | undefined>) {
-  return a.length === b.length && a.every((node, index) => node === b[index]);
-}
-
 const emptyNodes: Array<SceneNode | undefined> = [];
 
 function NumField({
@@ -53,9 +49,8 @@ export function PropertiesPanel() {
     if (s.selection.length !== 1) return null;
     return s.doc.nodes[s.selection[0]] ?? null;
   });
-  const mixedNodes = useDocumentStore(
-    (s) => (s.selection.length > 1 ? s.selection.map((id) => s.doc.nodes[id]) : emptyNodes),
-    sameNodeList,
+  const mixedNodes = useDocumentStore((s) =>
+    s.selection.length > 1 ? s.selection.map((id) => s.doc.nodes[id]) : emptyNodes,
   );
   const updateNode = useDocumentStore((s) => s.updateNode);
   const setNodeTransform = useDocumentStore((s) => s.setNodeTransform);

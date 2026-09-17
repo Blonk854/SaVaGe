@@ -305,4 +305,41 @@ mod tests {
 
         fs::remove_dir_all(dir).expect("remove fixture directory");
     }
+
+    #[cfg(windows)]
+    #[test]
+    fn locked_destination_keeps_the_original_file() {
+        use std::fs::OpenOptions;
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let dir = std::env::temp_dir().join(format!(
+            "savage-locked-write-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock")
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).expect("create fixture directory");
+        let path = dir.join("project.savage");
+        fs::write(&path, b"original").expect("seed destination");
+        let _hold = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .share_mode(0)
+            .open(&path)
+            .expect("exclusive lock");
+        let error =
+            write_text_file_atomic(&path, b"changed", 16, None).expect_err("lock should fail");
+        drop(_hold);
+        assert!(
+            error.contains("Failed to replace")
+                || error.contains("sharing")
+                || error.contains("os error"),
+            "unexpected lock error: {error}"
+        );
+        assert_eq!(fs::read(&path).unwrap(), b"original");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        fs::remove_dir_all(dir).expect("remove fixture directory");
+    }
 }

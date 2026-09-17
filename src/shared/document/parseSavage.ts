@@ -8,6 +8,12 @@ export const SAVAGE_LIMITS = {
   pathPoints: 1_000_000,
 } as const;
 
+export const PROJECT_SCHEMA_VERSION = 1 as const;
+
+export function unsupportedProjectVersionMessage(version: number): string {
+  return `This project is version ${version}. SaVaGe opens version ${PROJECT_SCHEMA_VERSION} only. Use a newer SaVaGe, or Save As a version-${PROJECT_SCHEMA_VERSION} copy from that version. The original file was not changed.`;
+}
+
 const NODE_TYPES = new Set([
   "group",
   "path",
@@ -170,9 +176,12 @@ export function parseSavageDocument(text: string): SvgDocument {
   if (!data || typeof data !== "object") {
     throw new Error("Unrecognized SaVaGe document");
   }
-  const raw = data as Partial<SvgDocument> & { nodes?: unknown; rootChildIds?: unknown };
+  const raw = data as Partial<SvgDocument> & { nodes?: unknown; rootChildIds?: unknown; version?: unknown };
+  if (typeof raw.version === "number" && raw.version !== PROJECT_SCHEMA_VERSION) {
+    throw new Error(unsupportedProjectVersionMessage(raw.version));
+  }
   if (
-    raw.version !== 1 ||
+    raw.version !== PROJECT_SCHEMA_VERSION ||
     !raw.nodes ||
     typeof raw.nodes !== "object" ||
     !Array.isArray(raw.rootChildIds)
@@ -196,7 +205,7 @@ export function parseSavageDocument(text: string): SvgDocument {
   return {
     ...fallback,
     ...raw,
-    version: 1,
+    version: PROJECT_SCHEMA_VERSION,
     name: typeof raw.name === "string" ? raw.name : fallback.name,
     width: Number(raw.width) || fallback.width,
     height: Number(raw.height) || fallback.height,

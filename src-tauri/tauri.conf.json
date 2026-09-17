@@ -45,6 +45,11 @@
       "resources/USER_MANUAL.pdf"
     ],
     "windows": {
+      "allowDowngrades": true,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
       "nsis": {
         "installMode": "currentUser",
         "displayLanguageSelector": false,

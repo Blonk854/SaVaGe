@@ -10,6 +10,7 @@ use super::destination_grants::{pick_destination, DestinationGrantManager, Desti
 use super::export::write_text_file_atomic;
 
 const DIAGNOSTIC_FORMAT_VERSION: u32 = 1;
+const DIAGNOSTICS_FILE: &str = "diagnostics.json";
 const MAX_EVENTS: usize = 128;
 const MAX_MESSAGE_CHARS: usize = 400;
 const MAX_EXPORT_BYTES: usize = 256 * 1024;
@@ -243,7 +244,7 @@ impl DiagnosticLog {
         let Ok(directory) = app.path().app_data_dir() else {
             return;
         };
-        let path = directory.join("diagnostics.json");
+        let path = directory.join(DIAGNOSTICS_FILE);
         if path.is_file() {
             if let Ok(bytes) = std::fs::read(&path) {
                 if bytes.len() <= MAX_EXPORT_BYTES {
@@ -378,7 +379,7 @@ pub async fn export_diagnostics(
 
 #[cfg(test)]
 mod tests {
-    use super::{redact_user_text, DiagnosticLevel, DiagnosticLog, MAX_EVENTS};
+    use super::{redact_user_text, DiagnosticLevel, DiagnosticLog, DIAGNOSTICS_FILE, MAX_EVENTS};
 
     #[test]
     fn redacts_paths_documents_and_embedded_data() {
@@ -430,5 +431,6 @@ mod tests {
             parsed["events"].as_array().expect("events").len(),
             MAX_EVENTS
         );
+        assert_eq!(DIAGNOSTICS_FILE, "diagnostics.json");
     }
 }

@@ -35,6 +35,22 @@ pnpm tauri:dev
 | `pnpm build` | Frontend-only build |
 | `pnpm check` | Frontend build/tests plus Rust fmt/tests/Clippy |
 | `pnpm audit:frontend` | Audit production JavaScript dependencies |
+| `pnpm release:check` | Confirm package, Cargo, Tauri, and manual versions match |
+| `pnpm release:package` | Production NSIS installer plus SHA-256 and provenance sidecars |
+| `pnpm release:withdraw` | Plan or apply halt/withdraw of a tagged GitHub Release (no tag delete) |
+| `pnpm release:rollback` | Copy compatibility fixtures and print a rollback rehearsal plan |
+| `pnpm release:retain` | List or append-only-record a tagged NSIS in the verified installer catalog |
+| `pnpm install:inspect` | Record a current-user NSIS install (WebView2, Help, no file association) |
+
+Tagged installers are unsigned until an Authenticode certificate is provisioned. Verify
+`SHA256SUMS.txt` before running `SaVaGe_<version>_x64-setup.exe`. GitHub Releases are
+prereleases; there is no automatic updater. See
+[docs/engineering/m8-release.md](docs/engineering/m8-release.md),
+[docs/engineering/m8-install.md](docs/engineering/m8-install.md),
+[docs/engineering/m8-rollout.md](docs/engineering/m8-rollout.md),
+[docs/engineering/m8-withdraw.md](docs/engineering/m8-withdraw.md),
+[docs/engineering/m8-rollback.md](docs/engineering/m8-rollback.md), and
+[docs/engineering/m8-retain.md](docs/engineering/m8-retain.md).
 
 ## Brand assets
 

@@ -134,7 +134,7 @@ export function listPlugins(): SavagePlugin[] {
 export async function runPluginCommand(pluginId: string, commandId: string) {
   const plugin = registry.get(pluginId);
   const cmd = plugin?.commands.find((c) => c.id === commandId);
-  if (!cmd) throw new Error(`Unknown plugin command ${pluginId}.${commandId}`);
+  if (!plugin || !cmd) throw new Error(`Unknown plugin command ${pluginId}.${commandId}`);
   if (pluginCommandRunning) {
     throw new Error("Another plugin command is already running");
   }

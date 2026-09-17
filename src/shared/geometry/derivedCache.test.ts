@@ -197,7 +197,7 @@ describe("derived geometry cache", () => {
     const box = nodeWorldBounds(doc, "inst");
     expect(box).toEqual({ x: 10, y: 20, w: 40, h: 40 });
 
-    doc.symbols.sym.nodes.master.width = 8;
+    master.width = 8;
     doc.symbols.sym.width = 8;
     expectMatchesOracle(doc);
     expect(nodeWorldBounds(doc, "inst")).toEqual(box);

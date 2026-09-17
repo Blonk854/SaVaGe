@@ -20,7 +20,13 @@
     "check": "pnpm check:frontend && pnpm check:rust",
     "check:frontend": "pnpm test && pnpm build",
     "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo test --manifest-path src-tauri/Cargo.toml --locked && cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings",
-    "audit:frontend": "pnpm audit --prod"
+    "audit:frontend": "pnpm audit --prod",
+    "release:check": "node scripts/release-manifest.mjs check",
+    "release:package": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1",
+    "release:withdraw": "node scripts/withdraw-release.mjs",
+    "release:rollback": "node scripts/rehearse-rollback.mjs",
+    "release:retain": "node scripts/retain-installer.mjs",
+    "install:inspect": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/inspect-install.ps1"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.2.5",

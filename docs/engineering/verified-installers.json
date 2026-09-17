@@ -1,0 +1,13 @@
+{
+  "policyVersion": 1,
+  "distribution": "manual-reinstall",
+  "autoUpdater": false,
+  "retainPrevious": true,
+  "archive": "GitHub Releases for each v*.*.* tag (NSIS + SHA256SUMS.txt + provenance.json). Optional local copies under artifacts/verified/; executables are not stored in git.",
+  "compatibilityNotes": [
+    "docs/engineering/m8-compatibility.md",
+    "docs/engineering/release-notes-0.1.0.md",
+    "fixtures/compatibility/"
+  ],
+  "installers": []
+}

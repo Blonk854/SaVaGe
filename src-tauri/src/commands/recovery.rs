@@ -11,6 +11,8 @@ use super::export::write_text_file_atomic;
 use super::file_identity::FileFingerprint;
 
 const RECOVERY_FORMAT_VERSION: u32 = 1;
+const RECOVERY_SUBDIR: &str = "recovery";
+const PROJECT_SCHEMA_VERSION: u32 = 1;
 const MAX_RECOVERY_BYTES: usize = 32 * 1024 * 1024;
 const MAX_AGGREGATE_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_RECOVERY_FILES: usize = 64;
@@ -58,7 +60,7 @@ pub struct RecoveryScan {
 fn recovery_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
-        .map(|path| path.join("recovery"))
+        .map(|path| path.join(RECOVERY_SUBDIR))
         .map_err(|error| format!("Could not resolve recovery directory: {error}"))
 }
 
@@ -95,6 +97,33 @@ fn recovery_path(directory: &Path, session_id: &str) -> Result<PathBuf, String> 
     Ok(directory.join(format!("{session_id}.recovery.json")))
 }
 
+fn peek_recovery_versions(path: &Path) -> Option<(u32, Option<u32>)> {
+    let bytes = fs::read(path).ok()?;
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    let format = value.get("formatVersion")?.as_u64()? as u32;
+    let schema = value
+        .get("schemaVersion")
+        .and_then(serde_json::Value::as_u64)
+        .map(|value| value as u32);
+    Some((format, schema))
+}
+
+fn unsupported_recovery_reason(format: u32, schema: Option<u32>) -> Option<String> {
+    if format != RECOVERY_FORMAT_VERSION {
+        return Some(format!(
+            "Unsupported recovery format version {format}; the file was left unchanged"
+        ));
+    }
+    if let Some(schema) = schema {
+        if schema != PROJECT_SCHEMA_VERSION {
+            return Some(format!(
+                "Unsupported project schema version {schema}; the file was left unchanged"
+            ));
+        }
+    }
+    None
+}
+
 fn read_envelope(path: &Path) -> Result<RecoveryEnvelope, String> {
     let bytes = fs::read(path).map_err(|error| format!("Could not read recovery: {error}"))?;
     if bytes.len() > MAX_RECOVERY_BYTES {
@@ -107,6 +136,12 @@ fn read_envelope(path: &Path) -> Result<RecoveryEnvelope, String> {
         return Err(format!(
             "Unsupported recovery format version {}",
             envelope.format_version
+        ));
+    }
+    if envelope.schema_version != PROJECT_SCHEMA_VERSION {
+        return Err(format!(
+            "Unsupported project schema version {}",
+            envelope.schema_version
         ));
     }
     if envelope.integrity != envelope_integrity(&envelope)? {
@@ -130,6 +165,15 @@ fn scan_directory(directory: &Path) -> RecoveryScan {
             Ok(envelope) => candidates.push(envelope),
             Err(reason) => {
                 let file_name = entry.file_name().to_string_lossy().into_owned();
+                if let Some((format, schema)) = peek_recovery_versions(&path) {
+                    if let Some(unsupported) = unsupported_recovery_reason(format, schema) {
+                        issues.push(RecoveryIssue {
+                            file_name,
+                            reason: unsupported,
+                        });
+                        continue;
+                    }
+                }
                 let quarantine = path.with_extension("quarantine");
                 let quarantine_note = match fs::rename(&path, &quarantine) {
                     Ok(()) => " The file was quarantined.".to_string(),
@@ -154,6 +198,13 @@ fn write_recovery_to(directory: &Path, request: RecoveryWriteRequest) -> Result<
     fs::create_dir_all(directory)
         .map_err(|error| format!("Could not create recovery directory: {error}"))?;
     let destination = recovery_path(directory, &request.session_id)?;
+    if destination.exists() {
+        if let Some((format, schema)) = peek_recovery_versions(&destination) {
+            if let Some(reason) = unsupported_recovery_reason(format, schema) {
+                return Err(reason);
+            }
+        }
+    }
     if let Ok(existing) = read_envelope(&destination) {
         if request.sequence <= existing.sequence {
             return Ok(());
@@ -276,7 +327,7 @@ pub async fn delete_recovery(
 mod tests {
     use super::{
         delete_recovery_from, read_envelope, scan_directory, write_recovery_to,
-        RecoveryWriteRequest,
+        RecoveryWriteRequest, RECOVERY_SUBDIR,
     };
     use std::fs;
 
@@ -312,6 +363,56 @@ mod tests {
         let scan = scan_directory(&directory);
         assert!(scan.candidates.is_empty());
         assert_eq!(scan.issues.len(), 1);
+        assert!(scan.issues[0].reason.contains("quarantined"));
+        assert!(!path.exists());
+        assert_eq!(RECOVERY_SUBDIR, "recovery");
         fs::remove_dir_all(directory).expect("cleanup recovery test");
+    }
+
+    #[test]
+    fn unsupported_recovery_versions_are_left_unchanged() {
+        let directory = std::env::temp_dir().join(format!(
+            "savage-recovery-future-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        fs::create_dir_all(&directory).expect("create recovery directory");
+        let path = directory.join("session_x.recovery.json");
+        let original = r#"{"formatVersion":2,"applicationVersion":"9.0.0","schemaVersion":2,"sessionId":"session_x","sequence":3,"createdAtMs":1,"contents":"{}","integrity":"deadbeef"}"#;
+        fs::write(&path, original).expect("seed future recovery");
+
+        let scan = scan_directory(&directory);
+        assert!(scan.candidates.is_empty());
+        assert_eq!(scan.issues.len(), 1);
+        assert!(scan.issues[0]
+            .reason
+            .contains("Unsupported recovery format version 2"));
+        assert!(!scan.issues[0].reason.contains("quarantined"));
+        assert_eq!(
+            fs::read_to_string(&path).expect("preserved bytes"),
+            original
+        );
+
+        let error = write_recovery_to(
+            &directory,
+            RecoveryWriteRequest {
+                session_id: "session_x".into(),
+                source_path: None,
+                source_fingerprint: None,
+                schema_version: 1,
+                sequence: 99,
+                contents: "new".into(),
+            },
+        )
+        .expect_err("must not overwrite future recovery");
+        assert!(error.contains("Unsupported"));
+        assert_eq!(
+            fs::read_to_string(&path).expect("still preserved"),
+            original
+        );
+        fs::remove_dir_all(directory).expect("cleanup future recovery test");
     }
 }

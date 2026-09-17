@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "name": "Skew Nested",
+  "width": 200,
+  "height": 200,
+  "viewBox": { "x": 0, "y": 0, "w": 200, "h": 200 },
+  "background": null,
+  "rootChildIds": ["outer"],
+  "nodes": {
+    "outer": {
+      "id": "outer",
+      "name": "Outer",
+      "type": "group",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "normal",
+      "transform": { "x": 10, "y": -2, "rotation": 0, "scaleX": 2, "scaleY": 3, "skewX": 45, "skewY": 0 },
+      "children": ["inner"]
+    },
+    "inner": {
+      "id": "inner",
+      "name": "Inner",
+      "type": "rect",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "normal",
+      "transform": { "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1, "skewX": 0, "skewY": 0 },
+      "width": 1,
+      "height": 1,
+      "rx": 0,
+      "ry": 0,
+      "fill": { "type": "solid", "color": "#22D3EE", "opacity": 1 },
+      "stroke": {
+        "paint": { "type": "none" },
+        "width": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4,
+        "dashArray": [],
+        "dashOffset": 0,
+        "align": "center"
+      }
+    }
+  },
+  "assets": {},
+  "artboards": [
+    {
+      "id": "ab1",
+      "name": "Artboard 1",
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 200,
+      "background": "#ffffff"
+    }
+  ],
+  "activeArtboardId": "ab1",
+  "symbols": {}
+}

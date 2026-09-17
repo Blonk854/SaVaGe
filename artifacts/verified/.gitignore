@@ -1,0 +1,6 @@
+# Optional local copies of tagged NSIS setups.
+# Record hashes in docs/engineering/verified-installers.json.
+# Sidecars (SHA256SUMS.txt, provenance.json) may be committed; executables must not.
+*
+!.gitignore
+!README.md

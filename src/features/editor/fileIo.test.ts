@@ -226,4 +226,29 @@ describe("saveProject", () => {
       "grant_opened",
     );
   });
+
+  it("rejects a future project version without writing the source", async () => {
+    const before = projectContents(useDocumentStore.getState().doc);
+    const commands: string[] = [];
+    await expect(
+      openFile({
+        chooseOpen: async () => ({ path: "C:\\projects\\future.savage" }),
+        chooseSave: async () => null,
+        invoke: async (command) => {
+          commands.push(command);
+          return {
+            contents: JSON.stringify({
+              version: 2,
+              name: "Future",
+              nodes: {},
+              rootChildIds: [],
+            }),
+            fingerprint: { size: 4, modifiedMs: 5 },
+          };
+        },
+      }),
+    ).rejects.toThrow(/version 2/);
+    expect(commands).toEqual(["read_text_file"]);
+    expect(projectContents(useDocumentStore.getState().doc)).toBe(before);
+  });
 });
