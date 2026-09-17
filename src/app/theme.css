@@ -1,143 +1,371 @@
-:root {
-  --bg-0: #0b0d10;
-  --bg-1: #12151a;
-  --bg-2: #1a1f27;
-  --fg-0: #f2f4f7;
-  --fg-1: #a7b0bd;
-  --accent: #b8ff3c;
-  --accent-ink: #0b0d10;
-  --danger: #ff5c5c;
-  --warn: #ffc14a;
-  --border: rgba(255, 255, 255, 0.08);
-  --radius: 10px;
-  --font-display: "Syne Variable", "Syne", sans-serif;
-  --font-ui: "DM Sans Variable", "DM Sans", sans-serif;
-  --shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.35);
-  --tool-rail-w: 56px;
-  --right-panel-w: 280px;
-  --titlebar-h: 40px;
-  --toolbar-h: 44px;
-  --statusbar-h: 28px;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  margin: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: var(--bg-0);
-  color: var(--fg-0);
-  font-family: var(--font-ui);
-  font-optical-sizing: auto;
-  -webkit-font-smoothing: antialiased;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
-}
-
-button {
-  cursor: pointer;
-}
-
-.app-noise {
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  opacity: 0.035;
-  z-index: 50;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-.app-vignette {
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 49;
-  background: radial-gradient(ellipse at 50% 30%, transparent 0%, rgba(0, 0, 0, 0.45) 75%, rgba(0, 0, 0, 0.7) 100%);
-}
-
-/* Motion 1: panel mount */
-@keyframes panelIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.panel-enter {
-  animation: panelIn 180ms ease-out both;
-}
-
-/* Motion 2: tool underline */
-.tool-btn {
-  position: relative;
-}
-
-.tool-btn::after {
-  content: "";
-  position: absolute;
-  left: 20%;
-  right: 20%;
-  bottom: 4px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transition: transform 160ms ease;
-}
-
-.tool-btn.active::after {
-  transform: scaleX(1);
-}
-
-/* Motion 3: converter shimmer */
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.progress-shimmer {
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--accent) 45%,
-    #e8ff9a 50%,
-    var(--accent) 55%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.2s linear infinite;
-}
-
-.wordmark {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.muted {
-  color: var(--fg-1);
-}
+:root {
+  color-scheme: dark;
+  --bg-0: #0b0d10;
+  --bg-1: #12151a;
+  --bg-2: #1a1f27;
+  --fg-0: #f2f4f7;
+  --fg-1: #c3cad4;
+  --fg-disabled: #8b93a0;
+  --accent: #b8ff3c;
+  --accent-ink: #0b0d10;
+  --success: #7dffb3;
+  --danger: #ff6b6b;
+  --warn: #ffc14a;
+  --border: rgba(255, 255, 255, 0.1);
+  --focus-ring: var(--accent);
+  --selection-fill: rgba(184, 255, 60, 0.14);
+  --selection-fg: var(--accent);
+  --success-fill: rgba(125, 255, 179, 0.12);
+  --warn-fill: rgba(255, 193, 74, 0.14);
+  --danger-fill: rgba(255, 107, 107, 0.14);
+  --info-fill: rgba(255, 255, 255, 0.05);
+  --disabled-opacity: 0.55;
+  --radius: 10px;
+  --radius-sm: 8px;
+  --font-display: "Syne Variable", "Syne", sans-serif;
+  --font-ui: "DM Sans Variable", "DM Sans", sans-serif;
+  --shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.35);
+  --text-xs: 0.75rem;
+  --text-sm: 0.82rem;
+  --space-1: 0.35rem;
+  --space-2: 0.55rem;
+  --space-3: 0.85rem;
+  --duration: 160ms;
+  --tool-rail-w: 56px;
+  --right-panel-w: 280px;
+  --titlebar-h: 40px;
+  --toolbar-h: 44px;
+  --statusbar-h: 28px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-0);
+  color: var(--fg-0);
+  font-family: var(--font-ui);
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-noise {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  opacity: 0.035;
+  z-index: 50;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.app-vignette {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: radial-gradient(ellipse at 50% 30%, transparent 0%, rgba(0, 0, 0, 0.45) 75%, rgba(0, 0, 0, 0.7) 100%);
+}
+
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.panel-enter {
+  animation: panelIn var(--duration) ease-out both;
+}
+
+.tool-btn {
+  position: relative;
+}
+
+.tool-btn::after {
+  content: "";
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform var(--duration) ease;
+}
+
+.tool-btn.active::after {
+  transform: scaleX(1);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.progress-shimmer {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent) 45%,
+    #e8ff9a 50%,
+    var(--accent) 55%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.muted {
+  color: var(--fg-1);
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sv-empty {
+  margin: 0;
+  padding: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--fg-1);
+}
+
+.sv-status {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  background: var(--info-fill);
+  color: var(--fg-0);
+}
+
+.sv-status__body {
+  min-width: 0;
+}
+
+.sv-status__body > :first-child {
+  margin-top: 0;
+}
+
+.sv-status__body > :last-child {
+  margin-bottom: 0;
+}
+
+.sv-status__title {
+  margin: 0 0 0.2rem;
+  font-weight: 650;
+}
+
+.sv-status__dismiss {
+  flex-shrink: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-xs);
+}
+
+.sv-status--success {
+  background: var(--success-fill);
+  border-color: rgba(125, 255, 179, 0.35);
+  color: var(--success);
+}
+
+.sv-status--warn {
+  background: var(--warn-fill);
+  border-color: rgba(255, 193, 74, 0.4);
+  color: var(--warn);
+}
+
+.sv-status--error {
+  background: var(--danger-fill);
+  border-color: rgba(255, 107, 107, 0.4);
+  color: var(--danger);
+}
+
+.sv-status--mixed {
+  background: var(--selection-fill);
+  border-style: dashed;
+  border-color: rgba(184, 255, 60, 0.45);
+}
+
+.sv-status--loading {
+  background: var(--info-fill);
+}
+
+.sv-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  max-width: min(420px, calc(100% - 2rem));
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--fg-0);
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  z-index: 5;
+  box-shadow: var(--shadow-soft);
+  animation: panelIn var(--duration) ease-out;
+}
+
+.sv-toast--success {
+  background: var(--success-fill);
+  border-color: rgba(125, 255, 179, 0.4);
+  color: var(--success);
+}
+
+.sv-toast--warn {
+  background: var(--warn-fill);
+  border-color: rgba(255, 193, 74, 0.45);
+  color: var(--warn);
+}
+
+.sv-toast--error {
+  background: var(--danger-fill);
+  border-color: rgba(255, 107, 107, 0.45);
+  color: var(--danger);
+}
+
+.list-row.selected {
+  background: var(--selection-fill);
+  color: var(--selection-fg);
+}
+
+.list-row:focus-visible {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --right-panel-w: 240px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-enter,
+  .sv-toast,
+  .progress-shimmer {
+    animation: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --border: rgba(255, 255, 255, 0.42);
+    --fg-1: #e8edf4;
+    --focus-ring: #e8ff9a;
+  }
+
+  :focus-visible {
+    outline-width: 3px;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --bg-0: Canvas;
+    --bg-1: Canvas;
+    --bg-2: ButtonFace;
+    --fg-0: CanvasText;
+    --fg-1: GrayText;
+    --fg-disabled: GrayText;
+    --accent: Highlight;
+    --accent-ink: HighlightText;
+    --success: Highlight;
+    --danger: LinkText;
+    --warn: LinkText;
+    --border: CanvasText;
+    --focus-ring: Highlight;
+    --selection-fill: Highlight;
+    --selection-fg: HighlightText;
+    --success-fill: Canvas;
+    --warn-fill: Canvas;
+    --danger-fill: Canvas;
+    --info-fill: Canvas;
+  }
+
+  .app-noise,
+  .app-vignette {
+    display: none;
+  }
+
+  :focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .sv-btn--primary,
+  .mode-switch button.active {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+

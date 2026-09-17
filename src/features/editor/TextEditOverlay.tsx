@@ -5,44 +5,43 @@ import { worldToScreen } from "../../shared/geometry/transform";
 import type { TextNode } from "../../shared/document/types";
 
 interface Props {
-  nodeId: string | null;
+  nodeId: string;
   onClose: () => void;
 }
 
 export function TextEditOverlay({ nodeId, onClose }: Props) {
   const ref = useRef<HTMLInputElement>(null);
-  const doc = useDocumentStore((s) => s.doc);
+  const node = useDocumentStore((s) => s.doc.nodes[nodeId]);
   const updateNode = useDocumentStore((s) => s.updateNode);
   const zoom = useUiStore((s) => s.zoom);
   const panX = useUiStore((s) => s.panX);
   const panY = useUiStore((s) => s.panY);
 
-  const node = nodeId ? (doc.nodes[nodeId] as TextNode | undefined) : undefined;
-  const isText = node?.type === "text";
+  const text = node?.type === "text" ? node : undefined;
 
   useEffect(() => {
-    if (isText) ref.current?.focus();
-  }, [isText, nodeId]);
+    if (text) ref.current?.focus();
+  }, [text, nodeId]);
 
-  if (!isText || !node) return null;
+  if (!text) return null;
 
-  const screen = worldToScreen(node.transform.x, node.transform.y, zoom, panX, panY);
+  const screen = worldToScreen(text.transform.x, text.transform.y, zoom, panX, panY);
 
   return (
     <input
       ref={ref}
       className="text-edit"
-      defaultValue={node.content}
+      defaultValue={text.content}
       style={{
         left: screen.x,
-        top: screen.y - node.fontSize * zoom,
-        fontSize: Math.max(12, node.fontSize * zoom),
-        fontFamily: node.fontFamily,
-        fontWeight: node.fontWeight,
+        top: screen.y - text.fontSize * zoom,
+        fontSize: Math.max(12, text.fontSize * zoom),
+        fontFamily: text.fontFamily,
+        fontWeight: text.fontWeight,
         minWidth: 120,
       }}
       onBlur={(e) => {
-        updateNode(node.id, { content: e.target.value } as Partial<TextNode>);
+        updateNode(text.id, { content: e.target.value } as Partial<TextNode>);
         useUiStore.getState().markDirty();
         onClose();
       }}

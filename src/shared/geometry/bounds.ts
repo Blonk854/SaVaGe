@@ -1,5 +1,6 @@
 import type { SceneNode, SvgDocument, Transform2D } from "../document/types";
-import { applyMat, transformToMatrix } from "./transform";
+import { recallBounds, rememberBounds } from "./derivedCache";
+import { applyMat, computeNodeWorldMatrix, nodeWorldMatrix, type Mat2D } from "./transform";
 
 export interface Bounds {
   x: number;
@@ -20,6 +21,10 @@ export function unionBounds(a: Bounds, b: Bounds): Bounds {
   const x2 = Math.max(a.x + a.w, b.x + b.w);
   const y2 = Math.max(a.y + a.h, b.y + b.h);
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+}
+
+export function pointInBounds(b: Bounds, x: number, y: number, pad = 0): boolean {
+  return x >= b.x - pad && y >= b.y - pad && x <= b.x + b.w + pad && y <= b.y + b.h + pad;
 }
 
 function localBounds(node: SceneNode): Bounds {
@@ -71,18 +76,7 @@ function localBounds(node: SceneNode): Bounds {
   }
 }
 
-export function nodeWorldBounds(doc: SvgDocument, id: string): Bounds {
-  const node = doc.nodes[id];
-  if (!node) return emptyBounds();
-  if (node.type === "group") {
-    let b = emptyBounds();
-    for (const cid of node.children) {
-      b = unionBounds(b, nodeWorldBounds(doc, cid));
-    }
-    return b;
-  }
-  const lb = localBounds(node);
-  const m = transformToMatrix(node.transform);
+function worldAabbFromLocal(lb: Bounds, m: Mat2D): Bounds {
   const corners = [
     applyMat(m, lb.x, lb.y),
     applyMat(m, lb.x + lb.w, lb.y),
@@ -94,6 +88,47 @@ export function nodeWorldBounds(doc: SvgDocument, id: string): Bounds {
   const minX = Math.min(...xs);
   const minY = Math.min(...ys);
   return { x: minX, y: minY, w: Math.max(...xs) - minX, h: Math.max(...ys) - minY };
+}
+
+function leafWorldBounds(node: SceneNode, matrix: Mat2D | null): Bounds {
+  if (!matrix) return emptyBounds();
+  return worldAabbFromLocal(localBounds(node), matrix);
+}
+
+/** Uncached oracle: world AABB from ancestor matrices and local geometry. */
+export function computeNodeWorldBounds(doc: SvgDocument, id: string): Bounds {
+  const node = doc.nodes[id];
+  if (!node) return emptyBounds();
+  if (node.type === "group") {
+    let b = emptyBounds();
+    for (const cid of node.children) {
+      b = unionBounds(b, computeNodeWorldBounds(doc, cid));
+    }
+    return b;
+  }
+  return leafWorldBounds(node, computeNodeWorldMatrix(doc, id));
+}
+
+/**
+ * World AABB for a node. Cached per immutable document snapshot; in-place
+ * mutation of the same object requires `invalidateDerivedCache(doc)`.
+ */
+export function nodeWorldBounds(doc: SvgDocument, id: string): Bounds {
+  const cached = recallBounds(doc, id);
+  if (cached) return cached;
+  const node = doc.nodes[id];
+  if (!node) return emptyBounds();
+  let bounds: Bounds;
+  if (node.type === "group") {
+    bounds = emptyBounds();
+    for (const cid of node.children) {
+      bounds = unionBounds(bounds, nodeWorldBounds(doc, cid));
+    }
+  } else {
+    bounds = leafWorldBounds(node, nodeWorldMatrix(doc, id));
+  }
+  rememberBounds(doc, id, bounds);
+  return bounds;
 }
 
 /** Scale a node's transform so its world bounds match the given width/height. */

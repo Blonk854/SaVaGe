@@ -2,6 +2,10 @@
   "name": "savage",
   "private": true,
   "version": "0.1.0",
+  "packageManager": "pnpm@10.17.1",
+  "engines": {
+    "node": ">=22 <25"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,9 +14,13 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "manual:pdf": "pnpm dlx md-to-pdf USER_MANUAL.md --config-file ./md-to-pdf.config.cjs && node -e \"const fs=require('fs');fs.mkdirSync('docs',{recursive:true});fs.mkdirSync('src-tauri/resources',{recursive:true});fs.copyFileSync('USER_MANUAL.pdf','docs/USER_MANUAL.pdf');fs.copyFileSync('USER_MANUAL.pdf','src-tauri/resources/USER_MANUAL.pdf');console.log('Synced PDF to docs/ and src-tauri/resources/')\"",
+    "manual:pdf": "npx --yes md-to-pdf USER_MANUAL.md --config-file ./md-to-pdf.config.cjs && node -e \"const fs=require('fs');fs.mkdirSync('docs',{recursive:true});fs.mkdirSync('src-tauri/resources',{recursive:true});fs.copyFileSync('USER_MANUAL.pdf','docs/USER_MANUAL.pdf');fs.copyFileSync('USER_MANUAL.pdf','src-tauri/resources/USER_MANUAL.pdf');console.log('Synced PDF to docs/ and src-tauri/resources/')\"",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check": "pnpm check:frontend && pnpm check:rust",
+    "check:frontend": "pnpm test && pnpm build",
+    "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo test --manifest-path src-tauri/Cargo.toml --locked && cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings",
+    "audit:frontend": "pnpm audit --prod"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.2.5",
@@ -21,8 +29,6 @@
     "@fontsource/syne": "^5.3.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
-    "@tauri-apps/plugin-fs": "^2",
-    "@tauri-apps/plugin-shell": "^2",
     "clsx": "^2.1.1",
     "immer": "^10.1.1",
     "nanoid": "^5.1.5",

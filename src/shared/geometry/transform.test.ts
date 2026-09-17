@@ -21,6 +21,22 @@ describe("invertMat", () => {
   });
 });
 
+describe("transformToMatrix", () => {
+  it("matches the serialized translate-scale-skew order", () => {
+    const matrix = transformToMatrix({
+      ...defaultTransform(10, -2),
+      scaleX: 2,
+      scaleY: 3,
+      skewX: 45,
+    });
+
+    // skewX(45) maps (1, 2) to (3, 2), then scale and translation map it to (16, 4).
+    const point = applyMat(matrix, 1, 2);
+    expect(point.x).toBeCloseTo(16);
+    expect(point.y).toBeCloseTo(4);
+  });
+});
+
 describe("transformForWorldSize", () => {
   it("scales so world bounds match the requested size", () => {
     const t = defaultTransform(0, 0);

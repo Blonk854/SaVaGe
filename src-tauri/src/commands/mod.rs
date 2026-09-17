@@ -1,5 +1,10 @@
 pub mod boolean;
 pub mod convert;
+pub mod destination_grants;
+pub mod diagnostics;
 pub mod export;
+pub mod file_identity;
 pub mod help;
 pub mod import;
+pub mod recovery;
+pub mod source_grants;

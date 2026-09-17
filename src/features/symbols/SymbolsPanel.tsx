@@ -1,29 +1,31 @@
 import { Panel } from "../../shared/ui/Panel";
 import { Button } from "../../shared/ui/Button";
+import { focusListSibling } from "../../shared/ui/keyboard";
 import { useDocumentStore } from "../../shared/stores/documentStore";
 import { useUiStore } from "../../shared/stores/uiStore";
 
 export function SymbolsPanel() {
   const symbols = useDocumentStore((s) => s.doc.symbols);
-  const selection = useDocumentStore((s) => s.selection);
-  const nodes = useDocumentStore((s) => s.doc.nodes);
+  const hasSelection = useDocumentStore((s) => s.selection.length > 0);
+  const selectedIsInstance = useDocumentStore((s) => {
+    const id = s.selection[0];
+    return id ? s.doc.nodes[id]?.type === "symbolInstance" : false;
+  });
   const createSymbolFromSelection = useDocumentStore((s) => s.createSymbolFromSelection);
   const placeSymbol = useDocumentStore((s) => s.placeSymbol);
   const detachSymbol = useDocumentStore((s) => s.detachSymbol);
   const deleteSymbol = useDocumentStore((s) => s.deleteSymbol);
   const list = Object.values(symbols ?? {});
-  const selectedIsInstance = selection[0]
-    ? nodes[selection[0]]?.type === "symbolInstance"
-    : false;
 
   return (
     <Panel
       title="Symbols"
       actions={
-        <Button
-          variant="ghost"
-          disabled={!selection.length}
-          onClick={() => {
+          <Button
+            variant="ghost"
+            disabled={!hasSelection}
+            title={hasSelection ? "Create a symbol from the selection" : "Select objects to create a symbol"}
+            onClick={() => {
             createSymbolFromSelection();
             useUiStore.getState().markDirty();
           }}
@@ -32,11 +34,12 @@ export function SymbolsPanel() {
         </Button>
       }
     >
-      <div className="syms">
+        <div className="syms" data-list-root>
         <div className="syms__actions">
           <Button
             variant="subtle"
-            disabled={!selection.length}
+            disabled={!hasSelection}
+            title={hasSelection ? "Create a symbol from the selection" : "Select objects to create a symbol"}
             onClick={() => {
               createSymbolFromSelection();
               useUiStore.getState().markDirty();
@@ -47,6 +50,7 @@ export function SymbolsPanel() {
           <Button
             variant="subtle"
             disabled={!selectedIsInstance}
+            title={selectedIsInstance ? "Detach the selected instance" : "Select a symbol instance to detach"}
             onClick={() => {
               detachSymbol();
               useUiStore.getState().markDirty();
@@ -55,15 +59,23 @@ export function SymbolsPanel() {
             Detach instance
           </Button>
         </div>
-        {!list.length && <p className="muted empty">No symbols yet</p>}
+        {!list.length && <p className="sv-empty">No symbols yet</p>}
         {list.map((sym) => (
           <div key={sym.id} className="syms__row">
             <button
               type="button"
               className="syms__name"
+              data-list-row
+              data-id={sym.id}
+              aria-label={`Place ${sym.name}`}
               onClick={() => {
                 placeSymbol(sym.id);
                 useUiStore.getState().markDirty();
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+                event.preventDefault();
+                focusListSibling(event.currentTarget, event.key === "ArrowDown" ? 1 : -1);
               }}
               title="Place instance"
             >

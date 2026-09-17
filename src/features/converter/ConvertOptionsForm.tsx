@@ -1,13 +1,11 @@
 import { Slider } from "../../shared/ui/Slider";
 import type { ConvertOptions, ConvertPreset } from "./convertApi";
-import { PRESETS } from "./convertApi";
+import { matchingPreset, PRESETS } from "./convertApi";
 import clsx from "clsx";
 
 interface Props {
   options: ConvertOptions;
-  preset: ConvertPreset;
   disabled?: boolean;
-  onPreset: (p: ConvertPreset) => void;
   onChange: (opts: ConvertOptions) => void;
 }
 
@@ -18,34 +16,35 @@ const PRESET_LABELS: Record<ConvertPreset, string> = {
   pixel: "Pixel",
 };
 
-export function ConvertOptionsForm({
-  options,
-  preset,
-  disabled,
-  onPreset,
-  onChange,
-}: Props) {
+export function ConvertOptionsForm({ options, disabled, onChange }: Props) {
+  const preset = matchingPreset(options);
   const set = <K extends keyof ConvertOptions>(key: K, value: ConvertOptions[K]) =>
     onChange({ ...options, [key]: value });
 
   return (
     <div className={`opts ${disabled ? "disabled" : ""}`}>
-      <div className="opts__presets">
+      <div className="opts__presets" role="group" aria-label="Trace presets">
         {(Object.keys(PRESET_LABELS) as ConvertPreset[]).map((p) => (
           <button
             key={p}
             type="button"
             className={clsx(preset === p && "active")}
+            aria-pressed={preset === p}
             disabled={disabled}
-            onClick={() => {
-              onPreset(p);
-              onChange({ ...PRESETS[p] });
-            }}
+            onClick={() => onChange({ ...PRESETS[p] })}
           >
             {PRESET_LABELS[p]}
           </button>
         ))}
+        {preset === "custom" && (
+          <button type="button" className="active" aria-pressed="true" disabled>
+            Custom
+          </button>
+        )}
       </div>
+      {preset === "custom" && (
+        <p className="opts__custom">Options no longer match a named preset.</p>
+      )}
       <Slider
         label="Color precision"
         min={1}
@@ -91,7 +90,13 @@ export function ConvertOptionsForm({
           display: grid;
           gap: 0.85rem;
         }
-        .opts.disabled { opacity: 0.55; pointer-events: none; }
+        .opts.disabled {
+          pointer-events: none;
+        }
+        .opts.disabled button:not(.active),
+        .opts.disabled .field {
+          color: var(--fg-disabled);
+        }
         .opts__presets {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -106,7 +111,13 @@ export function ConvertOptionsForm({
         }
         .opts__presets button.active {
           border-color: rgba(184,255,60,0.5);
-          color: var(--accent);
+          background: var(--selection-fill);
+          color: var(--selection-fg);
+        }
+        .opts__custom {
+          margin: 0;
+          font-size: var(--text-xs);
+          color: var(--warn);
         }
         .field {
           display: grid;

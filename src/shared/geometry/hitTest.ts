@@ -1,21 +1,7 @@
 import type { NodeId, SceneNode, SvgDocument } from "../document/types";
+import { nodeWorldBounds, pointInBounds } from "./bounds";
 import { subpathsToPath2D } from "./path";
-import type { Mat2D } from "./transform";
-import { transformToMatrix } from "./transform";
-
-function invertMat(m: Mat2D): Mat2D | null {
-  const det = m.a * m.d - m.b * m.c;
-  if (Math.abs(det) < 1e-12) return null;
-  const id = 1 / det;
-  return {
-    a: m.d * id,
-    b: -m.b * id,
-    c: -m.c * id,
-    d: m.a * id,
-    e: (m.c * m.f - m.d * m.e) * id,
-    f: (m.b * m.e - m.a * m.f) * id,
-  };
-}
+import { invertMat, nodeWorldMatrix, type Mat2D } from "./transform";
 
 function apply(m: Mat2D, x: number, y: number) {
   return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
@@ -35,15 +21,60 @@ function paintOrder(doc: SvgDocument, ids: NodeId[]): NodeId[] {
   return out;
 }
 
+/** Local stroke width used by the precise canvas hit, including screen-pixel slop. */
+export function hitTestLocalStrokeWidth(node: SceneNode, zoom: number): number {
+  const z = Math.max(zoom, 0.05);
+  switch (node.type) {
+    case "line":
+      return Math.max(node.stroke.width, 6 / z);
+    case "rect":
+    case "ellipse":
+      return node.stroke.paint.type !== "none" ? Math.max(node.stroke.width, 4 / z) : 0;
+    case "path":
+      if (node.stroke.paint.type !== "none") return Math.max(node.stroke.width, 4 / z);
+      if (node.fill.type === "none") return 6 / z;
+      return 0;
+    default:
+      return 0;
+  }
+}
+
+/** World-space AABB pad so stroke hits are not rejected before the Path2D test. */
+export function hitTestWorldPad(node: SceneNode, zoom: number, world: Mat2D): number {
+  const local = hitTestLocalStrokeWidth(node, zoom);
+  if (local <= 0) return 0;
+  const scale = Math.max(Math.hypot(world.a, world.b), Math.hypot(world.c, world.d), 1e-6);
+  return (local / 2) * scale;
+}
+
+/**
+ * Cheap rejection: false means the precise Path2D test cannot hit.
+ * True is conservative (stroke padding and rotated AABBs).
+ */
+export function nodeHitBoundsContains(
+  doc: SvgDocument,
+  node: SceneNode,
+  wx: number,
+  wy: number,
+  zoom: number,
+): boolean {
+  const world = nodeWorldMatrix(doc, node.id);
+  if (!world) return false;
+  return pointInBounds(nodeWorldBounds(doc, node.id), wx, wy, hitTestWorldPad(node, zoom, world));
+}
+
 function hitNode(
   ctx: CanvasRenderingContext2D,
+  doc: SvgDocument,
   node: SceneNode,
   wx: number,
   wy: number,
   zoom: number,
 ): boolean {
   if (!node.visible || node.locked) return false;
-  const inv = invertMat(transformToMatrix(node.transform));
+  const world = nodeWorldMatrix(doc, node.id);
+  if (!world) return false;
+  const inv = invertMat(world);
   if (!inv) return false;
   const local = apply(inv, wx, wy);
 
@@ -131,7 +162,9 @@ export function hitTestTopNode(
     const id = order[i];
     const node = doc.nodes[id];
     if (!node || node.type === "group") continue;
-    if (hitNode(ctx, node, wx, wy, zoom)) return id;
+    if (!node.visible || node.locked) continue;
+    if (!nodeHitBoundsContains(doc, node, wx, wy, zoom)) continue;
+    if (hitNode(ctx, doc, node, wx, wy, zoom)) return id;
   }
   return null;
 }

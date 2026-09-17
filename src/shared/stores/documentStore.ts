@@ -23,16 +23,19 @@ import type {
   SvgDocument,
   Transform2D,
 } from "../document/types";
+import { projectContents } from "./projectSessionStore";
 
 interface DocumentState {
   doc: SvgDocument;
   selection: NodeId[];
   loadDocument: (doc: SvgDocument) => void;
+  commitDocument: (doc: SvgDocument, selection?: NodeId[]) => void;
   replaceFromSvg: (svg: string, name?: string) => void;
   setSelection: (ids: NodeId[]) => void;
   addNode: (node: SceneNode, parentId?: NodeId | null) => void;
   updateNode: (id: NodeId, patch: Partial<SceneNode>) => void;
   deleteNodes: (ids: NodeId[]) => void;
+  replaceNodesWithNode: (ids: NodeId[], node: SceneNode) => void;
   reorderInParent: (id: NodeId, index: number) => void;
   groupSelection: () => void;
   ungroup: (id: NodeId) => void;
@@ -81,11 +84,31 @@ export const useDocumentStore = create<DocumentState>()(
       doc: createEmptyDocument(),
       selection: [],
 
-      loadDocument: (doc) => set({ doc: normalizeDoc(doc), selection: [] }),
+      loadDocument: (doc) => {
+        set({ doc: normalizeDoc(doc), selection: [] });
+        useDocumentStore.temporal.getState().clear();
+      },
+
+      commitDocument: (doc, selection = []) => {
+        const next = normalizeDoc(doc);
+        const nextSelection = selection.filter((id) => Object.hasOwn(next.nodes, id));
+        const current = get();
+        if (projectContents(current.doc) === projectContents(next)) {
+          if (
+            current.selection.length !== nextSelection.length ||
+            current.selection.some((id, index) => id !== nextSelection[index])
+          ) {
+            set({ selection: nextSelection });
+          }
+          return;
+        }
+        set({ doc: next, selection: nextSelection });
+      },
 
       replaceFromSvg: (svg, name) => {
         const doc = normalizeDoc(svgStringToDocument(svg, name));
         set({ doc, selection: [] });
+        useDocumentStore.temporal.getState().clear();
       },
 
       setSelection: (ids) => set({ selection: ids }),
@@ -128,6 +151,27 @@ export const useDocumentStore = create<DocumentState>()(
             }
             for (const id of doomed) delete state.doc.nodes[id];
             state.selection = state.selection.filter((id) => !doomed.has(id));
+          }),
+        ),
+
+      replaceNodesWithNode: (ids, node) =>
+        set(
+          produce((state: DocumentState) => {
+            const doomed = new Set<NodeId>();
+            for (const id of ids) collectDescendants(state.doc, id, doomed);
+            state.doc.rootChildIds = state.doc.rootChildIds.filter((id) => !doomed.has(id));
+            for (const existing of Object.values(state.doc.nodes)) {
+              if (existing.type === "group") {
+                existing.children = existing.children.filter((id) => !doomed.has(id));
+              }
+              if (existing.clipPathId && doomed.has(existing.clipPathId)) {
+                existing.clipPathId = null;
+              }
+            }
+            for (const id of doomed) delete state.doc.nodes[id];
+            state.doc.nodes[node.id] = node;
+            state.doc.rootChildIds.push(node.id);
+            state.selection = [node.id];
           }),
         ),
 
@@ -468,7 +512,11 @@ export const useDocumentStore = create<DocumentState>()(
         );
       },
     }),
-    { limit: 100 },
+    {
+      limit: 100,
+      partialize: (state) => ({ doc: state.doc }),
+      equality: (pastState, currentState) => pastState.doc === currentState.doc,
+    },
   ),
 );
 

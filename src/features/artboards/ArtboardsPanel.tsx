@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Panel } from "../../shared/ui/Panel";
 import { Button } from "../../shared/ui/Button";
+import { ListRow } from "../../shared/ui/ListRow";
 import { useDocumentStore } from "../../shared/stores/documentStore";
 import { useUiStore } from "../../shared/stores/uiStore";
 import { fitToArtboard } from "../editor/camera";
-import clsx from "clsx";
 
 export function ArtboardsPanel() {
   const artboards = useDocumentStore((s) => s.doc.artboards);
@@ -14,6 +14,7 @@ export function ArtboardsPanel() {
   const updateArtboard = useDocumentStore((s) => s.updateArtboard);
   const removeArtboard = useDocumentStore((s) => s.removeArtboard);
   const [editing, setEditing] = useState<string | null>(null);
+  const skipRename = useRef(false);
 
   const activate = (id: string) => {
     setActiveArtboard(id);
@@ -28,6 +29,8 @@ export function ArtboardsPanel() {
       actions={
         <Button
           variant="ghost"
+          aria-label="Add artboard"
+          title="Add artboard"
           onClick={() => {
             addArtboard();
             useUiStore.getState().markDirty();
@@ -37,29 +40,43 @@ export function ArtboardsPanel() {
         </Button>
       }
     >
-      <div className="abs">
-        {artboards.map((ab) => (
-          <div
+      <div className="abs" role="listbox" aria-label="Artboards" data-list-root>
+        {artboards.map((ab, index) => (
+          <ListRow
             key={ab.id}
-            className={clsx("abs__row", ab.id === activeId && "active")}
-            onClick={() => activate(ab.id)}
+            id={ab.id}
+            label={`${ab.name}, ${Math.round(ab.width)} by ${Math.round(ab.height)}`}
+            selected={ab.id === activeId}
+            tabStop={ab.id === activeId || (index === 0 && !artboards.some((item) => item.id === activeId))}
+            onSelect={activate}
+            onRename={() => setEditing(ab.id)}
+            className="abs__row"
           >
             {editing === ab.id ? (
               <input
                 autoFocus
                 defaultValue={ab.name}
+                aria-label={`Rename ${ab.name}`}
                 onClick={(e) => e.stopPropagation()}
                 onBlur={(e) => {
-                  updateArtboard(ab.id, { name: e.target.value || ab.name });
+                  if (!skipRename.current) {
+                    updateArtboard(ab.id, { name: e.target.value || ab.name });
+                    useUiStore.getState().markDirty();
+                  }
+                  skipRename.current = false;
                   setEditing(null);
-                  useUiStore.getState().markDirty();
                 }}
                 onKeyDown={(e) => {
+                  e.stopPropagation();
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                  if (e.key === "Escape") {
+                    skipRename.current = true;
+                    setEditing(null);
+                  }
                 }}
               />
             ) : (
-              <span onDoubleClick={() => setEditing(ab.id)}>{ab.name}</span>
+              <span>{ab.name}</span>
             )}
             <em>
               {Math.round(ab.width)}×{Math.round(ab.height)}
@@ -67,7 +84,8 @@ export function ArtboardsPanel() {
             <button
               type="button"
               className="abs__del"
-              title="Delete artboard"
+              title={artboards.length <= 1 ? "Keep at least one artboard" : "Delete artboard"}
+              aria-label={`Delete ${ab.name}`}
               disabled={artboards.length <= 1}
               onClick={(e) => {
                 e.stopPropagation();
@@ -77,7 +95,7 @@ export function ArtboardsPanel() {
             >
               ×
             </button>
-          </div>
+          </ListRow>
         ))}
       </div>
       <style>{`
@@ -92,10 +110,12 @@ export function ArtboardsPanel() {
           font-size: 0.8rem;
           cursor: pointer;
         }
-        .abs__row:hover { background: rgba(255,255,255,0.04); }
+        .abs__row:hover,
+        .abs__row:focus-visible { background: rgba(255,255,255,0.04); }
+        .abs__row.selected,
         .abs__row.active {
-          background: rgba(184,255,60,0.12);
-          color: var(--accent);
+          background: var(--selection-fill);
+          color: var(--selection-fg);
         }
         .abs__row em {
           font-style: normal;

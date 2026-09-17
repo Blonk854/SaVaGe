@@ -1,68 +1,348 @@
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { useDocumentStore } from "../../shared/stores/documentStore";
 import { useUiStore } from "../../shared/stores/uiStore";
 import { documentToSvgString } from "../../shared/document/serialize";
 import { svgStringToDocument } from "../../shared/document/deserialize";
 import { parseSavageDocument } from "../../shared/document/parseSavage";
+import { createEmptyDocument } from "../../shared/document/emptyDocument";
+import { recordDiagnostic } from "../../shared/diagnostics";
+import {
+  fileDisplayName,
+  type FileFingerprint,
+  isProjectModified,
+  projectContents,
+  useProjectSessionStore,
+} from "../../shared/stores/projectSessionStore";
 
-import { isRasterPath, RASTER_EXTENSIONS } from "../converter/rasterFiles";
+import {
+  parseGrantedImageSource,
+  RASTER_EXTENSIONS,
+  type GrantedImageSource,
+} from "../converter/rasterFiles";
+import {
+  discardCurrentRecovery,
+  recoverySequenceFor,
+} from "./recovery";
 
-export async function openFile() {
-  const selected = await open({
+interface FileIoDependencies {
+  chooseOpen: (
+    options: Parameters<typeof open>[0],
+  ) => Promise<string | NativeOpenSource | null>;
+  chooseSave: (
+    options: Parameters<typeof save>[0],
+  ) => Promise<GrantedDestination | null>;
+  invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
+}
+
+interface NativeOpenSource {
+  path: string;
+  imageGrantId?: string | null;
+  projectDestinationGrantId?: string | null;
+}
+
+interface GrantedDestination {
+  path: string;
+  grantId: string;
+}
+
+const defaultDependencies: FileIoDependencies = {
+  chooseOpen: async () => invoke("pick_open_source") as Promise<NativeOpenSource | null>,
+  chooseSave: async (options) =>
+    invoke("pick_project_destination", {
+      defaultFileName: fileNameOnly(options?.defaultPath, "untitled.savage"),
+    }) as Promise<GrantedDestination | null>,
+  invoke,
+};
+
+const writeQueues = new Map<string, Promise<unknown>>();
+let replacementConfirmation: Promise<boolean> | null = null;
+
+export type ReplacementDecision = "save" | "discard" | "cancel";
+export type ReplacementDecisionProvider = () => Promise<ReplacementDecision>;
+
+async function promptReplacementDecision(): Promise<ReplacementDecision> {
+  if (
+    await ask("Save changes before replacing the current project?", {
+      title: "Unsaved changes",
+      kind: "warning",
+      okLabel: "Save",
+      cancelLabel: "Other options",
+    })
+  ) {
+    return "save";
+  }
+  return (await ask("Discard the current unsaved changes?", {
+    title: "Unsaved changes",
+    kind: "warning",
+    okLabel: "Discard",
+    cancelLabel: "Cancel",
+  }))
+    ? "discard"
+    : "cancel";
+}
+
+export async function confirmDocumentReplacement(
+  decide: ReplacementDecisionProvider = promptReplacementDecision,
+  saveCurrent: () => ReturnType<typeof saveProject> = () => saveProject(),
+): Promise<boolean> {
+  if (!isProjectModified(useDocumentStore.getState().doc)) return true;
+  if (replacementConfirmation) return replacementConfirmation;
+  replacementConfirmation = (async () => {
+    const decision = await decide();
+    if (decision === "cancel") return false;
+    if (decision === "discard") {
+      void discardCurrentRecovery();
+      return true;
+    }
+    const result = await saveCurrent();
+    return result === "saved" && !isProjectModified(useDocumentStore.getState().doc);
+  })();
+  try {
+    return await replacementConfirmation;
+  } finally {
+    replacementConfirmation = null;
+  }
+}
+
+async function enqueueWrite(
+  destinationGrantId: string,
+  contents: string,
+  expectedFingerprint: FileFingerprint | null,
+  invokeCommand: FileIoDependencies["invoke"],
+): Promise<unknown> {
+  const previous = writeQueues.get(destinationGrantId) ?? Promise.resolve();
+  const write = previous
+    .catch(() => undefined)
+    .then(() =>
+      invokeCommand("write_project_file", {
+        destinationGrantId,
+        contents,
+        expectedFingerprint,
+      }),
+    );
+  writeQueues.set(destinationGrantId, write);
+  try {
+    return await write;
+  } finally {
+    if (writeQueues.get(destinationGrantId) === write) {
+      writeQueues.delete(destinationGrantId);
+    }
+  }
+}
+
+function fileNameOnly(value: string | undefined, fallback: string): string {
+  return value?.split(/[/\\]/).pop() || fallback;
+}
+
+function parseGrantedDestination(value: unknown): GrantedDestination {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    typeof (value as { path?: unknown }).path !== "string" ||
+    typeof (value as { grantId?: unknown }).grantId !== "string"
+  ) {
+    throw new Error("Native save dialog returned invalid authorization");
+  }
+  return value as GrantedDestination;
+}
+
+function parseFingerprint(value: unknown): FileFingerprint {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    typeof (value as FileFingerprint).size !== "number" ||
+    typeof (value as FileFingerprint).modifiedMs !== "number"
+  ) {
+    throw new Error("Native file operation returned an invalid fingerprint");
+  }
+  return value as FileFingerprint;
+}
+
+function parseReadResult(value: unknown): { contents: string; fingerprint: FileFingerprint } {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    typeof (value as { contents?: unknown }).contents !== "string"
+  ) {
+    throw new Error("Native file read returned invalid data");
+  }
+  return {
+    contents: (value as { contents: string }).contents,
+    fingerprint: parseFingerprint((value as { fingerprint?: unknown }).fingerprint),
+  };
+}
+
+export async function openFile(
+  dependencies: FileIoDependencies = defaultDependencies,
+  decide: ReplacementDecisionProvider = promptReplacementDecision,
+) {
+  const selection = await dependencies.chooseOpen({
     multiple: false,
     filters: [
       { name: "SaVaGe / SVG / Images", extensions: ["savage", "svg", ...RASTER_EXTENSIONS] },
     ],
   });
-  if (typeof selected !== "string") return;
+  if (!selection) return;
+  const selected = typeof selection === "string" ? selection : selection.path;
 
-  if (isRasterPath(selected)) {
+  if (typeof selection !== "string" && selection.imageGrantId) {
+    if (!(await confirmDocumentReplacement(decide))) return;
     const ui = useUiStore.getState();
-    ui.setPendingConvertPath(selected);
+    const source: GrantedImageSource = parseGrantedImageSource({
+      path: selected,
+      grantId: selection.imageGrantId,
+    });
+    ui.setPendingConvertPath(source);
     ui.setMode("convert");
     return selected;
   }
 
-  const text = await invoke<string>("read_text_file", { path: selected });
-  if (selected.toLowerCase().endsWith(".savage")) {
-    useDocumentStore.getState().loadDocument(parseSavageDocument(text));
-  } else {
-    useDocumentStore.getState().loadDocument(svgStringToDocument(text));
+  try {
+    const readResult = parseReadResult(
+      await dependencies.invoke("read_text_file", { path: selected }),
+    );
+    const text = readResult.contents;
+    let document;
+    if (selected.toLowerCase().endsWith(".savage")) {
+      document = parseSavageDocument(text);
+      if (!(await confirmDocumentReplacement(decide))) return;
+      useProjectSessionStore.getState().startSession({
+        displayName: fileDisplayName(selected),
+        projectPath: selected,
+        projectDestinationGrantId:
+          typeof selection === "string" ? null : selection.projectDestinationGrantId,
+        fileFingerprint: readResult.fingerprint,
+        savedContents: projectContents(document),
+      });
+    } else {
+      document = svgStringToDocument(text);
+      if (!(await confirmDocumentReplacement(decide))) return;
+      useProjectSessionStore.getState().startSession({ displayName: document.name });
+    }
+    useDocumentStore.getState().loadDocument(document);
+    useUiStore.getState().setMode("edit");
+    return selected;
+  } catch (error) {
+    recordDiagnostic({
+      level: "error",
+      code: "open_failed",
+      operation: "open",
+      sessionId: useProjectSessionStore.getState().sessionId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
-  useUiStore.getState().setMode("edit");
-  return selected;
 }
 
-export async function saveProject() {
-  const path = await save({
-    filters: [{ name: "SaVaGe Project", extensions: ["savage"] }],
-    defaultPath: "untitled.savage",
-  });
-  if (!path) return;
-  const doc = useDocumentStore.getState().doc;
-  await invoke("write_text_file", {
-    path,
-    contents: JSON.stringify(doc, null, 2),
-  });
+export async function newProject(
+  decide: ReplacementDecisionProvider = promptReplacementDecision,
+): Promise<boolean> {
+  if (!(await confirmDocumentReplacement(decide))) return false;
+  const document = createEmptyDocument();
+  useProjectSessionStore.getState().startSession({ displayName: "Untitled" });
+  useDocumentStore.getState().loadDocument(document);
+  useUiStore.getState().setMode("edit");
+  return true;
+}
+
+export async function saveProject(
+  saveAs = false,
+  dependencies: FileIoDependencies = defaultDependencies,
+): Promise<"saved" | "cancelled" | "stale"> {
+  const session = useProjectSessionStore.getState();
+  const contents = projectContents(useDocumentStore.getState().doc);
+  const snapshot = session.beginSave(
+    contents,
+    recoverySequenceFor(session.sessionId, contents),
+  );
+  let destination =
+    !saveAs && session.projectPath && session.projectDestinationGrantId
+      ? {
+          path: session.projectPath,
+          grantId: session.projectDestinationGrantId,
+        }
+      : null;
+  if (!destination) {
+    const selected = await dependencies.chooseSave({
+      filters: [{ name: "SaVaGe Project", extensions: ["savage"] }],
+      defaultPath: `${session.displayName || "untitled"}.savage`,
+    });
+    destination = selected ? parseGrantedDestination(selected) : null;
+  }
+  if (!destination) {
+    useProjectSessionStore.getState().finishSaveFailure(snapshot);
+    return "cancelled";
+  }
+  try {
+    const expectedFingerprint =
+      destination.path === session.projectPath ? session.fileFingerprint : null;
+    const fingerprint = parseFingerprint(
+      await enqueueWrite(
+        destination.grantId,
+        snapshot.contents,
+        expectedFingerprint,
+        dependencies.invoke,
+      ),
+    );
+    if (
+      !useProjectSessionStore
+        .getState()
+        .acknowledgeSave(
+          snapshot,
+          destination.path,
+          destination.grantId,
+          fingerprint,
+        )
+    ) {
+      return "stale";
+    }
+    void discardCurrentRecovery(snapshot.sessionId, snapshot.recoverySequence);
+    return "saved";
+  } catch (error) {
+    useProjectSessionStore.getState().finishSaveFailure(snapshot);
+    recordDiagnostic({
+      level: "error",
+      code: "save_failed",
+      operation: "save",
+      operationId: snapshot.operationId,
+      sessionId: snapshot.sessionId,
+      stage: "write",
+      message: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 export async function exportSvg() {
-  const path = await save({
-    filters: [{ name: "SVG", extensions: ["svg"] }],
-    defaultPath: `${useDocumentStore.getState().doc.name || "export"}.svg`,
+  const destination = await invoke<unknown>("pick_svg_destination", {
+    defaultFileName: fileNameOnly(
+      `${useDocumentStore.getState().doc.name || "export"}.svg`,
+      "export.svg",
+    ),
   });
-  if (!path) return;
+  if (!destination) return;
+  const granted = parseGrantedDestination(destination);
   const svg = documentToSvgString(useDocumentStore.getState().doc);
-  await invoke("write_text_file", { path, contents: svg });
+  await invoke("write_svg_export", {
+    destinationGrantId: granted.grantId,
+    contents: svg,
+  });
 }
 
 export async function exportPng(scale = 2) {
-  const path = await save({
-    filters: [{ name: "PNG", extensions: ["png"] }],
-    defaultPath: `${useDocumentStore.getState().doc.name || "export"}.png`,
+  const destination = await invoke<unknown>("pick_png_destination", {
+    defaultFileName: fileNameOnly(
+      `${useDocumentStore.getState().doc.name || "export"}.png`,
+      "export.png",
+    ),
   });
-  if (!path) return;
+  if (!destination) return;
+  const granted = parseGrantedDestination(destination);
   const svg = documentToSvgString(useDocumentStore.getState().doc);
-  await invoke("export_png", { path, svg, scale });
+  await invoke("export_png", {
+    destinationGrantId: granted.grantId,
+    svg,
+    scale,
+  });
 }

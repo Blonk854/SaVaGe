@@ -1,79 +1,95 @@
 import { useCallback, useEffect, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { Button } from "../../shared/ui/Button";
-import { firstRasterPath, RASTER_EXTENSIONS } from "./rasterFiles";
+import {
+  displayName,
+  inspectDroppedPaths,
+  parseGrantedImageSource,
+  type GrantedImageSource,
+} from "./rasterFiles";
 
 interface Props {
   disabled?: boolean;
-  onFile: (path: string) => void;
+  onFile: (source: GrantedImageSource) => void;
+  onReject: (message: string, kind: "drop" | "native") => void;
   attachedPath?: string | null;
 }
 
-const RASTER_FILTERS = [
-  {
-    name: "Images",
-    extensions: [...RASTER_EXTENSIONS],
-  },
-];
-
-export function DropZone({ disabled, onFile, attachedPath }: Props) {
+export function DropZone({ disabled, onFile, onReject, attachedPath }: Props) {
   const [over, setOver] = useState(false);
 
   const pick = useCallback(async () => {
-    const selected = await open({
-      multiple: false,
-      filters: RASTER_FILTERS,
-    });
-    if (typeof selected === "string") onFile(selected);
-  }, [onFile]);
+    try {
+      const selected = await invoke<unknown>("pick_image_source");
+      if (selected) onFile(parseGrantedImageSource(selected));
+    } catch (error) {
+      onReject(error instanceof Error ? error.message : String(error), "native");
+    }
+  }, [onFile, onReject]);
 
   useEffect(() => {
+    if (!isTauri()) return;
     let unlisten: (() => void) | undefined;
     let cancelled = false;
-    void getCurrentWebview()
-      .onDragDropEvent((event) => {
-        if (disabled) return;
-        switch (event.payload.type) {
-          case "enter":
-          case "over":
-            setOver(true);
-            break;
-          case "leave":
-            setOver(false);
-            break;
-          case "drop": {
-            setOver(false);
-            const path = firstRasterPath(event.payload.paths);
-            if (path) onFile(path);
-            break;
+    try {
+      void getCurrentWebview()
+        .onDragDropEvent((event) => {
+          switch (event.payload.type) {
+            case "enter":
+            case "over":
+              if (!disabled) setOver(true);
+              break;
+            case "leave":
+              setOver(false);
+              break;
+            case "drop": {
+              setOver(false);
+              if (disabled) {
+                onReject("Wait until conversion finishes before dropping another image.", "drop");
+                return;
+              }
+              const inspected = inspectDroppedPaths(event.payload.paths);
+              if (inspected.kind === "rejected") {
+                onReject(inspected.message, "drop");
+                return;
+              }
+              void invoke<unknown>("claim_dropped_image", { path: inspected.path })
+                .then((source) => onFile(parseGrantedImageSource(source)))
+                .catch((error) => {
+                  onReject(error instanceof Error ? error.message : String(error), "native");
+                });
+              break;
+            }
           }
-        }
-      })
-      .then((fn) => {
-        if (cancelled) fn();
-        else unlisten = fn;
-      })
-      .catch(() => {
-        /* Browser / non-Tauri preview — HTML5 drop is unused on Windows WebView. */
-      });
+        })
+        .then((fn) => {
+          if (cancelled) fn();
+          else unlisten = fn;
+        })
+        .catch(() => {
+          /* Native drop events are unavailable outside the WebView. */
+        });
+    } catch {
+      /* getCurrentWebview throws in a plain browser before any promise exists. */
+    }
     return () => {
       cancelled = true;
       unlisten?.();
     };
-  }, [disabled, onFile]);
+  }, [disabled, onFile, onReject]);
 
   return (
-    <div className={`dropzone ${over ? "over" : ""}`}>
+    <div className={`dropzone ${over ? "over" : ""} ${disabled ? "dropzone--busy" : ""}`} aria-busy={disabled || undefined}>
       <p className="dropzone__title">
-        {attachedPath
-          ? attachedPath.split(/[/\\]/).pop()
-          : "Drop an image to vectorize"}
+        {attachedPath ? displayName(attachedPath) : "Drop an image to vectorize"}
       </p>
       <p className="muted">
-        {attachedPath
-          ? "Ready to convert — or drop another image"
-          : "PNG, JPEG, GIF, WEBP, BMP, TIFF"}
+        {disabled
+          ? "Drop is paused until the current conversion finishes"
+          : attachedPath
+            ? "Ready to convert — or drop another image"
+            : "PNG, JPEG, GIF, WEBP, BMP, TIFF"}
       </p>
       <Button variant="primary" disabled={disabled} onClick={pick}>
         Open Image…
@@ -97,10 +113,14 @@ export function DropZone({ disabled, onFile, attachedPath }: Props) {
           border-color: var(--accent);
           background: rgba(184,255,60,0.08);
         }
+        .dropzone--busy {
+          border-style: solid;
+          border-color: rgba(184, 255, 60, 0.22);
+        }
         .dropzone__title {
           margin: 0;
           font-family: var(--font-display);
-          font-size: 1.35rem;
+          font-size: 1.2rem;
         }
       `}</style>
     </div>

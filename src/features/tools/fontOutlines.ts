@@ -126,7 +126,8 @@ function normalizeFamily(family: string): string {
   return family.replace(/["']/g, "").split(",")[0].trim().toLowerCase();
 }
 
-function pickFontUrl(family: string, weight: number): string {
+/** Static latin WOFF files for opentype.js. UI uses variable fonts; do not drop these weights. */
+export function pickOutlineFontUrl(family: string, weight: number): string {
   const name = normalizeFamily(family);
   const syne = name.includes("syne");
   if (syne) return weight >= 600 ? syne700 : syne400;
@@ -153,7 +154,7 @@ export async function textToGlyphSubpaths(
   fontWeight: number,
   letterSpacing: number,
 ): Promise<PathSubpath[]> {
-  const font = await loadFont(pickFontUrl(fontFamily, fontWeight));
+  const font = await loadFont(pickOutlineFontUrl(fontFamily, fontWeight));
   const scale = (1 / font.unitsPerEm) * fontSize;
   let x = 0;
   const subpaths: PathSubpath[] = [];

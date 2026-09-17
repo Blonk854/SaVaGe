@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { isTauri } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TitleBar } from "./TitleBar";
 import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
@@ -17,9 +19,16 @@ import {
 import { fitAllArtboards } from "../../features/editor/camera";
 import { useUiStore } from "../../shared/stores/uiStore";
 import { useDocumentStore } from "../../shared/stores/documentStore";
-import { exportPng, exportSvg, openFile, saveProject } from "../../features/editor/fileIo";
+import {
+  exportPng,
+  exportSvg,
+  confirmDocumentReplacement,
+  newProject,
+  openFile,
+  saveProject,
+} from "../../features/editor/fileIo";
 import { copySelection, pasteClipboard } from "../../features/editor/clipboard";
-import { alignSelection } from "../../features/tools/align";
+import { AlignBooleanBar } from "../../features/tools/AlignBooleanBar";
 import {
   clearBooleanPreview,
   previewBooleanOp,
@@ -28,11 +37,21 @@ import {
 } from "../../features/tools/booleanOps";
 import { commitShapeBuilder } from "../../features/tools/shapeBuilderTool";
 import { openUserManual } from "../../features/editor/openManual";
+import { exportDiagnostics } from "../../shared/diagnostics";
 import { simplifySelection } from "../../features/tools/simplifyPath";
 import { convertTextToOutlines } from "../../features/tools/textToOutlines";
 import { fitToArtboard, fitToSelection, setZoomCentered } from "../../features/editor/camera";
-import { Button } from "../../shared/ui/Button";
+import { isTypingTarget } from "../../shared/ui/keyboard";
+import type { NoticeKind } from "../../shared/ui/notice";
+import {
+  useProjectSessionStore,
+} from "../../shared/stores/projectSessionStore";
+import { useProjectSaveLabel } from "../../shared/stores/projectSaveLabel";
 import clsx from "clsx";
+import {
+  offerRecoveryOnStartup,
+  startRecoveryScheduler,
+} from "../../features/editor/recovery";
 
 function viewportSize() {
   const el = document.querySelector(".shell__main") as HTMLElement | null;
@@ -44,11 +63,14 @@ export function AppShell() {
   const rightTab = useUiStore((s) => s.rightTab);
   const setRightTab = useUiStore((s) => s.setRightTab);
   const temporal = useDocumentStore.temporal;
-  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const displayName = useProjectSessionStore((s) => s.displayName);
+  const saveLabel = useProjectSaveLabel();
+  const modified = saveLabel !== "Saved";
+  const [toast, setToast] = useState<{ message: string; kind: NoticeKind } | null>(null);
 
-  const flash = (msg: string) => {
-    setStatusMsg(msg);
-    window.setTimeout(() => setStatusMsg(null), 2800);
+  const flash = (message: string, kind: NoticeKind = "info") => {
+    setToast({ message, kind });
+    window.setTimeout(() => setToast(null), 2800);
   };
 
   useEffect(() => {
@@ -56,25 +78,79 @@ export function AppShell() {
     setPluginNotifier(flash);
   }, []);
 
+  useEffect(() => startRecoveryScheduler((message) => flash(message)), []);
+
+  useEffect(() => {
+    void offerRecoveryOnStartup((message) => flash(message, "warn")).catch((error) =>
+      flash(error instanceof Error ? error.message : String(error), "error"),
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void getCurrentWindow()
+      .onCloseRequested(async (event) => {
+        if (!(await confirmDocumentReplacement())) event.preventDefault();
+      })
+      .then((stop) => {
+        if (disposed) stop();
+        else unlisten = stop;
+      });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
+  const runSave = (saveAs = false) => {
+    void saveProject(saveAs)
+      .then((result) => {
+        if (result === "saved") flash("Project saved", "success");
+      })
+      .catch((error) => flash(error instanceof Error ? error.message : String(error), "error"));
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      if (isTypingTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      if (key !== "s" && key !== "n" && key !== "o") return;
+      event.preventDefault();
+      if (key === "s") runSave(event.shiftKey);
+      else if (key === "n") void newProject();
+      else void openFile().catch((error) => flash(error instanceof Error ? error.message : String(error), "error"));
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
   const onBoolean = async (op: BooleanOp) => {
     try {
       await runBooleanOp(op);
-      flash(`Boolean ${op} applied`);
+      flash(`Boolean ${op} applied`, "success");
     } catch (e) {
-      flash(e instanceof Error ? e.message : String(e));
+      flash(e instanceof Error ? e.message : String(e), "error");
     }
   };
 
   return (
     <div className="shell">
       <TitleBar
+        documentTitle={displayName}
+        modified={modified}
+        saveLabel={saveLabel}
+        onNew={() => void newProject()}
         onOpen={() =>
-          void openFile().catch((e) => flash(e instanceof Error ? e.message : String(e)))
+          void openFile().catch((e) => flash(e instanceof Error ? e.message : String(e), "error"))
         }
-        onSave={() => void saveProject()}
+        onSave={() => runSave()}
+        onSaveAs={() => runSave(true)}
         onExportSvg={() => void exportSvg()}
         onExportPng={() =>
-          void exportPng().catch((e) => flash(e instanceof Error ? e.message : String(e)))
+          void exportPng().catch((e) => flash(e instanceof Error ? e.message : String(e), "error"))
         }
         onUndo={() => {
           temporal.getState().undo();
@@ -93,7 +169,7 @@ export function AppShell() {
         }}
         onSimplify={() => {
           simplifySelection();
-          flash("Simplified selected paths");
+          flash("Simplified selected paths", "success");
         }}
         onGroup={() => {
           useDocumentStore.getState().groupSelection();
@@ -107,12 +183,12 @@ export function AppShell() {
         onConvertOutlines={() => {
           const sel = useDocumentStore.getState().selection[0];
           if (!sel) {
-            flash("Select a text object first");
+            flash("Select a text object first", "warn");
             return;
           }
           void convertTextToOutlines(sel)
-            .then(() => flash("Converted text to outlines"))
-            .catch((e) => flash(e instanceof Error ? e.message : String(e)));
+            .then(() => flash("Converted text to outlines", "success"))
+            .catch((e) => flash(e instanceof Error ? e.message : String(e), "error"));
         }}
         onFitArtboard={() => {
           const { w, h } = viewportSize();
@@ -133,49 +209,58 @@ export function AppShell() {
         onApplyClip={() => {
           const ok = useDocumentStore.getState().applyClipMask();
           useUiStore.getState().markDirty();
-          flash(ok ? "Clip mask applied (last selected = mask)" : "Select objects, then the mask last");
+          flash(ok ? "Clip mask applied (last selected = mask)" : "Select objects, then the mask last", ok ? "success" : "warn");
         }}
         onReleaseClip={() => {
           const ok = useDocumentStore.getState().releaseClipMask();
           useUiStore.getState().markDirty();
-          flash(ok ? "Clip mask released" : "No clip mask on the selection");
+          flash(ok ? "Clip mask released" : "No clip mask on the selection", ok ? "success" : "warn");
         }}
         onAddArtboard={() => {
           useDocumentStore.getState().addArtboard();
           useUiStore.getState().markDirty();
           const { w, h } = viewportSize();
           fitToArtboard(w, h);
-          flash("Artboard added");
+          flash("Artboard added", "success");
         }}
         onCreateSymbol={() => {
           const before = useDocumentStore.getState().selection.length;
           if (!before) {
-            flash("Select objects to create a symbol");
+            flash("Select objects to create a symbol", "warn");
             return;
           }
           useDocumentStore.getState().createSymbolFromSelection();
           useUiStore.getState().markDirty();
-          flash("Symbol created");
+          flash("Symbol created", "success");
         }}
         onDetachSymbol={() => {
           const { doc, selection } = useDocumentStore.getState();
           const id = selection[0];
           if (!id || doc.nodes[id]?.type !== "symbolInstance") {
-            flash("Select a symbol instance to detach");
+            flash("Select a symbol instance to detach", "warn");
             return;
           }
           useDocumentStore.getState().detachSymbol(id);
           useUiStore.getState().markDirty();
-          flash("Symbol detached");
+          flash("Symbol detached", "success");
         }}
         onCommitShapeBuilder={() => {
-          void commitShapeBuilder().then(() => flash("Shape builder committed"));
+          void commitShapeBuilder().then(() => flash("Shape builder committed", "success"));
         }}
         onOpenManual={() => {
           void openUserManual()
-            .then(() => flash("Opened user manual"))
+            .then(() => flash("Opened user manual", "success"))
             .catch((e) =>
-              flash(e instanceof Error ? e.message : "Could not open user manual"),
+              flash(e instanceof Error ? e.message : "Could not open user manual", "error"),
+            );
+        }}
+        onExportDiagnostics={() => {
+          void exportDiagnostics()
+            .then((path) => {
+              if (path) flash("Diagnostics exported", "success");
+            })
+            .catch((e) =>
+              flash(e instanceof Error ? e.message : "Could not export diagnostics", "error"),
             );
         }}
       />
@@ -184,7 +269,14 @@ export function AppShell() {
         <ToolsRail />
         <main className="shell__main">
           {mode === "convert" ? <ConverterView /> : <EditorViewport />}
-          {statusMsg && <div className="toast">{statusMsg}</div>}
+          {toast && (
+            <div
+              className={`sv-toast sv-toast--${toast.kind}`}
+              role={toast.kind === "error" ? "alert" : "status"}
+            >
+              {toast.message}
+            </div>
+          )}
         </main>
         {mode === "edit" && (
           <aside className="shell__right panel-enter">
@@ -192,6 +284,7 @@ export function AppShell() {
               <button
                 type="button"
                 className={clsx(rightTab === "layers" && "active")}
+                aria-label="Layers"
                 onClick={() => setRightTab("layers")}
               >
                 Layers
@@ -199,20 +292,23 @@ export function AppShell() {
               <button
                 type="button"
                 className={clsx(rightTab === "properties" && "active")}
+                aria-label="Properties"
                 onClick={() => setRightTab("properties")}
               >
-                Props
+                Properties
               </button>
               <button
                 type="button"
                 className={clsx(rightTab === "artboards" && "active")}
+                aria-label="Artboards"
                 onClick={() => setRightTab("artboards")}
               >
-                Boards
+                Artboards
               </button>
               <button
                 type="button"
                 className={clsx(rightTab === "symbols" && "active")}
+                aria-label="Symbols"
                 onClick={() => setRightTab("symbols")}
               >
                 Symbols
@@ -220,9 +316,10 @@ export function AppShell() {
               <button
                 type="button"
                 className={clsx(rightTab === "plugins" && "active")}
+                aria-label="Plugins"
                 onClick={() => setRightTab("plugins")}
               >
-                Plug
+                Plugins
               </button>
             </div>
             <div className="right-body">
@@ -230,51 +327,9 @@ export function AppShell() {
               {rightTab === "properties" && <PropertiesPanel />}
               {rightTab === "artboards" && <ArtboardsPanel />}
               {rightTab === "symbols" && <SymbolsPanel />}
-              {rightTab === "plugins" && <PluginsPanel onNotify={flash} />}
+              {rightTab === "plugins" && <PluginsPanel onNotify={(message) => flash(message, "error")} />}
             </div>
-            <div className="ops-bar">
-              <span className="ops-label">Align</span>
-              <div className="align-bar">
-                <Button variant="ghost" onClick={() => alignSelection("left")}>L</Button>
-                <Button variant="ghost" onClick={() => alignSelection("center")}>C</Button>
-                <Button variant="ghost" onClick={() => alignSelection("right")}>R</Button>
-                <Button variant="ghost" onClick={() => alignSelection("top")}>T</Button>
-                <Button variant="ghost" onClick={() => alignSelection("middle")}>M</Button>
-                <Button variant="ghost" onClick={() => alignSelection("bottom")}>B</Button>
-              </div>
-              <span className="ops-label">Boolean</span>
-              <div
-                className="bool-bar"
-                onMouseLeave={() => clearBooleanPreview()}
-              >
-                {(
-                  [
-                    ["union", "Unite"],
-                    ["intersect", "Inter"],
-                    ["subtract", "Sub"],
-                    ["exclude", "Xor"],
-                  ] as const
-                ).map(([op, label]) => (
-                  <Button
-                    key={op}
-                    variant="ghost"
-                    onMouseEnter={() => void previewBooleanOp(op)}
-                    onFocus={() => void previewBooleanOp(op)}
-                    onClick={() => void onBoolean(op)}
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-              <Button
-                variant="subtle"
-                onClick={() => {
-                  void commitShapeBuilder().then(() => flash("Shape builder committed"));
-                }}
-              >
-                Commit Shape Builder
-              </Button>
-            </div>
+            <AlignBooleanBar onNotify={flash} />
           </aside>
         )}
       </div>
@@ -283,13 +338,15 @@ export function AppShell() {
         .shell {
           height: 100%;
           display: grid;
-          grid-template-rows: var(--titlebar-h) var(--toolbar-h) 1fr var(--statusbar-h);
+          grid-template-rows: auto auto minmax(0, 1fr) auto;
           background: var(--bg-0);
+          min-width: 0;
         }
         .shell__body {
           display: grid;
-          grid-template-columns: var(--tool-rail-w) 1fr ${mode === "edit" ? "var(--right-panel-w)" : "0px"};
+          grid-template-columns: var(--tool-rail-w) minmax(0, 1fr) ${mode === "edit" ? "minmax(0, var(--right-panel-w))" : "0px"};
           min-height: 0;
+          min-width: 0;
         }
         .shell__main {
           position: relative;
@@ -297,68 +354,44 @@ export function AppShell() {
           min-height: 0;
           overflow: hidden;
         }
-        .toast {
-          position: absolute;
-          left: 50%;
-          bottom: 1rem;
-          transform: translateX(-50%);
-          background: var(--bg-2);
-          border: 1px solid var(--border);
-          color: var(--fg-0);
-          padding: 0.45rem 0.85rem;
-          border-radius: 8px;
-          font-size: 0.8rem;
-          z-index: 5;
-          box-shadow: var(--shadow-soft);
-          animation: panelIn 180ms ease-out;
-        }
         .shell__right {
           display: grid;
-          grid-template-rows: auto 1fr auto;
+          grid-template-rows: auto minmax(0, 1fr) auto;
           gap: 0.5rem;
           padding: 0.5rem;
           background: var(--bg-1);
           border-left: 1px solid var(--border);
           min-height: 0;
+          min-width: 0;
+          overflow: auto;
         }
         .right-tabs {
-          display: grid;
-          grid-template-columns: repeat(5, 1fr);
+          display: flex;
+          flex-wrap: wrap;
           gap: 0.25rem;
           background: var(--bg-2);
           padding: 3px;
-          border-radius: 8px;
+          border-radius: var(--radius-sm);
           border: 1px solid var(--border);
         }
         .right-tabs button {
+          flex: 1 1 auto;
+          min-width: min(100%, 5.2rem);
           border: 0;
           background: transparent;
           color: var(--fg-1);
           border-radius: 6px;
-          padding: 0.35rem;
-          font-size: 0.78rem;
+          padding: 0.35rem 0.4rem;
+          font-size: 0.72rem;
           font-weight: 600;
+          white-space: nowrap;
         }
         .right-tabs button.active {
-          background: rgba(184,255,60,0.14);
-          color: var(--accent);
+          background: var(--selection-fill);
+          color: var(--selection-fg);
         }
-        .right-body { min-height: 0; }
+        .right-body { min-height: 0; min-width: 0; overflow: auto; }
         .right-body .sv-panel { height: 100%; }
-        .ops-bar { display: grid; gap: 0.35rem; }
-        .ops-label {
-          font-size: 0.68rem;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: var(--fg-1);
-        }
-        .align-bar, .bool-bar {
-          display: grid;
-          gap: 0.25rem;
-        }
-        .align-bar { grid-template-columns: repeat(6, 1fr); }
-        .bool-bar { grid-template-columns: repeat(2, 1fr); }
-        .ops-bar .sv-btn { padding: 0.35rem 0; font-size: 0.72rem; }
       `}</style>
     </div>
   );

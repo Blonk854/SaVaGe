@@ -1,7 +1,6 @@
 import { Panel } from "../ui/Panel";
 import { Button } from "../ui/Button";
 import { listPlugins, runPluginCommand } from "./api";
-import { useUiStore } from "../stores/uiStore";
 import { useState } from "react";
 
 interface Props {
@@ -15,7 +14,7 @@ export function PluginsPanel({ onNotify }: Props) {
   return (
     <Panel title="Plugins">
       <div className="plugs">
-        {!plugins.length && <p className="muted empty">No plugins registered</p>}
+        {!plugins.length && <p className="sv-empty">No plugins registered</p>}
         {plugins.map((p) => (
           <div key={p.id} className="plugs__card">
             <strong>{p.name}</strong>
@@ -30,7 +29,6 @@ export function PluginsPanel({ onNotify }: Props) {
                     .catch((e) =>
                       onNotify?.(e instanceof Error ? e.message : String(e)),
                     );
-                  useUiStore.getState().markDirty();
                 }}
               >
                 {c.label}
@@ -50,8 +48,7 @@ export function PluginsPanel({ onNotify }: Props) {
           border: 1px solid var(--border);
         }
         .plugs__card strong { font-size: 0.82rem; }
-        .plugs__card p { margin: 0; font-size: 0.72rem; }
-        .empty { font-size: 0.78rem; padding: 0.35rem; }
+        .plugs__card p { margin: 0; font-size: var(--text-xs); }
       `}</style>
     </Panel>
   );

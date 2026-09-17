@@ -4,18 +4,23 @@ import { useUiStore } from "../../shared/stores/uiStore";
 import {
   computeBooleanShapes,
   shapesToPathNode,
+  tauriOverlay,
   type BooleanOp,
+  type OverlayFn,
 } from "./booleanCore";
 
 export type { BooleanOp } from "./booleanCore";
 
 function selectionShapes(): { ids: string[]; shapes: ShapeContours[] } {
   const store = useDocumentStore.getState();
-  const ids = store.selection.filter((id) => store.doc.nodes[id]);
-  const shapes = ids
-    .map((id) => flattenNodeToShape(store.doc, id))
-    .filter((s): s is ShapeContours => !!s && s.length > 0);
-  return { ids, shapes };
+  const operands = store.selection.flatMap((id) => {
+    const shape = flattenNodeToShape(store.doc, id);
+    return shape?.length ? [{ id, shape }] : [];
+  });
+  return {
+    ids: operands.map(({ id }) => id),
+    shapes: operands.map(({ shape }) => shape),
+  };
 }
 
 export async function previewBooleanOp(op: BooleanOp): Promise<void> {
@@ -38,25 +43,24 @@ export function clearBooleanPreview() {
   useUiStore.getState().setBooleanPreview(null);
 }
 
-export async function runBooleanOp(op: BooleanOp): Promise<void> {
+export async function runBooleanOp(
+  op: BooleanOp,
+  overlay: OverlayFn = tauriOverlay,
+): Promise<void> {
   const store = useDocumentStore.getState();
   const { ids, shapes } = selectionShapes();
   if (ids.length < 2) {
-    throw new Error("Select at least two shapes for boolean operations");
-  }
-  if (shapes.length < 2) {
-    throw new Error("Selection must include filled shapes (rect, ellipse, closed path)");
+    throw new Error("Select at least two compatible filled shapes (rect, ellipse, or closed path)");
   }
 
-  const resultShapes = await computeBooleanShapes(shapes, op);
+  const resultShapes = await computeBooleanShapes(shapes, op, overlay);
   if (!resultShapes.length) {
     throw new Error("Boolean operation produced no geometry");
   }
 
   const styleSource = store.doc.nodes[ids[ids.length - 1]];
   const node = shapesToPathNode(resultShapes, `Boolean ${op}`, styleSource);
-  store.deleteNodes(ids);
-  store.addNode(node);
+  store.replaceNodesWithNode(ids, node);
   clearBooleanPreview();
   useUiStore.getState().markDirty();
 }

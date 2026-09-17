@@ -7,7 +7,10 @@ import {
   type RectNode,
 } from "../../shared/document/types";
 import { useDocumentStore } from "../../shared/stores/documentStore";
-import { alignSelection } from "./align";
+import {
+  alignDisabledReason,
+  alignSelection,
+} from "./align";
 
 function addRect(id: string, x: number, y: number, w: number, h: number) {
   const node: RectNode = {
@@ -49,5 +52,14 @@ describe("alignSelection", () => {
     alignSelection("middle");
     expect(useDocumentStore.getState().doc.nodes.a.transform.y).toBe(10);
     expect(useDocumentStore.getState().doc.nodes.b.transform.y).toBe(10);
+  });
+
+  it("explains why align and distribute stay disabled", () => {
+    expect(alignDisabledReason("left", 1)).toBe("Select two or more objects to align");
+    expect(alignDisabledReason("distribute-h", 2)).toBe(
+      "Select three or more objects to distribute",
+    );
+    expect(alignDisabledReason("middle", 2)).toBeNull();
+    expect(alignDisabledReason("distribute-v", 3)).toBeNull();
   });
 });

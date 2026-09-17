@@ -4,10 +4,13 @@ import {
   defaultStroke,
   defaultTransform,
   solidFill,
+  type GroupNode,
   type PathNode,
   type RectNode,
 } from "../document/types";
 import { flattenNodeToShape } from "./flatten";
+import { nodeWorldBounds } from "./bounds";
+import { applyMat, nodeWorldMatrix } from "./transform";
 
 function rect(id: string): RectNode {
   return {
@@ -73,5 +76,40 @@ describe("flattenNodeToShape", () => {
     doc.nodes.closed = path("closed", true);
     expect(flattenNodeToShape(doc, "open")).toBeNull();
     expect(flattenNodeToShape(doc, "closed")?.length).toBe(1);
+  });
+
+  it("composes nested group transforms for flattening and bounds", () => {
+    const doc = createEmptyDocument();
+    const outer: GroupNode = {
+      ...rect("outer"),
+      type: "group",
+      transform: { ...defaultTransform(10, 20), rotation: 90 },
+      children: ["inner"],
+    };
+    const inner: GroupNode = {
+      ...rect("inner"),
+      type: "group",
+      transform: { ...defaultTransform(5, 0), scaleX: 2, scaleY: 3 },
+      children: ["shape"],
+    };
+    const shape = rect("shape");
+    shape.transform = defaultTransform(1, 2);
+    doc.nodes = { outer, inner, shape };
+    doc.rootChildIds = ["outer"];
+
+    const world = nodeWorldMatrix(doc, "shape");
+    expect(world).toBeTruthy();
+    expect(applyMat(world!, 0, 0)).toEqual({ x: 4, y: 27 });
+    expect(flattenNodeToShape(doc, "outer")?.[0]).toEqual([
+      [4, 27],
+      [4.000000000000003, 67],
+      [-25.999999999999996, 67],
+      [-26, 27.000000000000004],
+    ]);
+    const bounds = nodeWorldBounds(doc, "outer");
+    expect(bounds.x).toBeCloseTo(-26);
+    expect(bounds.y).toBeCloseTo(27);
+    expect(bounds.w).toBeCloseTo(30);
+    expect(bounds.h).toBeCloseTo(40);
   });
 });

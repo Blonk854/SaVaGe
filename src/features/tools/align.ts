@@ -11,6 +11,13 @@ export type AlignMode =
   | "distribute-h"
   | "distribute-v";
 
+export function alignDisabledReason(mode: AlignMode, selectionCount: number): string | null {
+  if (mode.startsWith("distribute")) {
+    return selectionCount < 3 ? "Select three or more objects to distribute" : null;
+  }
+  return selectionCount < 2 ? "Select two or more objects to align" : null;
+}
+
 export function alignSelection(mode: AlignMode) {
   const store = useDocumentStore.getState();
   const ids = store.selection;

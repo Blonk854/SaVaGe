@@ -34,7 +34,7 @@ export function Panel({ title, actions, className, children }: PropsWithChildren
         }
         .sv-panel__head h2 {
           margin: 0;
-          font-size: 0.72rem;
+          font-size: var(--text-xs);
           letter-spacing: 0.08em;
           text-transform: uppercase;
           color: var(--fg-1);

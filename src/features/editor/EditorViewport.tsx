@@ -18,15 +18,16 @@ import {
 } from "../../shared/document/types";
 import { copySelection, pasteClipboard } from "./clipboard";
 import { TextEditOverlay } from "./TextEditOverlay";
+import { EditorEmptyState } from "./EditorEmptyState";
 import { fitToArtboard, fitToSelection, setZoomCentered } from "./camera";
 import { hitTestTopNode } from "../../shared/geometry/hitTest";
 import { snapWorldPoint } from "../../shared/geometry/snap";
+import { useProjectSessionStore } from "../../shared/stores/projectSessionStore";
 
-function isTypingTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
-}
+import { shouldIgnoreCanvasShortcut } from "../../shared/ui/keyboard";
+import { canvasBackingStore, subscribeToDisplayMetrics } from "../../shared/ui/windowLayout";
+import { createFrameScheduler, subscribeToFontReadiness } from "./frameScheduler";
+import { pointerMoveNeedsToolUpdate } from "./pointerInput";
 
 export function EditorViewport() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,6 +36,23 @@ export function EditorViewport() {
   const panning = useRef(false);
   const lastPan = useRef({ x: 0, y: 0 });
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const sessionId = useProjectSessionStore((s) => s.sessionId);
+  const emptyArtboard = useDocumentStore((s) => s.doc.rootChildIds.length === 0);
+
+  useEffect(() => {
+    const parent = canvasRef.current?.parentElement;
+    if (!parent) return;
+    let fitted = false;
+    const tryFit = () => {
+      if (fitted || parent.clientWidth < 32 || parent.clientHeight < 32) return;
+      fitToArtboard(parent.clientWidth, parent.clientHeight);
+      fitted = true;
+    };
+    tryFit();
+    const observer = new ResizeObserver(tryFit);
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, [sessionId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -43,26 +61,23 @@ export function EditorViewport() {
     if (!ctx) return;
     setSelectHitContext(ctx);
 
-    let raf = 0;
-    const loop = () => {
+    const paint = () => {
       const ui = useUiStore.getState();
+      ui.clearDirty();
       const { doc, selection } = useDocumentStore.getState();
-      if (!ui.dirty) {
-        raf = requestAnimationFrame(loop);
-        return;
-      }
       const t0 = performance.now();
       const parent = canvas.parentElement;
       const w = parent?.clientWidth ?? 800;
       const h = parent?.clientHeight ?? 600;
       const dpr = window.devicePixelRatio || 1;
-      if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
-        canvas.width = Math.floor(w * dpr);
-        canvas.height = Math.floor(h * dpr);
+      const backing = canvasBackingStore(w, h, dpr);
+      if (canvas.width !== backing.width || canvas.height !== backing.height) {
+        canvas.width = backing.width;
+        canvas.height = backing.height;
         canvas.style.width = `${w}px`;
         canvas.style.height = `${h}px`;
       }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.setTransform(backing.dpr, 0, 0, backing.dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
       ctx.fillStyle = "#0B0D10";
       ctx.fillRect(0, 0, w, h);
@@ -80,29 +95,35 @@ export function EditorViewport() {
       );
       setSelectHandles(handlesRef.current);
       ui.setFrameMs(performance.now() - t0);
-      ui.clearDirty();
-      raf = requestAnimationFrame(loop);
+      if (useUiStore.getState().dirty) scheduler.request();
     };
-    raf = requestAnimationFrame(loop);
 
-    const unsubDoc = useDocumentStore.subscribe(() => useUiStore.getState().markDirty());
-    const unsubUi = useUiStore.subscribe((s, p) => {
-      if (
-        s.zoom !== p.zoom ||
-        s.panX !== p.panX ||
-        s.panY !== p.panY ||
-        s.showGrid !== p.showGrid ||
-        s.activeTool !== p.activeTool ||
-        s.perspective !== p.perspective
-      ) {
-        useUiStore.getState().markDirty();
-      }
+    const scheduler = createFrameScheduler(paint);
+    const invalidate = () => {
+      useUiStore.getState().markDirty();
+      scheduler.request();
+    };
+
+    const stopDisplay = subscribeToDisplayMetrics(invalidate);
+    const stopFonts = subscribeToFontReadiness(invalidate);
+    const unsubDoc = useDocumentStore.subscribe((s, p) => {
+      if (s.doc !== p.doc || s.selection !== p.selection) invalidate();
     });
+    const unsubUi = useUiStore.subscribe((s, p) => {
+      if (s.dirty && !p.dirty) scheduler.request();
+    });
+    const resizeObserver = new ResizeObserver(invalidate);
+    const parent = canvas.parentElement;
+    if (parent) resizeObserver.observe(parent);
+    invalidate();
 
     return () => {
-      cancelAnimationFrame(raf);
+      scheduler.cancel();
+      stopDisplay();
+      stopFonts();
       unsubDoc();
       unsubUi();
+      resizeObserver.disconnect();
     };
   }, []);
 
@@ -134,7 +155,7 @@ export function EditorViewport() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target)) return;
+      if (shouldIgnoreCanvasShortcut(e.target, e.key)) return;
       const store = useDocumentStore.getState();
       const ui = useUiStore.getState();
       const temporal = useDocumentStore.temporal.getState();
@@ -232,7 +253,10 @@ export function EditorViewport() {
     <div className="viewport">
       <canvas
         ref={canvasRef}
+        tabIndex={0}
+        aria-label="Artboard"
         onPointerDown={(e) => {
+          (e.currentTarget as HTMLCanvasElement).focus({ preventScroll: true });
           const ui = useUiStore.getState();
           if (e.button === 1 || spacePan.current || ui.activeTool === "pan") {
             panning.current = true;
@@ -308,6 +332,7 @@ export function EditorViewport() {
             ui.setPan(ui.panX + dx, ui.panY + dy);
             return;
           }
+          if (!pointerMoveNeedsToolUpdate(e.buttons, false)) return;
           getEditorTool(ui.activeTool).onPointerMove(toEvent(e));
           ui.markDirty();
         }}
@@ -336,7 +361,10 @@ export function EditorViewport() {
           ui.setPan(panX, panY);
         }}
       />
-      <TextEditOverlay nodeId={editingTextId} onClose={() => setEditingTextId(null)} />
+      {editingTextId ? (
+        <TextEditOverlay nodeId={editingTextId} onClose={() => setEditingTextId(null)} />
+      ) : null}
+      {emptyArtboard && <EditorEmptyState />}
       <style>{`
         .viewport {
           position: relative;
@@ -352,6 +380,13 @@ export function EditorViewport() {
           height: 100%;
           touch-action: none;
           cursor: crosshair;
+        }
+        .viewport canvas:focus {
+          outline: none;
+        }
+        .viewport canvas:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: -2px;
         }
         .text-edit {
           position: absolute;

@@ -1,47 +1,48 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Panel } from "../../shared/ui/Panel";
+import { ListRow } from "../../shared/ui/ListRow";
 import { useDocumentStore } from "../../shared/stores/documentStore";
 import type { NodeId, SceneNode } from "../../shared/document/types";
-import clsx from "clsx";
+
+/** Recursive rows keep group subscriptions; order matches `layerTreeIds`. */
 
 function LayerRow({
   id,
   depth,
+  first,
 }: {
   id: NodeId;
   depth: number;
+  first: boolean;
 }) {
   const node = useDocumentStore((s) => s.doc.nodes[id]);
-  const selection = useDocumentStore((s) => s.selection);
+  const selected = useDocumentStore((s) => s.selection.includes(id));
+  const focusId = useDocumentStore((s) => s.selection[0] ?? null);
   const setSelection = useDocumentStore((s) => s.setSelection);
   const updateNode = useDocumentStore((s) => s.updateNode);
-  const reorderInParent = useDocumentStore((s) => s.reorderInParent);
   const [editing, setEditing] = useState(false);
+  const skipRename = useRef(false);
 
   if (!node) return null;
+  const tabStop = focusId === id || (!focusId && first);
 
   return (
     <>
-      <div
-        className={clsx("layer", selection.includes(id) && "selected")}
+      <ListRow
+        id={id}
+        label={`${node.name}, ${node.type}`}
+        selected={selected}
+        tabStop={tabStop}
+        onSelect={(nextId) => setSelection([nextId])}
+        onRename={() => setEditing(true)}
+        className="layer"
         style={{ paddingLeft: 8 + depth * 12 }}
-        onClick={() => setSelection([id])}
-        draggable
-        onDragStart={(e) => e.dataTransfer.setData("text/plain", id)}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          const dragged = e.dataTransfer.getData("text/plain");
-          if (!dragged || dragged === id) return;
-          const root = useDocumentStore.getState().doc.rootChildIds;
-          const idx = root.indexOf(id);
-          if (idx >= 0) reorderInParent(dragged, idx);
-        }}
       >
         <button
           type="button"
           className="icon"
-          title="Visibility"
+          title={node.visible ? "Hide" : "Show"}
+          aria-label={node.visible ? `Hide ${node.name}` : `Show ${node.name}`}
           onClick={(e) => {
             e.stopPropagation();
             updateNode(id, { visible: !node.visible } as Partial<SceneNode>);
@@ -52,7 +53,8 @@ function LayerRow({
         <button
           type="button"
           className="icon"
-          title="Lock"
+          title={node.locked ? "Unlock" : "Lock"}
+          aria-label={node.locked ? `Unlock ${node.name}` : `Lock ${node.name}`}
           onClick={(e) => {
             e.stopPropagation();
             updateNode(id, { locked: !node.locked } as Partial<SceneNode>);
@@ -64,37 +66,52 @@ function LayerRow({
           <input
             autoFocus
             defaultValue={node.name}
+            aria-label={`Rename ${node.name}`}
             onBlur={(e) => {
-              updateNode(id, { name: e.target.value } as Partial<SceneNode>);
+              if (!skipRename.current) {
+                updateNode(id, { name: e.target.value } as Partial<SceneNode>);
+              }
+              skipRename.current = false;
               setEditing(false);
             }}
             onKeyDown={(e) => {
+              e.stopPropagation();
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              if (e.key === "Escape") {
+                skipRename.current = true;
+                setEditing(false);
+              }
             }}
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span onDoubleClick={() => setEditing(true)}>
+          <span>
             {node.name}
             <em>{node.type}</em>
           </span>
         )}
-      </div>
+      </ListRow>
       {node.type === "group" &&
-        node.children.map((cid) => <LayerRow key={cid} id={cid} depth={depth + 1} />)}
+        node.children.map((cid) => (
+          <LayerRow key={cid} id={cid} depth={depth + 1} first={false} />
+        ))}
     </>
   );
 }
 
 export function LayersPanel() {
   const rootChildIds = useDocumentStore((s) => s.doc.rootChildIds);
+  const ordered = [...rootChildIds].reverse();
+
   return (
     <Panel title="Layers">
-      <div className="layers">
-        {[...rootChildIds].reverse().map((id) => (
-          <LayerRow key={id} id={id} depth={0} />
+      <div className="layers" role="listbox" aria-label="Layers" data-list-root>
+        {ordered.map((id, index) => (
+          <LayerRow key={id} id={id} depth={0} first={index === 0} />
         ))}
-        {!rootChildIds.length && <p className="muted empty">No layers yet</p>}
+        {!ordered.length && (
+          <p className="sv-empty">No layers yet — convert an image or draw a shape</p>
+        )}
       </div>
       <style>{`
         .layers { display: grid; gap: 2px; }
@@ -108,8 +125,9 @@ export function LayersPanel() {
           font-size: 0.8rem;
           cursor: pointer;
         }
-        .layer:hover { background: rgba(255,255,255,0.04); }
-        .layer.selected { background: rgba(184,255,60,0.12); }
+        .layer:hover,
+        .layer:focus-visible { background: rgba(255,255,255,0.04); }
+        .layer.selected { background: var(--selection-fill); }
         .layer .icon {
           border: 0;
           background: transparent;
@@ -136,7 +154,6 @@ export function LayersPanel() {
           border-radius: 4px;
           padding: 0.15rem 0.3rem;
         }
-        .empty { margin: 0.5rem; font-size: 0.8rem; }
       `}</style>
     </Panel>
   );

@@ -4,6 +4,7 @@ import {
   defaultPerspectiveGrid,
   type PerspectiveGrid,
 } from "../geometry/perspective";
+import type { GrantedImageSource } from "../../features/converter/rasterFiles";
 
 export type AppMode = "convert" | "edit";
 export type RightTab = "layers" | "properties" | "artboards" | "symbols" | "plugins";
@@ -47,7 +48,7 @@ interface UiState {
   dirty: boolean;
   booleanPreview: BooleanPreviewState | null;
   shapeBuilderActive: boolean;
-  pendingConvertPath: string | null;
+  pendingConvertPath: GrantedImageSource | null;
   setMode: (mode: AppMode) => void;
   setActiveTool: (tool: ToolId) => void;
   setRightTab: (tab: RightTab) => void;
@@ -62,7 +63,7 @@ interface UiState {
   setHoverNodeId: (id: string | null) => void;
   setBooleanPreview: (preview: BooleanPreviewState | null) => void;
   setShapeBuilderActive: (v: boolean) => void;
-  setPendingConvertPath: (path: string | null) => void;
+  setPendingConvertPath: (source: GrantedImageSource | null) => void;
   markDirty: () => void;
   clearDirty: () => void;
 }
@@ -85,31 +86,54 @@ export const useUiStore = create<UiState>((set) => ({
   booleanPreview: null,
   shapeBuilderActive: false,
   pendingConvertPath: null,
-  setMode: (mode) => set({ mode, dirty: true }),
+  setMode: (mode) => set((s) => (s.mode === mode ? s : { mode, dirty: true })),
   setActiveTool: (activeTool) =>
-    set({ activeTool, booleanPreview: null, dirty: true }),
-  setRightTab: (rightTab) => set({ rightTab }),
-  setZoom: (zoom) => set({ zoom: Math.min(64, Math.max(0.05, zoom)), dirty: true }),
-  setPan: (panX, panY) => set({ panX, panY, dirty: true }),
-  setShowGrid: (showGrid) => set({ showGrid, dirty: true }),
-  setSnap: (snap) => set({ snap }),
+    set((s) =>
+      s.activeTool === activeTool ? s : { activeTool, booleanPreview: null, dirty: true },
+    ),
+  setRightTab: (rightTab) => set((s) => (s.rightTab === rightTab ? s : { rightTab })),
+  setZoom: (zoom) =>
+    set((s) => {
+      const next = Math.min(64, Math.max(0.05, zoom));
+      return s.zoom === next ? s : { zoom: next, dirty: true };
+    }),
+  setPan: (panX, panY) =>
+    set((s) => (s.panX === panX && s.panY === panY ? s : { panX, panY, dirty: true })),
+  setShowGrid: (showGrid) =>
+    set((s) => (s.showGrid === showGrid ? s : { showGrid, dirty: true })),
+  setSnap: (snap) => set((s) => (s.snap === snap ? s : { snap })),
   setPerspectiveMode: (mode) =>
-    set((s) => ({
-      perspective: { ...s.perspective, mode },
-      dirty: true,
-    })),
+    set((s) =>
+      s.perspective.mode === mode
+        ? s
+        : { perspective: { ...s.perspective, mode }, dirty: true },
+    ),
   setPerspective: (patch) =>
     set((s) => ({
       perspective: { ...s.perspective, ...patch },
       dirty: true,
     })),
-  setFrameMs: (frameMs) => set({ frameMs }),
+  setFrameMs: (frameMs) =>
+    set((s) => {
+      const next = Math.round(frameMs * 10) / 10;
+      return s.frameMs === next ? s : { frameMs: next };
+    }),
   setConverting: (converting, label = "") =>
-    set({ converting, convertProgressLabel: label }),
-  setHoverNodeId: (hoverNodeId) => set({ hoverNodeId, dirty: true }),
+    set((s) =>
+      s.converting === converting && s.convertProgressLabel === label
+        ? s
+        : { converting, convertProgressLabel: label },
+    ),
+  setHoverNodeId: (hoverNodeId) =>
+    set((s) => (s.hoverNodeId === hoverNodeId ? s : { hoverNodeId, dirty: true })),
   setBooleanPreview: (booleanPreview) => set({ booleanPreview, dirty: true }),
-  setShapeBuilderActive: (shapeBuilderActive) => set({ shapeBuilderActive, dirty: true }),
+  setShapeBuilderActive: (shapeBuilderActive) =>
+    set((s) =>
+      s.shapeBuilderActive === shapeBuilderActive ? s : { shapeBuilderActive, dirty: true },
+    ),
   setPendingConvertPath: (pendingConvertPath) => set({ pendingConvertPath }),
-  markDirty: () => set({ dirty: true }),
-  clearDirty: () => set({ dirty: false }),
+  markDirty: () =>
+    set((s) => (s.dirty ? s : { dirty: true })),
+  clearDirty: () =>
+    set((s) => (s.dirty ? { dirty: false } : s)),
 }));

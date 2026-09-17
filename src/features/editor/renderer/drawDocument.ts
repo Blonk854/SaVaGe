@@ -72,9 +72,14 @@ function drawNode(ctx: CanvasRenderingContext2D, doc: SvgDocument, id: string) {
 
   const paint = () => {
     switch (node.type) {
-      case "group":
+      case "group": {
+        ctx.save();
+        ctx.transform(mat.a, mat.b, mat.c, mat.d, mat.e, mat.f);
+        ctx.globalAlpha *= node.opacity;
         for (const cid of node.children) drawNode(ctx, doc, cid);
+        ctx.restore();
         break;
+      }
       case "path":
         drawPathNode(ctx, node, mat);
         break;

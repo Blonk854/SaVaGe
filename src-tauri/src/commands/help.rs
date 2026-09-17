@@ -1,6 +1,6 @@
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager};
 use tauri::path::BaseDirectory;
+use tauri::{AppHandle, Manager};
 
 fn candidate_paths(app: &AppHandle) -> Vec<PathBuf> {
     let mut paths = Vec::new();
@@ -45,7 +45,7 @@ pub fn open_user_manual(app: AppHandle) -> Result<(), String> {
             .args(["/C", "start", "", path])
             .spawn()
             .map_err(|e| format!("Could not open the user manual: {e}"))?;
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(windows))]

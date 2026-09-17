@@ -1,6 +1,8 @@
 import { Panel } from "../../shared/ui/Panel";
 import { Slider } from "../../shared/ui/Slider";
 import { Button } from "../../shared/ui/Button";
+import { StatusBanner } from "../../shared/ui/StatusBanner";
+import { mixedSelectionSummary } from "./mixedSelection";
 import { useDocumentStore } from "../../shared/stores/documentStore";
 import {
   defaultEffects,
@@ -13,6 +15,12 @@ import { nodeWorldBounds, transformForWorldSize } from "../../shared/geometry/bo
 import { PaintEditor, setNodePaint } from "./PaintEditor";
 import { convertTextToOutlines } from "../tools/textToOutlines";
 import { useUiStore } from "../../shared/stores/uiStore";
+
+function sameNodeList(a: Array<SceneNode | undefined>, b: Array<SceneNode | undefined>) {
+  return a.length === b.length && a.every((node, index) => node === b[index]);
+}
+
+const emptyNodes: Array<SceneNode | undefined> = [];
 
 function NumField({
   label,
@@ -40,24 +48,40 @@ function NumField({
 }
 
 export function PropertiesPanel() {
-  const selection = useDocumentStore((s) => s.selection);
-  const doc = useDocumentStore((s) => s.doc);
+  const selectionCount = useDocumentStore((s) => s.selection.length);
+  const node = useDocumentStore((s) => {
+    if (s.selection.length !== 1) return null;
+    return s.doc.nodes[s.selection[0]] ?? null;
+  });
+  const mixedNodes = useDocumentStore(
+    (s) => (s.selection.length > 1 ? s.selection.map((id) => s.doc.nodes[id]) : emptyNodes),
+    sameNodeList,
+  );
   const updateNode = useDocumentStore((s) => s.updateNode);
   const setNodeTransform = useDocumentStore((s) => s.setNodeTransform);
 
-  const id = selection[0];
-  const node = id ? doc.nodes[id] : null;
-
-  if (!node) {
+  if (selectionCount > 1) {
+    const summary = mixedSelectionSummary(mixedNodes);
     return (
       <Panel title="Properties">
-        <p className="muted empty">Select an object</p>
-        <style>{`.empty{margin:0.5rem;font-size:0.8rem}`}</style>
+        <StatusBanner kind="mixed">
+          <p className="sv-status__title">{summary.title}</p>
+          <p>{summary.detail}</p>
+        </StatusBanner>
       </Panel>
     );
   }
 
-  const bounds = nodeWorldBounds(doc, id);
+  if (!node) {
+    return (
+      <Panel title="Properties">
+        <p className="sv-empty">Select an object to edit size, fill, and effects.</p>
+      </Panel>
+    );
+  }
+
+  const id = node.id;
+  const bounds = nodeWorldBounds(useDocumentStore.getState().doc, id);
   const effects = ensureEffects(node);
   const hasFill = "fill" in node;
   const hasStroke = "stroke" in node;
@@ -298,7 +322,7 @@ export function PropertiesPanel() {
           <div className="fx">
             <span className="fx__title">Symbol</span>
             <p className="muted tip">
-              {doc.symbols[node.symbolId]?.name ?? "Missing symbol"}
+              {useDocumentStore.getState().doc.symbols[node.symbolId]?.name ?? "Missing symbol"}
             </p>
             <Button
               variant="subtle"

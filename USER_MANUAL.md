@@ -17,6 +17,8 @@ Inside SaVaGe, **Help → User Manual (PDF)…** opens this guide in your usual 
 
 Keyboard shortcuts appear in **bold** (for example **V** for Select). Menu paths use **File → Open…** style.
 
+In the app, hover a tool for its name and shortcut, and hover a disabled Align or Boolean button to see why it is unavailable. Convert explains rejected drops. An empty artboard offers **Convert an image**, **Draw a rectangle**, and **Open a project**.
+
 ---
 
 ## Table of contents
@@ -46,7 +48,7 @@ Open SaVaGe the same way you open any Windows app:
 - Double-click the **SaVaGe** shortcut on the desktop or in the Start menu, or  
 - Double-click `SaVaGe.exe` in the folder where you installed it.
 
-SaVaGe opens in **Convert** mode: dark graphite window, lime accent, SaVaGe wordmark.
+SaVaGe opens in **Convert** mode: dark graphite window, lime accent, and the same SaVaGe mark used in the title bar.
 
 You do not need a terminal, PowerShell, or developer tools to run the program.
 
@@ -59,7 +61,7 @@ You do not need a terminal, PowerShell, or developer tools to run the program.
    - **Line art** — sketches, comics, high-contrast line drawings  
    - **Pixel** — pixel art / hard block shapes  
 3. Optionally tweak **Color precision**, **Filter speckle**, **Corner threshold**, **Path precision**, and **Mode**.
-4. Click **Convert to SVG**.
+4. Click **Convert to SVG**. While it runs, **Cancel** requests a stop. Tracing cannot be interrupted mid-stage; the button stays busy until the current stage finishes and the job actually exits.
 5. Check the side-by-side **Raster | SVG** preview.
 6. Click **Open in Editor** (or switch the toolbar to **Edit**) to refine the vectors.
 
@@ -67,10 +69,12 @@ You can also start from **File → Open…**: choosing a photo or PNG switches y
 
 ### 1.3 Your first edit
 
+An empty artboard offers **Convert an image**, **Draw a rectangle**, or **Open a project**. After objects exist:
+
 1. Press **V** (Select). Click a shape; drag to move. Use corner and edge handles to resize; use the rotate handle to rotate.
-2. Open the **Props** tab on the right. Change fill color or opacity. **W** and **H** set the object’s on-canvas size.
-3. **File → Save Project…** and save a `.savage` file (best fidelity).  
-   Or **File → Export SVG…** / **Export PNG…** for delivery.
+2. Open the **Properties** tab on the right. Change fill color or opacity. **W** and **H** set the object’s on-canvas size.
+3. **File → Save** (**Ctrl+S**) writes a `.savage` project (best fidelity). The first save, or **File → Save As…** (**Ctrl+Shift+S**), asks where to put it.  
+   **File → Export SVG…** / **Export PNG…** are for delivery and do not mark the project Saved.
 
 ### 1.4 Five-minute power path
 
@@ -87,10 +91,10 @@ Convert with **Logo** preset → **Open in Editor** → Unite overlapping paths 
 │ Toolbar: Convert | Edit · Zoom · Fit · Grid · Snap · Persp   │
 ├────┬───────────────────────────────────────────┬─────────────┤
 │    │                                           │ Layers      │
-│ T  │         Main: Convert UI or Canvas        │ Props       │
-│ o  │                                           │ Boards      │
+│ T  │         Main: Convert UI or Canvas        │ Properties  │
+│ o  │                                           │ Artboards   │
 │ o  │                                           │ Symbols     │
-│ l  │                                           │ Plug        │
+│ l  │                                           │ Plugins     │
 │ s  │                                           │ Align/Bool  │
 ├────┴───────────────────────────────────────────┴─────────────┤
 │ Status: zoom · selection count · mode · tool · refresh time  │
@@ -115,9 +119,18 @@ The bottom strip shows:
 - Zoom percentage  
 - How many objects are selected  
 - Current mode and active tool  
+- Document status: **Unsaved** (no project file yet), **Modified** (edits since last save), or **Saved**  
 - Last screen-refresh time (turns amber when the drawing is heavy)
 
-Short confirmation messages (boolean results, clip masks, plugin actions) appear as toasts over the main view.
+The title bar repeats the document name and the same Unsaved / Modified / Saved label.
+
+Toasts over the main view use the same status colors as Convert: lime-adjacent success, amber warning, and red error. Confirmations (saved, boolean applied) are success; “select something first” is a warning; failures are errors.
+
+### 2.3 Display, scaling, and Narrator
+
+The window opens at **1440×900**. **1280×720** is the comfortable workspace. The smallest supported size is **960×600**, which still fits a 1080p monitor at **200%** display scaling (maximize if the taskbar eats the remainder). At narrower widths Convert stacks Trace options under the drop zone; the title bar, toolbar, and inspector tabs wrap instead of covering controls.
+
+The canvas follows monitor DPI. Windows High Contrast remaps chrome to system colors; the drawing on the artboard stays in document colors. **F10** focuses File for Narrator. Layers and Artboards are lists; the canvas is named **Artboard**; selection changes are announced politely.
 
 ---
 
@@ -133,11 +146,11 @@ Convert turns bitmaps into editable vector paths.
 | **Open Image…** | File dialog for png / jpg / jpeg / gif / webp / bmp / tif / tiff |
 | **File → Open…** | Same raster types; SaVaGe switches to Convert and attaches the file |
 
-A thumbnail of the source appears after the file is attached. While converting, the drop zone is disabled and a progress indicator appears. Non-image files dropped on Convert are ignored.
+A thumbnail of the source appears after the file is attached, with format, pixel size, and file size. The SVG pane stays empty until a trace finishes. While converting, the drop zone is disabled, a progress label shows the current stage, and **Cancel** requests a stop after that stage. Tracing itself cannot be interrupted. Unsupported drops explain why they were rejected instead of failing silently. **Convert to SVG** stays disabled until a source is attached; hover the button for the reason.
 
 ### 3.2 Presets (start here)
 
-Presets apply a full option set. Choose the closest match, then fine-tune.
+Presets apply a full option set. Choose the closest match, then fine-tune. Changing a slider or **Mode** after a preset selects **Custom** (the named buttons turn off) and shows “Options no longer match a named preset.” Picking a named preset again restores that full set.
 
 | Preset | Best for | Tendency |
 |---|---|---|
@@ -160,11 +173,11 @@ A few extra engine settings come with each preset and are not shown as separate 
 
 ### 3.4 Preview and continue
 
-After conversion you get a side-by-side **Raster | SVG** preview. The traced drawing is already loaded into the document.
+After conversion you get a side-by-side **Raster | SVG** preview. The traced drawing is already loaded into the document. The primary button becomes **Convert again**.
 
 - Click **Open in Editor** to refine it on the canvas.  
 - Or switch the toolbar to **Edit** at any time.  
-- Stay on Convert if you want to change options and convert again before editing.
+- Stay on Convert if you want to change options and convert again before editing. Changing options after a trace shows an amber banner: “Trace options changed. Convert again to update the SVG.” The SVG pane looks faded until you do.
 
 ### 3.5 Convert workflow tips
 
@@ -184,7 +197,7 @@ After conversion you get a side-by-side **Raster | SVG** preview. The traced dra
 | Zoom toward cursor | Scroll wheel |
 | Zoom tool | **Z** — click to zoom in, **Alt-click** to zoom out |
 | Zoom buttons | Toolbar **−** / **%** / **+** |
-| Fit active artboard | Toolbar **Fit**, **View → Fit Artboard**, or **Ctrl+0** |
+| Fit active artboard | Automatic when you enter Edit; then Toolbar **Fit**, **View → Fit Artboard**, or **Ctrl+0** |
 | Fit selection | **View → Fit Selection** or **Ctrl+2** |
 | Zoom 100% | Click the zoom %, **View → Zoom 100%**, or **Ctrl+1** |
 | Zoom 50% / 200% | **View** menu |
@@ -224,13 +237,10 @@ Open the **Layers** tab:
 
 ### 4.5 Properties at a glance
 
-Open **Props** (it always inspects the **first** object in the selection):
+Open **Properties**:
 
-- Position **X / Y**, size **W / H**, rotation **R**, opacity  
-- Fill and stroke  
-- Stroke width  
-- Effects: blur, drop shadow  
-- Extra controls for text and symbols when those are selected  
+- One object: position **X / Y**, size **W / H**, rotation **R**, opacity, fill, stroke, and effects  
+- Several objects: Properties shows a mixed-selection notice and does not silently edit the first object — select one object to change size, fill, or effects  
 
 Changing **W** or **H** scales the object to that size on the canvas.
 
@@ -325,9 +335,9 @@ Works on closed fills only. Open pencil strokes and live text are not valid sour
 
 **Enter** or **Esc** finishes editing and keeps what you typed. Click away from the field to do the same.
 
-Typography fields in Props: content, font size, weight. New text uses **DM Sans**.
+Typography fields in Properties: content, font size, weight. New text uses **DM Sans**.
 
-**Convert Text to Outlines:** **Object** menu or the button in Props. SaVaGe turns the letters into real paths using the bundled faces **DM Sans** and **Syne**. Outline late if you still need to edit the live wording. Other font names will outline with the closest bundled face.
+**Convert Text to Outlines:** **Object** menu or the button in Properties. SaVaGe turns the letters into real paths using the bundled faces **DM Sans** and **Syne**. Outline late if you still need to edit the live wording. Other font names will outline with the closest bundled face.
 
 ---
 
@@ -337,9 +347,9 @@ Typography fields in Props: content, font size, weight. New text uses **DM Sans*
 
 Hierarchical list of everything on the canvas. Use it for selection, visibility, locking, naming, and reordering. Nested group children appear indented.
 
-### 6.2 Props (Properties)
+### 6.2 Properties
 
-Context-sensitive inspector for the **first** selected object.
+Context-sensitive inspector. Several selected objects show a mixed-selection state instead of editing only the first. Select one object for fill, size, and effects.
 
 #### Paint (fill / stroke)
 
@@ -367,9 +377,9 @@ For path objects:
 
 #### Clip
 
-If the object has a clip mask, release it from Props or **Object → Release Clip Mask**. Otherwise a short tip explains how to make one.
+If the object has a clip mask, release it from Properties or **Object → Release Clip Mask**. Otherwise a short tip explains how to make one.
 
-### 6.3 Boards (Artboards)
+### 6.3 Artboards
 
 Multiple artboards live in one document.
 
@@ -390,12 +400,12 @@ Reusable masters stored once; instances on the canvas all follow that master.
 |---|---|
 | Create | Select artwork → **+** in the panel, or **Object → Create Symbol** |
 | Place | Click a symbol name in the panel |
-| Detach | Select an instance → Detach (panel, Props, or **Object → Detach Symbol**) |
+| Detach | Select an instance → Detach (panel, Properties, or **Object → Detach Symbol**) |
 | Delete definition | × on the symbol row — placed copies are expanded into ordinary objects first so artwork is not lost |
 
 Creating a symbol replaces the selection with an instance of the new master.
 
-### 6.5 Plug (Plugins)
+### 6.5 Plugins
 
 Lists built-in extras and runs their commands. See [Plugins](#10-plugins).
 
@@ -405,25 +415,27 @@ Always visible in Edit mode under the right panels.
 
 #### Align (two or more objects)
 
-| Button | Align |
-|---|---|
-| L | Left |
-| C | Horizontal center |
-| R | Right |
-| T | Top |
-| M | Vertical middle |
-| B | Bottom |
+The sidebar uses icons with tooltips instead of L/C/R/T/M/B. Hover for the full name. Align needs two selected objects; distribute needs three. Disabled buttons say why.
 
-Even spacing (distribute) is not in the sidebar in this release.
+| Control | Align |
+|---|---|
+| Left | Left edges |
+| Horizontal centers | Horizontal center |
+| Right | Right edges |
+| Top | Top edges |
+| Vertical centers | Vertical middle |
+| Bottom | Bottom edges |
+| Distribute horizontally | Even horizontal spacing |
+| Distribute vertically | Even vertical spacing |
 
 #### Boolean
 
 | Button | Operation |
 |---|---|
 | Unite | Union |
-| Inter | Intersection |
-| Sub | Subtract (first minus the others) |
-| Xor | Exclusive or / exclude |
+| Intersect | Intersection |
+| Subtract | Subtract (first minus the others) |
+| Exclude | Exclusive or / exclude |
 
 **Live preview:** hover a boolean button to see a translucent lime ghost of the result. Click to commit. The preview clears when the pointer leaves the boolean group. The same preview works from **Object** menu items.
 
@@ -437,12 +449,12 @@ Booleans need at least two selected **filled** shapes that can be treated as clo
 
 | Command | Behavior |
 |---|---|
-| **Open…** | Opens `.savage` or `.svg` into Edit. Photos and PNG/JPEG/WEBP/GIF/BMP/TIFF switch to Convert and attach the file. A damaged project file shows an error instead of crashing. |
-| **Save Project…** | Writes the full document as `.savage` |
-| **Export SVG…** | Writes an SVG file |
-| **Export PNG…** | Writes a PNG snapshot (typically at 2× resolution) |
-
-There is no separate “New” command: start from Convert, or **Open…** another file.
+| **New** | **Ctrl+N**. Starts an empty Edit document. If the current document is not a saved `.savage` match, SaVaGe asks whether to save. Choose **Save**, or decline and then **Discard** or **Cancel**. Closing the window uses the same decision. |
+| **Open…** | **Ctrl+O**. Opens `.savage` or `.svg` into Edit. Photos and PNG/JPEG/WEBP/GIF/BMP/TIFF switch to Convert and attach the file. A damaged project file shows an error instead of crashing. |
+| **Save** | **Ctrl+S**. Writes the current `.savage` if one is already the save target. The first save on an Unsaved document opens a location dialog. |
+| **Save As…** | **Ctrl+Shift+S**. Always asks for a location. The current project path changes only after a successful write. Cancel leaves the previous file (or Unsaved) as the save target. |
+| **Export SVG…** | Writes an SVG file. Does not mark the project Saved. |
+| **Export PNG…** | Writes a PNG snapshot at 2× resolution. Does not mark the project Saved. |
 
 ### 7.2 Edit
 
@@ -471,13 +483,21 @@ There is no separate “New” command: start from Convert, or **Open…** anoth
 
 ### 7.4 View
 
-Fit Artboard, Fit All Artboards, Fit Selection, Zoom 50% / 100% / 200%.
+| Command | Shortcut |
+|---|---|
+| Fit Artboard | **Ctrl+0** (also toolbar **Fit**) |
+| Fit All Artboards | — |
+| Fit Selection | **Ctrl+2** |
+| Zoom 50% | — |
+| Zoom 100% | **Ctrl+1** (also click the zoom %) |
+| Zoom 200% | — |
 
 ### 7.5 Help
 
 | Command | Behavior |
 |---|---|
 | **User Manual (PDF)…** | Opens this guide in your system PDF viewer |
+| **Export Diagnostics…** | After confirmation, saves a redacted log of recent errors (no document contents, images, or full file paths). Review the file before sharing it. |
 
 ---
 
@@ -513,20 +533,20 @@ Very dense stacks may still be faster if you Unite or Subtract first.
 ### 8.4 Mesh gradients
 
 1. Select a filled shape.  
-2. Props → Fill → **Mesh**.  
+2. Properties → Fill → **Mesh**.  
 3. Edit corner / control-point color swatches.
 
 The canvas preview matches what you edit. Exported SVG keeps the mesh so Inkscape (and SaVaGe itself) can reopen it. Browsers that do not implement mesh fills will show a missing fill — export PNG when a raster deliverable must match the canvas.
 
 ### 8.5 Variable-width strokes
 
-Uniform strokes use the stroke width in Props. Paths may also store a width at each point.
+Uniform strokes use the stroke width in Properties. Paths may also store a width at each point.
 
 | Method | Result |
 |---|---|
-| Props → **Taper ends** | Automatic profile |
+| Properties → **Taper ends** | Automatic profile |
 | Direct Select + **Alt-drag** | Manual width at a point |
-| Props → **Clear profile** | Back to uniform |
+| Properties → **Clear profile** | Back to uniform |
 
 When point widths differ, SaVaGe draws a **filled ribbon** around the centerline. You edit the ribbon by moving points and widths — it is not a separate expanded outline unless you convert it some other way.
 
@@ -573,14 +593,15 @@ Vanishing points start from the document frame. This release does not include dr
 | **PNG** | Picture export | Visual snapshot |
 | Photos and bitmaps | Convert only | Become vectors after you trace |
 
-Opening a `.svg` restores solids, linear/radial gradients, and mesh fills when they are present. Opening a damaged `.savage` file shows an error toast rather than a blank crash.
+Opening a `.svg` restores solids, linear/radial gradients, and mesh fills when they are present. The opened SVG is an Unsaved document until you **Save** it as `.savage`. Opening a damaged `.savage` file shows an error toast rather than a blank crash.
 
 ### 9.2 Recommended save strategy
 
-1. Always keep a `.savage` working file.  
+1. Always keep a `.savage` working file (**File → Save** / **Save As…**).  
 2. Export SVG for handoff to web or other editors.  
 3. Export PNG for previews, social, or mesh-critical stills.  
-4. Re-open SVG when you must — colors, gradients, and meshes come back into the document.
+4. Re-open SVG when you must — colors, gradients, and meshes come back into the document as Unsaved work.  
+5. Export never clears **Modified**; only a successful project save does.
 
 ### 9.3 Clipboard
 
@@ -595,27 +616,49 @@ Opening a `.svg` restores solids, linear/radial gradients, and mesh fills when t
 
 **Ctrl+D** duplicates the selection in the document (including groups and their children as independent copies). Duplicates sit 16 units down and to the right, next to the original in the same group or layer.
 
+### 9.5 Recovery after a crash
+
+While you edit, SaVaGe checkpoints unsaved work in the background (typically within a few seconds of the last change). After an unexpected close, the next launch may ask:
+
+1. **Recover** — opens the checkpoint as an **Unsaved** document. **Save** or **Save As…** to keep it. The original `.savage` is not overwritten until you save on top of it.  
+2. **Open Original** — if the recovery came from a saved project, open that file instead.  
+3. **Discard Recovery** — drop the checkpoint.
+
+Invalid recovery files are kept until you choose to remove them. Recovery is a safety net, not a substitute for **Save**.
+
 ---
 
 ## 10. Plugins
 
-The **Plug** tab lists extras that ship with SaVaGe.
+The **Plugins** tab lists extras that ship with SaVaGe. Built-in commands are part of the application, not third-party add-ons.
 
-| Plugin | What it does |
-|---|---|
-| **Duplicate & Offset** | Copies selected objects (not groups) 24 units down and right |
-| **Randomize Fills** | Assigns random palette fills to selected objects that have a fill |
-| **Add Guide Rect** | Inserts a translucent cyan rectangle as a layout guide |
+| Plugin | Command button | What it does |
+|---|---|---|
+| **Duplicate & Offset** | Duplicate selection + offset | Copies selected objects (not groups) 24 units down and right |
+| **Randomize Fills** | Randomize selected fills | Assigns random palette fills to selected objects that have a fill |
+| **Add Guide Rect** | Add guide rectangle | Inserts a translucent cyan rectangle as a layout guide |
 
-Each command shows a short toast when it finishes. Use **Edit → Undo** if you want to reverse it.
+Each command shows a short toast when it finishes. A successful command is one undo step; a failed or invalid command leaves the document unchanged. Use **Edit → Undo** if you want to reverse a successful command.
 
 ---
 
 ## 11. Keyboard shortcuts cheat sheet
 
-Shortcuts apply when the canvas is focused — not while a text field is active.
+**File** shortcuts (**Ctrl+N**, **Ctrl+O**, **Ctrl+S**, **Ctrl+Shift+S**) work in Convert and Edit unless a text field is focused.
 
-### Global
+Canvas tool, nudge, duplicate, and zoom shortcuts apply when the canvas can receive them — not while a text field, menu, or layer/artboard/symbol list is handling keys. **F10** focuses the File menu. Arrow keys move between menus and items; **Esc** closes the menu and returns to the menu button. **Tab** dismisses the menu. In Layers or Artboards, arrows move between rows, **Enter** or **Space** selects, and **F2** renames (**Esc** cancels the name). In Symbols, arrows move between names; **Enter** or **Space** places an instance.
+
+### File
+
+| Shortcut | Action |
+|---|---|
+| **Ctrl+N** | New |
+| **Ctrl+O** | Open… |
+| **Ctrl+S** | Save |
+| **Ctrl+Shift+S** | Save As… |
+| **F10** | Focus the File menu |
+
+### Tools and canvas
 
 | Shortcut | Action |
 |---|---|
@@ -643,8 +686,9 @@ Shortcuts apply when the canvas is focused — not while a text field is active.
 | **Delete** / **Backspace** | Delete selection |
 | **Arrows** | Nudge 1 px |
 | **Shift+Arrows** | Nudge 10 px |
+| **F2** | Rename the focused layer or artboard |
 
-Polygon, Star, Pattern Brush, and Scatter Brush have no letter shortcut — click them on the tool rail.
+Polygon, Star, Pattern Brush, and Scatter Brush have no letter shortcut — click them on the tool rail. Hover a tool for its name and shortcut.
 
 ### Tool-specific
 
@@ -661,7 +705,7 @@ Polygon, Star, Pattern Brush, and Scatter Brush have no letter shortcut — clic
 | **Alt-click** | Zoom tool | Zoom out |
 | **Alt+drag** | Direct Select | Edit point stroke width |
 
-Menu items do not show key badges in the title bar; the shortcuts above still work on the canvas.
+Menu items do not show key badges in the title bar; the shortcuts in this section still apply. File shortcuts work from Convert as well as Edit.
 
 ---
 
@@ -669,11 +713,10 @@ Menu items do not show key badges in the title bar; the shortcuts above still wo
 
 ### 12.1 Limitations (v0.1)
 
-1. **Distribute / even spacing** is not in the Align bar yet (left/center/right/top/middle/bottom are).  
-2. Pattern Brush and Scatter Brush spacing and jitter are fixed (no sliders yet).  
-3. Perspective vanishing points are not draggable.  
-4. Text outlines use the bundled **DM Sans** and **Syne** faces.  
-5. Some web browsers will not paint mesh-gradient fills in exported SVG.
+1. **Pattern Brush and Scatter Brush** spacing and jitter are fixed (no sliders yet).  
+2. Perspective vanishing points are not draggable.  
+3. Text outlines use the bundled **DM Sans** and **Syne** faces.  
+4. Some web browsers will not paint mesh-gradient fills in exported SVG.
 
 ### 12.2 Best practices
 
@@ -691,15 +734,23 @@ Menu items do not show key badges in the title bar; the shortcuts above still wo
 
 | Symptom | Try |
 |---|---|
-| Convert drop does nothing | Drop a PNG, JPEG, WEBP, GIF, BMP, or TIFF — other files are ignored |
+| Convert drop does nothing | Drop a PNG, JPEG, WEBP, GIF, BMP, or TIFF — Convert now explains unsupported files |
+| Convert to SVG is disabled | Attach a source first; hover the button for the reason |
+| Cancel stays busy | That is expected: tracing finishes the current stage before the job exits |
 | Converted, but still on Convert | Click **Open in Editor** (that is expected) |
+| Trace options changed banner | Click **Convert again** — the SVG pane is the previous result until you do |
 | Boolean fails | Select at least two filled closed shapes; ungroup if needed |
 | Shape Builder empty | Select overlapping closed shapes first |
 | Mesh looks empty in a browser | Open it in SaVaGe or Inkscape, or export PNG |
 | Paste did nothing | Click the canvas first; copy from SaVaGe or paste SVG |
 | Open failed | The file may not be a valid `.savage` project or SVG — check the toast |
+| Save As cancelled | The previous project path stays current; nothing is written |
+| Export left the project Modified | Expected — export is not a project save |
+| Recovery prompt after a crash | Recover opens Unsaved work; Save As to keep it. Open Original leaves the checkpoint behind |
+| Need error details for support | **Help → Export Diagnostics…**, review the JSON, then share only that file |
 | Heavy lag | Simplify paths; lower convert color precision; hide blur/shadow temporarily |
 | Clicking a tool key types a letter | Click the canvas so a Properties field is not focused |
+| Window too small / 200% scaling | Maximize; supported minimum is 960×600. Chrome wraps rather than hiding Convert or Edit controls |
 
 ---
 
@@ -716,19 +767,20 @@ Menu items do not show key badges in the title bar; the shortcuts above still wo
 | **Shape Builder** | Click regions of overlapping shapes to keep or discard them |
 | **Speckle** | Tiny unwanted islands removed during tracing |
 | **`.savage`** | SaVaGe’s native project file (full document) |
+| **Recovery** | A crash checkpoint of unsaved work; Recover opens it as Unsaved |
 
 ---
 
 ## Appendix A — Suggested learning path
 
 1. Convert a simple logo PNG; use **Open in Editor**.  
-2. Recolor with Props; rename layers.  
+2. Recolor with Properties; rename layers.  
 3. Draw primitives; Unite; Shape Builder.  
 4. Create a Symbol; place twice; detach one.  
 5. Try Brush, Pattern, and Scatter.  
 6. Enable 1-pt perspective and sketch with Snap.  
 7. Save `.savage`; export SVG and PNG; reopen both and compare.  
-8. Run Plug → Randomize Fills once for fun, then Undo.
+8. Run Plugins → Randomize selected fills once for fun, then Undo.
 
 ---
 

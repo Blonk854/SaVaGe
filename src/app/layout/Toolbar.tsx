@@ -17,9 +17,9 @@ export function Toolbar() {
   const setShowGrid = useUiStore((s) => s.setShowGrid);
   const snap = useUiStore((s) => s.snap);
   const setSnap = useUiStore((s) => s.setSnap);
-  const perspective = useUiStore((s) => s.perspective);
+  const perspectiveMode = useUiStore((s) => s.perspective.mode);
   const setPerspectiveMode = useUiStore((s) => s.setPerspectiveMode);
-  const zoom = useUiStore((s) => s.zoom);
+  const zoomPercent = useUiStore((s) => Math.round(s.zoom * 100));
 
   return (
     <div className="toolbar panel-enter">
@@ -48,9 +48,11 @@ export function Toolbar() {
         <div className="zoom-ctrl">
           <button
             type="button"
+            title="Zoom out"
+            aria-label="Zoom out"
             onClick={() => {
               const { w, h } = viewportSize();
-              setZoomCentered(zoom / 1.25, w, h);
+              setZoomCentered(useUiStore.getState().zoom / 1.25, w, h);
             }}
           >
             −
@@ -64,19 +66,23 @@ export function Toolbar() {
             }}
             title="Reset zoom to 100%"
           >
-            {Math.round(zoom * 100)}%
+            {zoomPercent}%
           </button>
           <button
             type="button"
+            title="Zoom in"
+            aria-label="Zoom in"
             onClick={() => {
               const { w, h } = viewportSize();
-              setZoomCentered(zoom * 1.25, w, h);
+              setZoomCentered(useUiStore.getState().zoom * 1.25, w, h);
             }}
           >
             +
           </button>
           <button
             type="button"
+            title="Fit active artboard (Ctrl+0)"
+            aria-label="Fit active artboard"
             onClick={() => {
               const { w, h } = viewportSize();
               fitToArtboard(w, h);
@@ -88,37 +94,42 @@ export function Toolbar() {
       )}
 
       <div className="toolbar__spacer" />
-      <label className="chk">
-        <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} />
-        Grid
-      </label>
-      <label className="chk">
-        <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
-        Snap
-      </label>
-      <label className="chk">
-        <span>Persp</span>
-        <select
-          value={perspective.mode}
-          onChange={(e) =>
-            setPerspectiveMode(e.target.value as typeof perspective.mode)
-          }
-        >
-          <option value="off">Off</option>
-          <option value="1point">1-pt</option>
-          <option value="2point">2-pt</option>
-        </select>
-      </label>
+      <div className="toolbar__view">
+        <label className="chk">
+          <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} />
+          Grid
+        </label>
+        <label className="chk">
+          <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
+          Snap
+        </label>
+        <label className="chk">
+          <span>Persp</span>
+          <select
+            value={perspectiveMode}
+            onChange={(e) =>
+              setPerspectiveMode(e.target.value as typeof perspectiveMode)
+            }
+          >
+            <option value="off">Off</option>
+            <option value="1point">1-pt</option>
+            <option value="2point">2-pt</option>
+          </select>
+        </label>
+      </div>
       <style>{`
         .toolbar {
-          height: var(--toolbar-h);
+          min-height: var(--toolbar-h);
+          height: auto;
           display: flex;
+          flex-wrap: wrap;
           align-items: center;
-          gap: 0.75rem;
-          padding: 0 0.75rem;
+          gap: 0.45rem 0.75rem;
+          padding: 0.25rem 0.75rem;
           background: var(--bg-1);
           border-bottom: 1px solid var(--border);
         }
+        .toolbar > :not(.toolbar__spacer) { flex-shrink: 0; }
         .mode-switch {
           display: flex;
           padding: 3px;
@@ -159,7 +170,14 @@ export function Toolbar() {
         }
         .zoom-ctrl button:hover { background: rgba(255,255,255,0.05); color: var(--fg-0); }
         .zoom-ctrl__label { min-width: 52px !important; font-variant-numeric: tabular-nums; }
-        .toolbar__spacer { flex: 1; }
+        .toolbar__spacer { flex: 1 1 6rem; min-width: 0.5rem; }
+        .toolbar__view {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.45rem 0.75rem;
+          margin-left: auto;
+        }
         .chk {
           display: flex;
           align-items: center;

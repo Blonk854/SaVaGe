@@ -111,7 +111,12 @@ mod tests {
     #[test]
     fn union_overlapping_squares() {
         let square = |x: f64, y: f64| {
-            vec![vec![[x, y], [x + 10.0, y], [x + 10.0, y + 10.0], [x, y + 10.0]]]
+            vec![vec![
+                [x, y],
+                [x + 10.0, y],
+                [x + 10.0, y + 10.0],
+                [x, y + 10.0],
+            ]]
         };
         let result = boolean_op(BooleanRequest {
             subjects: vec![square(0.0, 0.0)],
@@ -122,7 +127,10 @@ mod tests {
         assert!(!result.shapes.is_empty());
         let points: Vec<[f64; 2]> = result.shapes.iter().flatten().flatten().cloned().collect();
         let min_x = points.iter().map(|p| p[0]).fold(f64::INFINITY, f64::min);
-        let max_x = points.iter().map(|p| p[0]).fold(f64::NEG_INFINITY, f64::max);
+        let max_x = points
+            .iter()
+            .map(|p| p[0])
+            .fold(f64::NEG_INFINITY, f64::max);
         assert!(min_x <= 0.5);
         assert!(max_x >= 14.5);
     }

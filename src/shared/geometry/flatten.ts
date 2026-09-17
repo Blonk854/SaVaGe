@@ -1,5 +1,5 @@
-import type { PathPoint, SceneNode, SvgDocument } from "../document/types";
-import { applyMat, transformToMatrix } from "./transform";
+import type { PathPoint, SvgDocument } from "../document/types";
+import { applyMat, nodeWorldMatrix, type Mat2D } from "./transform";
 
 export type Contour = [number, number][];
 export type ShapeContours = Contour[];
@@ -56,10 +56,9 @@ function pathPointsToContour(points: PathPoint[], closed: boolean): Contour {
   return samples.map((p) => [p.x, p.y] as [number, number]);
 }
 
-function toWorld(contour: Contour, node: SceneNode): Contour {
-  const m = transformToMatrix(node.transform);
+function toWorld(contour: Contour, matrix: Mat2D): Contour {
   return contour.map(([x, y]) => {
-    const p = applyMat(m, x, y);
+    const p = applyMat(matrix, x, y);
     return [p.x, p.y] as [number, number];
   });
 }
@@ -78,6 +77,9 @@ export function flattenNodeToShape(doc: SvgDocument, id: string): ShapeContours 
     return shapes.length ? shapes : null;
   }
 
+  const world = nodeWorldMatrix(doc, id);
+  if (!world) return null;
+
   if (node.type === "rect") {
     const c: Contour = [
       [0, 0],
@@ -85,7 +87,7 @@ export function flattenNodeToShape(doc: SvgDocument, id: string): ShapeContours 
       [node.width, node.height],
       [0, node.height],
     ];
-    return [toWorld(c, node)];
+    return [toWorld(c, world)];
   }
 
   if (node.type === "ellipse") {
@@ -95,7 +97,7 @@ export function flattenNodeToShape(doc: SvgDocument, id: string): ShapeContours 
       const a = (i / steps) * Math.PI * 2;
       c.push([Math.cos(a) * node.rx, Math.sin(a) * node.ry]);
     }
-    return [toWorld(c, node)];
+    return [toWorld(c, world)];
   }
 
   if (node.type === "path") {
@@ -111,7 +113,7 @@ export function flattenNodeToShape(doc: SvgDocument, id: string): ShapeContours 
         ) < 0.5;
       if (!closed) continue;
       const local = pathPointsToContour(sp.points, true);
-      if (local.length >= 3) contours.push(toWorld(local, node));
+      if (local.length >= 3) contours.push(toWorld(local, world));
     }
     return contours.length ? contours : null;
   }

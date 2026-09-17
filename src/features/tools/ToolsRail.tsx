@@ -58,6 +58,7 @@ export function ToolsRail() {
       <style>{`
         .tools-rail {
           width: var(--tool-rail-w);
+          min-height: 0;
           display: flex;
           flex-direction: column;
           align-items: center;

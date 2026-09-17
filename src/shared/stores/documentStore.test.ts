@@ -7,6 +7,11 @@ import {
   type RectNode,
 } from "../document/types";
 import { useDocumentStore } from "./documentStore";
+import {
+  projectContents,
+  projectSaveLabel,
+  useProjectSessionStore,
+} from "./projectSessionStore";
 
 function rect(id: string, x: number): RectNode {
   return {
@@ -29,6 +34,7 @@ function rect(id: string, x: number): RectNode {
 
 describe("documentStore.duplicateSelection", () => {
   beforeEach(() => {
+    useDocumentStore.temporal.getState().clear();
     const doc = createEmptyDocument();
     useDocumentStore.setState({ doc, selection: [] });
     useDocumentStore.getState().addNode(rect("a", 0));
@@ -66,6 +72,7 @@ describe("documentStore.duplicateSelection", () => {
 
 describe("clip masks", () => {
   beforeEach(() => {
+    useDocumentStore.temporal.getState().clear();
     const doc = createEmptyDocument();
     useDocumentStore.setState({ doc, selection: [] });
     useDocumentStore.getState().addNode(rect("a", 0));
@@ -91,5 +98,65 @@ describe("clip masks", () => {
     expect(useDocumentStore.getState().doc.nodes.a.clipPathId).toBeNull();
     expect(useDocumentStore.getState().doc.nodes.b.visible).toBe(false);
     expect(useDocumentStore.getState().doc.nodes.c.clipPathId).toBe("b");
+  });
+});
+
+describe("document history boundaries", () => {
+  beforeEach(() => {
+    useDocumentStore.temporal.getState().clear();
+    useDocumentStore.getState().loadDocument(createEmptyDocument());
+  });
+
+  it("does not create history entries for selection changes", () => {
+    useDocumentStore.getState().setSelection(["missing"]);
+
+    expect(useDocumentStore.temporal.getState().pastStates).toHaveLength(0);
+  });
+
+  it("clears history when loading another document", () => {
+    useDocumentStore.getState().addNode(rect("old", 0));
+    expect(useDocumentStore.temporal.getState().pastStates.length).toBeGreaterThan(0);
+
+    const replacement = createEmptyDocument();
+    replacement.name = "Replacement";
+    useDocumentStore.getState().loadDocument(replacement);
+
+    const temporal = useDocumentStore.temporal.getState();
+    expect(temporal.pastStates).toHaveLength(0);
+    expect(temporal.futureStates).toHaveLength(0);
+    temporal.undo();
+    expect(useDocumentStore.getState().doc.name).toBe("Replacement");
+  });
+
+  it("commits a validated document as one history step without clearing undo", () => {
+    useDocumentStore.getState().addNode(rect("old", 0));
+    const next = structuredClone(useDocumentStore.getState().doc);
+    next.nodes.old.name = "renamed";
+
+    useDocumentStore.getState().commitDocument(next, ["old"]);
+
+    expect(useDocumentStore.getState().doc.nodes.old.name).toBe("renamed");
+    expect(useDocumentStore.temporal.getState().pastStates).toHaveLength(2);
+    useDocumentStore.temporal.getState().undo();
+    expect(useDocumentStore.getState().doc.nodes.old.name).toBe("old");
+  });
+});
+
+describe("projectSaveLabel", () => {
+  it("calls untitled work unsaved and a persisted path saved or modified", () => {
+    const doc = createEmptyDocument();
+    useProjectSessionStore.setState({
+      projectPath: null,
+      savedContents: null,
+    });
+    expect(projectSaveLabel(doc)).toBe("Unsaved");
+
+    const contents = projectContents(doc);
+    useProjectSessionStore.setState({
+      projectPath: "C:\\art\\mark.savage",
+      savedContents: contents,
+    });
+    expect(projectSaveLabel(doc)).toBe("Saved");
+    expect(projectSaveLabel({ ...doc, name: "Changed" })).toBe("Modified");
   });
 });
