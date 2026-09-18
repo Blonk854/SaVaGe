@@ -6,7 +6,7 @@ import {
   projectContents,
   useProjectSessionStore,
 } from "../../shared/stores/projectSessionStore";
-import { confirmDocumentReplacement, openFile, saveProject } from "./fileIo";
+import { confirmDocumentReplacement, openConvertedSvg, openFile, saveProject } from "./fileIo";
 
 describe("saveProject", () => {
   beforeEach(() => {
@@ -250,5 +250,47 @@ describe("saveProject", () => {
     ).rejects.toThrow(/version 2/);
     expect(commands).toEqual(["read_text_file"]);
     expect(projectContents(useDocumentStore.getState().doc)).toBe(before);
+  });
+});
+
+describe("openConvertedSvg", () => {
+  beforeEach(() => {
+    const doc = createEmptyDocument();
+    useDocumentStore.getState().loadDocument(doc);
+    useProjectSessionStore.getState().startSession({
+      displayName: "Original",
+      projectPath: "C:\\projects\\original.savage",
+      projectDestinationGrantId: "grant_original",
+      savedContents: projectContents(doc),
+    });
+  });
+
+  it("does not replace the open project when the user cancels", async () => {
+    useDocumentStore.getState().updateArtboard(
+      useDocumentStore.getState().doc.activeArtboardId,
+      { width: 640 },
+    );
+    const before = projectContents(useDocumentStore.getState().doc);
+    const opened = await openConvertedSvg("<svg xmlns='http://www.w3.org/2000/svg'></svg>", "logo", async () => "cancel");
+    expect(opened).toBe(false);
+    expect(useProjectSessionStore.getState().projectPath).toBe("C:\\projects\\original.savage");
+    expect(projectContents(useDocumentStore.getState().doc)).toBe(before);
+  });
+
+  it("starts an unsaved session after discard so Save cannot overwrite the original", async () => {
+    useDocumentStore.getState().updateArtboard(
+      useDocumentStore.getState().doc.activeArtboardId,
+      { width: 640 },
+    );
+    const opened = await openConvertedSvg(
+      "<svg xmlns='http://www.w3.org/2000/svg'><rect width='1' height='1'/></svg>",
+      "logo_flat",
+      async () => "discard",
+    );
+    expect(opened).toBe(true);
+    expect(useProjectSessionStore.getState().projectPath).toBeNull();
+    expect(useProjectSessionStore.getState().displayName).toBe("logo_flat");
+    expect(useProjectSessionStore.getState().projectDestinationGrantId).toBeNull();
+    expect(isProjectModified(useDocumentStore.getState().doc)).toBe(true);
   });
 });

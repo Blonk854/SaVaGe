@@ -1,5 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { askLabeledYesNo } from "../../shared/ui/nativeConfirm";
 import type { SvgDocument } from "../../shared/document/types";
 import { parseSavageDocument } from "../../shared/document/parseSavage";
 import { recordDiagnostic } from "../../shared/diagnostics";
@@ -219,18 +219,18 @@ export async function offerRecoveryOnStartup(
     try {
       document = parseSavageDocument(candidate.contents);
     } catch (error) {
-      const remove = await ask(
+      const remove = await askLabeledYesNo(
         `A recovery for ${candidate.sourcePath ?? "an untitled project"} is invalid. Remove it?`,
-        { title: "Invalid recovery", kind: "warning", okLabel: "Remove", cancelLabel: "Keep" },
+        { title: "Invalid recovery", kind: "warning", yes: "Remove", no: "Keep" },
       );
       if (remove) await coordinator.discard(candidate.sessionId, candidate.sequence);
       notify(error instanceof Error ? error.message : String(error));
       continue;
     }
 
-    const recover = await ask(
+    const recover = await askLabeledYesNo(
       `Recover unsaved work from ${new Date(candidate.createdAtMs).toLocaleString()}?`,
-      { title: "Project recovery", kind: "warning", okLabel: "Recover", cancelLabel: "Other options" },
+      { title: "Project recovery", kind: "warning", yes: "Recover", no: "Other options" },
     );
     if (recover) {
       useProjectSessionStore.getState().startSession({
@@ -243,22 +243,22 @@ export async function offerRecoveryOnStartup(
     }
 
     if (candidate.sourcePath) {
-      const openSource = await ask("Open the original project instead?", {
+      const openSource = await askLabeledYesNo("Open the original project instead?", {
         title: "Project recovery",
         kind: "info",
-        okLabel: "Open Original",
-        cancelLabel: "Discard Recovery",
+        yes: "Open Original",
+        no: "Discard Recovery",
       });
       if (openSource) {
         await openOriginal(candidate);
         return;
       }
     } else {
-      const discard = await ask("Discard this untitled recovery?", {
+      const discard = await askLabeledYesNo("Discard this untitled recovery?", {
         title: "Project recovery",
         kind: "warning",
-        okLabel: "Discard Recovery",
-        cancelLabel: "Keep",
+        yes: "Discard Recovery",
+        no: "Keep",
       });
       if (!discard) continue;
     }

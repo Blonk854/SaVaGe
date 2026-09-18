@@ -1,4 +1,4 @@
-import { ask, open, save } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { useDocumentStore } from "../../shared/stores/documentStore";
 import { useUiStore } from "../../shared/stores/uiStore";
@@ -21,9 +21,15 @@ import {
   type GrantedImageSource,
 } from "../converter/rasterFiles";
 import {
+  promptSaveDiscardCancel,
+  type ReplacementDecision,
+} from "../../shared/ui/nativeConfirm";
+import {
   discardCurrentRecovery,
   recoverySequenceFor,
 } from "./recovery";
+
+export type { ReplacementDecision };
 
 interface FileIoDependencies {
   chooseOpen: (
@@ -58,28 +64,10 @@ const defaultDependencies: FileIoDependencies = {
 const writeQueues = new Map<string, Promise<unknown>>();
 let replacementConfirmation: Promise<boolean> | null = null;
 
-export type ReplacementDecision = "save" | "discard" | "cancel";
 export type ReplacementDecisionProvider = () => Promise<ReplacementDecision>;
 
 async function promptReplacementDecision(): Promise<ReplacementDecision> {
-  if (
-    await ask("Save changes before replacing the current project?", {
-      title: "Unsaved changes",
-      kind: "warning",
-      okLabel: "Save",
-      cancelLabel: "Other options",
-    })
-  ) {
-    return "save";
-  }
-  return (await ask("Discard the current unsaved changes?", {
-    title: "Unsaved changes",
-    kind: "warning",
-    okLabel: "Discard",
-    cancelLabel: "Cancel",
-  }))
-    ? "discard"
-    : "cancel";
+  return promptSaveDiscardCancel();
 }
 
 export async function confirmDocumentReplacement(
@@ -242,6 +230,18 @@ export async function newProject(
   const document = createEmptyDocument();
   useProjectSessionStore.getState().startSession({ displayName: "Untitled" });
   useDocumentStore.getState().loadDocument(document);
+  useUiStore.getState().setMode("edit");
+  return true;
+}
+
+export async function openConvertedSvg(
+  svg: string,
+  name: string,
+  decide: ReplacementDecisionProvider = promptReplacementDecision,
+): Promise<boolean> {
+  if (!(await confirmDocumentReplacement(decide))) return false;
+  useProjectSessionStore.getState().startSession({ displayName: name });
+  useDocumentStore.getState().replaceFromSvg(svg, name);
   useUiStore.getState().setMode("edit");
   return true;
 }

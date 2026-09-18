@@ -6,7 +6,6 @@ import { Button } from "../../shared/ui/Button";
 import { Panel } from "../../shared/ui/Panel";
 import iconUrl from "../../assets/icon.svg";
 import bssMarkUrl from "../../assets/bss-mark.svg";
-import { useDocumentStore } from "../../shared/stores/documentStore";
 import { useUiStore } from "../../shared/stores/uiStore";
 import { useProjectSessionStore } from "../../shared/stores/projectSessionStore";
 import { ConvertOptionsForm } from "./ConvertOptionsForm";
@@ -28,6 +27,7 @@ import {
   type ConvertOptions,
 } from "./convertApi";
 import { recordDiagnostic } from "../../shared/diagnostics";
+import { openConvertedSvg } from "../editor/fileIo";
 
 export function ConverterView() {
   const [source, setSource] = useState<GrantedImageSource | null>(null);
@@ -42,8 +42,6 @@ export function ConverterView() {
   const convertProgressLabel = useUiStore((s) => s.convertProgressLabel);
   const pendingConvertPath = useUiStore((s) => s.pendingConvertPath);
   const setConverting = useUiStore((s) => s.setConverting);
-  const setMode = useUiStore((s) => s.setMode);
-  const replaceFromSvg = useDocumentStore((s) => s.replaceFromSvg);
   const activeJobId = useRef<string | null>(null);
 
   const onReject = useCallback((message: string, kind: "drop" | "native") => {
@@ -128,7 +126,6 @@ export function ConverterView() {
       }
       setSvgMarkup(result.svg);
       setConvertedOptions(options);
-      replaceFromSvg(result.svg, displayName(source.path) || "Converted");
     } catch (e) {
       if (isCancelledConversion(e)) {
         setError("Conversion cancelled. Tracing stops after the current stage finishes.");
@@ -215,7 +212,19 @@ export function ConverterView() {
             </Button>
           )}
           {svgMarkup && (
-            <Button variant="ghost" onClick={() => setMode("edit")}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const markup = svgMarkup;
+                if (!markup) return;
+                void openConvertedSvg(
+                  markup,
+                  source ? displayName(source.path) || "Converted" : "Converted",
+                ).catch((error) =>
+                  setError(error instanceof Error ? error.message : String(error)),
+                );
+              }}
+            >
               Open in Editor
             </Button>
           )}

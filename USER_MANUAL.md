@@ -1,7 +1,7 @@
 # SaVaGe User Manual
 
 **Product:** SaVaGe — image-to-SVG converter and vector editor for Windows  
-**Document version:** matches application v0.1.0
+**Document version:** matches application v0.1.1
 
 ---
 
@@ -65,7 +65,7 @@ You do not need a terminal, PowerShell, or developer tools to run the program.
 3. Optionally tweak **Color precision**, **Filter speckle**, **Corner threshold**, **Path precision**, and **Mode**.
 4. Click **Convert to SVG**. While it runs, **Cancel** requests a stop. Tracing cannot be interrupted mid-stage; the button stays busy until the current stage finishes and the job actually exits.
 5. Check the side-by-side **Raster | SVG** preview.
-6. Click **Open in Editor** (or switch the toolbar to **Edit**) to refine the vectors.
+6. Click **Open in Editor** to refine the vectors. If a project is already open, SaVaGe asks **Save**, **Discard**, or **Cancel** first. The toolbar **Edit** button shows the current project, not the uncommitted trace.
 
 You can also start from **File → Open…**: choosing a photo or PNG switches you to Convert and attaches that file automatically.
 
@@ -195,10 +195,10 @@ A few extra engine settings come with each preset and are not shown as separate 
 
 ### 3.4 Preview and continue
 
-After conversion you get a side-by-side **Raster | SVG** preview. The traced drawing is already loaded into the document. The primary button becomes **Convert again**.
+After conversion you get a side-by-side **Raster | SVG** preview. The trace stays on Convert until you commit it. The primary button becomes **Convert again**.
 
-- Click **Open in Editor** to refine it on the canvas.  
-- Or switch the toolbar to **Edit** at any time.  
+- Click **Open in Editor** to load it as a new Unsaved document. If another project is open, SaVaGe asks **Save**, **Discard**, or **Cancel** first so Save cannot overwrite that file with the trace.
+- Switching the toolbar to **Edit** without **Open in Editor** leaves the current project unchanged.
 - Stay on Convert if you want to change options and convert again before editing. Changing options after a trace shows an amber banner: “Trace options changed. Convert again to update the SVG.” The SVG pane looks faded until you do.
 
 ### 3.5 Convert workflow tips
@@ -471,7 +471,7 @@ Booleans need at least two selected **filled** shapes that can be treated as clo
 
 | Command | Behavior |
 |---|---|
-| **New** | **Ctrl+N**. Starts an empty Edit document. If the current document is not a saved `.savage` match, SaVaGe asks whether to save. Choose **Save**, or decline and then **Discard** or **Cancel**. Closing the window uses the same decision. |
+| **New** | **Ctrl+N**. Starts an empty Edit document. If the current document is not a saved `.savage` match, SaVaGe asks **Save**, **Discard**, or **Cancel**. Closing the window uses the same three-button decision. |
 | **Open…** | **Ctrl+O**. Opens `.savage` or `.svg` into Edit. Photos and PNG/JPEG/WEBP/GIF/BMP/TIFF switch to Convert and attach the file. A damaged project file shows an error instead of crashing. |
 | **Save** | **Ctrl+S**. Writes the current `.savage` if one is already the save target. The first save on an Unsaved document opens a location dialog. |
 | **Save As…** | **Ctrl+Shift+S**. Always asks for a location. The current project path changes only after a successful write. Cancel leaves the previous file (or Unsaved) as the save target. |

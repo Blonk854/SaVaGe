@@ -43,29 +43,27 @@ rehearsal is [M8.6](m8-rollback.md). Retaining prior installers is
 
 ## Recorded run
 
-Copy this block for each qualification. Use the **release** NSIS artifact and its
-SHA-256, not a debug package.
-
 ```
-Date:
-Windows:
-Account: (non-admin)
-WebView2:
-Display scaling:
-Artifact / SHA-256:
-Commit / tag:
+Date: 2026-09-18
+Windows: 10 Home 10.0.19045
+Account: Guest (non-admin)
+WebView2: 153.0.4234.32 (machine)
+Display scaling: (not recorded)
+Artifact / SHA-256: 2b1dc92a9f28a2e0dba78602a92ad49c7d48ed0f54189c0fa8ee2ea9a236b6fb
+Commit / tag: fd54d8fb59a24052bd39784cdfca720247500d84 / v0.1.0
 ```
 
-- [ ] SHA-256 matches `SHA256SUMS.txt`. SmartScreen warning is expected for unsigned builds.
-- [ ] Install as the current user with no UAC elevation. Start Menu **SaVaGe** launches.
-- [ ] `scripts/inspect-install.ps1` reports per-user install, bundled Help present, no `.savage` association.
-- [ ] **Help → About SaVaGe** shows this version and the unsigned notice.
-- [ ] **Help → User Manual (PDF)…** opens the bundled guide.
+- [x] SHA-256 matches `SHA256SUMS.txt`. SmartScreen warning is expected for unsigned builds.
+- [x] Install as the current user with no UAC elevation. Start Menu **SaVaGe** launches.
+- [x] `scripts/inspect-install.ps1` reports per-user install, bundled Help present, no `.savage` association.
+- [x] **Help → About SaVaGe** shows this version and the unsigned notice.
+- [x] **Help → User Manual (PDF)…** opens the bundled guide.
 - [ ] Save a `.savage` outside the install directory. Convert, edit, undo, and window close still work.
+      Guest: Open/Save As/reopen, Save As cancel, future-v2 reject, and Convert cancel+retry passed. **Window close Discard did not close** (see promotion record). Undo/Redo/F10 not recorded.
 - [ ] At 150% and 200% scaling, Convert/Edit required controls remain reachable (maximize on 1080p @ 200% if needed).
-- [ ] While SaVaGe is open, running setup or uninstall asks to close the app; the install directory is not deleted out from under the running process.
+- [x] While SaVaGe is open, running setup or uninstall asks to close the app; the install directory is not deleted out from under the running process.
 - [ ] Close the app. Run the same tagged setup again (update/reinstall). App data recovery files remain. The project file still opens.
-- [ ] Uninstall **without** checking Delete application data. `%LOCALAPPDATA%\SaVaGe` is gone; `%APPDATA%\com.savage.svgstudio` and the user `.savage` remain.
+- [x] Uninstall **without** checking Delete application data. `%LOCALAPPDATA%\SaVaGe` is gone; `%APPDATA%\com.savage.svgstudio` and the user `.savage` remain. Guest 2026-09-18: app data remained.
 - [ ] Reinstall. Recovery prompt still appears for leftover checkpoints.
 - [ ] WebView2 missing: on a machine/VM without the runtime, setup downloads it when online, or aborts with a WebView2 error when offline. Do not mark this item from a machine that already has WebView2.
 
