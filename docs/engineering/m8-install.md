@@ -48,10 +48,12 @@ Date: 2026-09-18
 Windows: 10 Home 10.0.19045
 Account: Guest (non-admin)
 WebView2: 153.0.4234.32 (machine)
-Display scaling: (not recorded)
-Artifact / SHA-256: 2b1dc92a9f28a2e0dba78602a92ad49c7d48ed0f54189c0fa8ee2ea9a236b6fb
-Commit / tag: fd54d8fb59a24052bd39784cdfca720247500d84 / v0.1.0
+Display scaling: 150% and 200% (Guest sign-off)
+Artifact / SHA-256: 660206b722e3f284ea447758fc3434af74744c6a2fbb31ff1e203e6a8c5d4575
+Commit / tag: 918834b25e3372821aa296491ca71695ea24be91 / v0.1.2
 ```
+
+Guest signed off this non-admin install on 2026-09-18. Earlier 0.1.0 / 0.1.1 notes stay under the workflow bullets.
 
 - [x] SHA-256 matches `SHA256SUMS.txt`. SmartScreen warning is expected for unsigned builds.
 - [x] Install as the current user with no UAC elevation. Start Menu **SaVaGe** launches.
@@ -61,13 +63,16 @@ Commit / tag: fd54d8fb59a24052bd39784cdfca720247500d84 / v0.1.0
 - [x] Save a `.savage` outside the install directory. Convert, edit, undo, and window close still work.
       Guest 0.1.0: Open/Save As/reopen, Save As cancel, future-v2 reject, and Convert cancel+retry passed; **Discard on close did not quit**.
       Guest 0.1.2 (`660206b7…4575`): Discard on close quits, Cancel leaves the app open, Open in Editor Discard starts unsaved, Ctrl+Z works off the canvas.
-- [ ] At 150% and 200% scaling, Convert/Edit required controls remain reachable (maximize on 1080p @ 200% if needed).
+- [x] At 150% and 200% scaling, Convert/Edit required controls remain reachable (maximize on 1080p @ 200% if needed).
+      Guest 0.1.2 sign-off 2026-09-18, including High Contrast and Narrator.
 - [x] While SaVaGe is open, running setup or uninstall asks to close the app; the install directory is not deleted out from under the running process.
-- [ ] Close the app. Run the same tagged setup again (update/reinstall). App data recovery files remain. The project file still opens.
+- [x] Close the app. Run the same tagged setup again (update/reinstall). App data recovery files remain. The project file still opens.
+      Guest 0.1.2 sign-off 2026-09-18.
 - [x] Uninstall **without** checking Delete application data. `%LOCALAPPDATA%\SaVaGe` is gone; `%APPDATA%\com.savage.svgstudio` and the user `.savage` remain. Guest 2026-09-18: app data remained.
 - [x] Reinstall. Recovery prompt still appears for leftover checkpoints.
       Guest 2026-09-18: `%APPDATA%\com.savage.svgstudio\recovery` remained after uninstall without deleting app data. Kill-process relaunch already showed the recovery prompt.
 - [ ] WebView2 missing: on a machine/VM without the runtime, setup downloads it when online, or aborts with a WebView2 error when offline. Do not mark this item from a machine that already has WebView2.
+      Guest sign-off does not cover this: this PC already has WebView2 153.
 
 Do not mark this gate from `pnpm tauri:dev` or a Vite browser tab.
 

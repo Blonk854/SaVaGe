@@ -26,7 +26,7 @@ non-admin fallback when pnpm is not installed globally.
 | Rust formatting | Passed after applying rustfmt to existing differences |
 | Clippy with `-D warnings` | Passed after one existing warning fix |
 | Production JavaScript audit | No known vulnerabilities |
-| Rust advisory audit | Not run: `cargo-audit` is not installed |
+| Rust advisory audit | CI: `rustsec/audit-check` v2.0.0 against `src-tauri/Cargo.lock`. Local: `pnpm audit:rust` when `cargo-audit` is installed. |
 | Tauri debug application build | Passed |
 | NSIS debug package | Passed: `SaVaGe_0.1.0_x64-setup.exe` |
 
@@ -36,13 +36,16 @@ Commands:
 npx --yes pnpm@10.17.1 check:frontend
 npx --yes pnpm@10.17.1 check:rust
 npx --yes pnpm@10.17.1 audit:frontend
+npx --yes pnpm@10.17.1 audit:rust
 npx --yes pnpm@10.17.1 tauri build --debug
 ```
 
 ## Open M0 Gates
 
-- Run and record the packaged smoke checklist on a non-admin Windows account.
-- Install or provision a pinned Rust advisory scanner in CI.
+- Packaged smoke on a non-admin Windows account: Guest signed off `v0.1.2` on
+	2026-09-18 ([m8-install.md](m8-install.md), [promotion-records/v0.1.2.md](promotion-records/v0.1.2.md)).
+	Still open: WebView2-missing VM; two-instance Save conflict UI (`6367630`) needs the next NSIS.
+- Local `cargo-audit` is optional; CI runs the pinned `rustsec/audit-check` action.
 
 The automation probe found Edge 153.0.4234.32, but neither `tauri-driver` nor a matching
 EdgeDriver is installed. Until a compatible pair is selected and pinned, native coverage is
@@ -75,9 +78,12 @@ WebView2 behavior, or NSIS installation.
 	after the disk copy parses. Overwrite retries with no expected fingerprint. Locked, permission,
 	and disk-full failures map to specific toasts. Timestamp/size fingerprints reduce common
 	accidental overwrites but are not a universal race-proof file identity.
+- Native filesystem fault tests cover locked files, read-only or directory-occupied destinations,
+	Unicode names, long paths, and a missing volume (unmounted-media analogue). Failed writes leave
+	the original bytes and do not leak temporaries.
 
-Remaining M3 hardening includes two-instance and filesystem fault injection on packaged Windows
-(read-only, long paths, removable media) beyond the existing lock-preservation unit test.
+Remaining M3 hardening is the packaged two-instance conflict run, plus live removable-media
+and disk-full injection beyond the missing-volume unit test.
 
 ## M4 Recovery Evidence
 
@@ -153,10 +159,14 @@ upgrade/reinstall retention, and real disk-pressure qualification remain manual 
 	before storage (no document bodies, assets, secrets, or full paths). Convert/save/export/recovery
 	failures record operation/job/session IDs, stage, elapsed time, and error codes. Help → Export
 	Diagnostics confirms with the user, then writes a one-shot `.json` grant. There is no telemetry.
+- Convert hands vtracer at most 4096² RGBA bytes (67,108,864). Source pixels and file bytes
+	remain capped before decode. `vtracer` internals after that buffer are still not interruptible
+	or independently budgeted.
+- Production CSP and capability JSON are tested: scripts are `'self'` only, no `unsafe-eval` or
+	remote `https:` connect/image/font, and the webview has no `fs`/`shell`/`http` plugins.
+	Unknown and overflow grants cannot authorize reads or writes. Packaged WebView2 enforcement
+	of that CSP remains a native observation, not a browser test.
 
-M5 is not complete: intermediate tracing allocations are constrained only indirectly by accepted
-image/output bounds. Hostile CSP runtime tests and broader per-command authorization tests remain
-required.
 Canonical path grants reduce arbitrary-path access but do not claim handle-pinned protection
 against path replacement, symlink changes, or reparse-point changes after authorization.
 
@@ -204,7 +214,8 @@ against path replacement, symlink changes, or reparse-point changes after author
 	scroll; required controls are not hidden.
 - Canvas backing store follows devicePixelRatio and monitor changes. High Contrast maps to
 	system `forced-colors`. Narrator still uses F10, list rows, the Artboard canvas, and the
-	selection live region. Native 150%/200%/HC/Narrator passes remain the packaged smoke gate.
+	selection live region. Guest `v0.1.2` signed off 150%/200% scaling, High Contrast, and
+	Narrator on 2026-09-18.
 
 ## M6 Manual And Shortcut Evidence
 
@@ -213,7 +224,7 @@ against path replacement, symlink changes, or reparse-point changes after author
 	(**Ctrl+N** / **O** / **S** / **Shift+S**), F10 menu keys, and crash recovery prompts.
 - Hover tooltips (tools, disabled Align/Boolean, Convert) are the in-app help; Help still opens
 	the bundled PDF. Regenerating that PDF is `pnpm manual:pdf`.
-- Native 150%/200%/HC/Narrator and Help-open-PDF remain the packaged smoke gate.
+- Guest `v0.1.2` signed off 150%/200%/HC/Narrator and Help-open-PDF on 2026-09-18.
 
 ## M7 Frame Scheduling Evidence
 

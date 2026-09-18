@@ -21,6 +21,7 @@
     "check:frontend": "pnpm test && pnpm build",
     "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo test --manifest-path src-tauri/Cargo.toml --locked && cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings",
     "audit:frontend": "pnpm audit --prod",
+    "audit:rust": "cargo audit --manifest-path src-tauri/Cargo.toml",
     "release:check": "node scripts/release-manifest.mjs check",
     "release:package": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1",
     "release:withdraw": "node scripts/withdraw-release.mjs",

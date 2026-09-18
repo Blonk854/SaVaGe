@@ -61,7 +61,7 @@ must not be used for a distributed artifact.
 
 | Workflow | Trigger | Secrets | Output |
 |---|---|---|---|
-| `.github/workflows/check.yml` | pull requests and `main`/`master` | none | version check + `pnpm check` |
+| `.github/workflows/check.yml` | pull requests and `main`/`master` | default `GITHUB_TOKEN` for cargo-audit | version check + `pnpm check` + Rust advisory audit |
 | `.github/workflows/release.yml` | tags `v*.*.*` | GitHub `GITHUB_TOKEN` only | NSIS + checksums + provenance |
 
 Actions are pinned by commit SHA. Third-party actions used here:
@@ -71,6 +71,7 @@ Actions are pinned by commit SHA. Third-party actions used here:
 | `actions/checkout` | `11d5960a326750d5838078e36cf38b85af677262` (v4.4.0) | clone the tagged commit | runner `git` clone scripts |
 | `actions/setup-node` | `820762786026740c76f36085b0efc47a31fe5020` (v7.0.0) | Node from `.node-version` | preinstalled Node, unpinned |
 | `dtolnay/rust-toolchain` | `6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772` (v1) | Rust 1.96.0 plus clippy/rustfmt | downloading `rustup-init` unpinned |
+| `rustsec/audit-check` | `69366f33c96575abad1ee0dba8212993eecbe998` (v2.0.0) | `cargo audit` against `src-tauri/Cargo.lock` | installing `cargo-audit` unpinned on the runner |
 | `actions/upload-artifact` | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` (v7.0.1) | retain the installer if release attach fails | `gh` only |
 
 pnpm comes from Corepack using `package.json` `packageManager`. Cargo and pnpm installs

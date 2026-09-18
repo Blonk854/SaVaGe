@@ -258,4 +258,32 @@ mod tests {
 
         let _ = fs::remove_file(path);
     }
+
+    #[test]
+    fn unknown_paths_and_grant_bounds_cannot_authorize_a_source() {
+        let path = std::env::temp_dir().join(format!(
+            "savage-grant-bound-{}-{}.png",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock")
+                .as_nanos()
+        ));
+        fs::write(&path, b"fixture").expect("write fixture");
+        let manager = super::SourceGrantManager::default();
+        let text = path.with_extension("txt");
+        fs::write(&text, b"not-raster").expect("write rejected source");
+        assert!(manager
+            .issue(&text)
+            .unwrap_err()
+            .contains("supported raster"));
+        assert!(manager.resolve("not-a-grant").is_err());
+        for _ in 0..super::MAX_GRANTS {
+            manager.issue(&path).expect("issue within bound");
+        }
+        let overflow = manager.issue(&path).unwrap_err();
+        assert!(overflow.contains("Too many image sources"));
+        let _ = fs::remove_file(text);
+        let _ = fs::remove_file(path);
+    }
 }

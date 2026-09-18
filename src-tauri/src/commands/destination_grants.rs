@@ -218,7 +218,7 @@ mod tests {
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use super::{DestinationGrantManager, DestinationKind};
+    use super::{validate_default_name, DestinationGrantManager, DestinationKind, MAX_GRANTS};
 
     #[test]
     fn grants_are_operation_scoped_and_exports_are_one_shot() {
@@ -280,6 +280,39 @@ mod tests {
         );
         assert!(manager.consume_diagnostics(&diagnostics.grant_id).is_err());
 
+        fs::remove_dir_all(directory).expect("remove destination directory");
+    }
+
+    #[test]
+    fn default_names_and_unknown_grants_cannot_authorize_a_write() {
+        assert!(validate_default_name(r"C:\secret.savage", DestinationKind::Project).is_err());
+        assert!(validate_default_name("../escape.savage", DestinationKind::Project).is_err());
+        assert!(validate_default_name("untitled.savage", DestinationKind::Project).is_ok());
+        assert!(validate_default_name("untitled.svg", DestinationKind::Project).is_err());
+
+        let directory = std::env::temp_dir().join(format!(
+            "savage-destination-bound-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock")
+                .as_nanos()
+        ));
+        fs::create_dir_all(&directory).expect("create destination directory");
+        let manager = DestinationGrantManager::default();
+        for index in 0..MAX_GRANTS {
+            manager
+                .issue(
+                    &directory.join(format!("file-{index}.savage")),
+                    DestinationKind::Project,
+                )
+                .expect("issue within bound");
+        }
+        let overflow = manager
+            .issue(&directory.join("overflow.savage"), DestinationKind::Project)
+            .unwrap_err();
+        assert!(overflow.contains("Too many destinations"));
+        assert!(manager.resolve_project("not-a-grant").is_err());
         fs::remove_dir_all(directory).expect("remove destination directory");
     }
 }

@@ -35,6 +35,7 @@ pnpm tauri:dev
 | `pnpm build` | Frontend-only build |
 | `pnpm check` | Frontend build/tests plus Rust fmt/tests/Clippy |
 | `pnpm audit:frontend` | Audit production JavaScript dependencies |
+| `pnpm audit:rust` | Audit Rust crates (`cargo audit`; install the crate first) |
 | `pnpm release:check` | Confirm package, Cargo, Tauri, and manual versions match |
 | `pnpm release:package` | Production NSIS installer plus SHA-256 and provenance sidecars |
 | `pnpm release:withdraw` | Plan or apply halt/withdraw of a tagged GitHub Release (no tag delete) |

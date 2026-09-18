@@ -347,4 +347,82 @@ mod tests {
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
         fs::remove_dir_all(dir).expect("remove fixture directory");
     }
+
+    fn unique_dir(prefix: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "{prefix}-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock")
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).expect("create fixture directory");
+        dir
+    }
+
+    #[test]
+    fn readonly_unicode_and_directory_collision_keep_the_original() {
+        let dir = unique_dir("savage-fs-fault");
+        let unicode = dir.join("海报项目.savage");
+        write_text_file_atomic(&unicode, b"keep", 16, None).expect("unicode create");
+        let mut permissions = fs::metadata(&unicode).expect("metadata").permissions();
+        permissions.set_readonly(true);
+        fs::set_permissions(&unicode, permissions.clone()).expect("mark readonly");
+        let readonly_error = write_text_file_atomic(&unicode, b"new", 16, None);
+        permissions.set_readonly(false);
+        let _ = fs::set_permissions(&unicode, permissions);
+        if readonly_error.is_err() {
+            assert_eq!(fs::read(&unicode).unwrap(), b"keep");
+        } else {
+            assert_eq!(fs::read(&unicode).unwrap(), b"new");
+        }
+
+        let collision = dir.join("folder.savage");
+        fs::create_dir_all(&collision).expect("directory occupying destination");
+        assert!(write_text_file_atomic(&collision, b"data", 16, None).is_err());
+        assert!(collision.is_dir());
+
+        let leftover = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .any(|entry| entry.file_name().to_string_lossy().contains(".savage-tmp-"));
+        assert!(!leftover, "failed writes must not leave temporaries");
+        fs::remove_dir_all(dir).expect("remove fixture directory");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn missing_volume_and_long_paths_do_not_write_a_partial_file() {
+        if let Some(path) = (b'F'..=b'Z').rev().find_map(|letter| {
+            let root = std::path::PathBuf::from(format!("{}:\\", letter as char));
+            if root.exists() {
+                None
+            } else {
+                Some(root.join("SaVaGe-missing-volume\\project.savage"))
+            }
+        }) {
+            let error =
+                write_text_file_atomic(&path, b"data", 16, None).expect_err("missing volume");
+            assert!(
+                error.contains("Failed to create") || error.contains("os error"),
+                "unexpected missing-volume error: {error}"
+            );
+            assert!(!path.exists());
+        }
+
+        let dir = unique_dir("savage-long-path");
+        let long_name = format!("{}.savage", "n".repeat(200));
+        let long_path = dir.join(long_name);
+        match write_text_file_atomic(&long_path, b"long", 16, None) {
+            Ok(_) => assert_eq!(fs::read(&long_path).unwrap(), b"long"),
+            Err(_) => assert!(!long_path.exists()),
+        }
+        let leftover = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .any(|entry| entry.file_name().to_string_lossy().contains(".savage-tmp-"));
+        assert!(!leftover);
+        fs::remove_dir_all(dir).expect("remove fixture directory");
+    }
 }

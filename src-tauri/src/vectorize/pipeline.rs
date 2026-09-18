@@ -4,6 +4,22 @@ use std::path::Path;
 use visioncortex::PathSimplifyMode;
 use vtracer::{ColorImage, ColorMode, Config, Hierarchical};
 
+/// RGBA bytes handed to vtracer. Matches the 4096 max convert dimension on each side.
+pub const MAX_TRACE_RGBA_BYTES: usize = 16_777_216 * 4;
+
+fn ensure_trace_rgba_bound(width: u32, height: u32) -> Result<(), String> {
+    let bytes = u64::from(width)
+        .saturating_mul(u64::from(height))
+        .saturating_mul(4);
+    if bytes > MAX_TRACE_RGBA_BYTES as u64 {
+        Err(format!(
+            "Trace buffer is {bytes} bytes; limit is {MAX_TRACE_RGBA_BYTES}"
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ConvertOptions {
     pub color_precision: u8,
@@ -38,6 +54,8 @@ pub fn convert_image_path_with_checkpoints(
     };
 
     checkpoint("trace")?;
+    let (width, height) = img.dimensions();
+    ensure_trace_rgba_bound(width, height)?;
     let rgba = img.to_rgba8();
     let (width, height) = (rgba.width() as usize, rgba.height() as usize);
     let color_image = ColorImage {
@@ -87,6 +105,12 @@ mod tests {
     use super::*;
     use crate::vectorize::presets;
     use std::path::{Path, PathBuf};
+
+    #[test]
+    fn rejects_a_trace_buffer_beyond_the_rgba_bound() {
+        assert!(ensure_trace_rgba_bound(4096, 4096).is_ok());
+        assert!(ensure_trace_rgba_bound(4097, 4096).is_err());
+    }
 
     #[test]
     fn logo_preset_builds_config() {
