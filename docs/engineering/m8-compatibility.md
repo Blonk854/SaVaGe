@@ -13,7 +13,7 @@ failed reader cannot hide a write-back to the corpus.
 
 ## Project reader/writer matrix
 
-| Format | This reader (0.1.2) | This writer | Rule |
+| Format | This reader (0.1.3) | This writer | Rule |
 |---|---|---|---|
 | `.savage` schema 1 | Read | Write | Native lossless. Open a **copy** of corpus files. |
 | `.savage` schema ≥2 | Reject | None | Actionable error. Original bytes unchanged. Newer SaVaGe must Save As a v1 copy if a downgrade is required. |

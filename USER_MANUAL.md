@@ -1,7 +1,7 @@
 # SaVaGe User Manual
 
 **Product:** SaVaGe — image-to-SVG converter and vector editor for Windows  
-**Document version:** matches application v0.1.2
+**Document version:** matches application v0.1.3"
 
 ---
 
