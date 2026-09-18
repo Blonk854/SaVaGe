@@ -9,5 +9,14 @@
     "docs/engineering/release-notes-0.1.0.md",
     "fixtures/compatibility/"
   ],
-  "installers": []
+  "installers": [
+    {
+      "version": "0.1.2",
+      "gitTag": "v0.1.2",
+      "sha256": "660206b722e3f284ea447758fc3434af74744c6a2fbb31ff1e203e6a8c5d4575",
+      "fileName": "SaVaGe_0.1.2_x64-setup.exe",
+      "verified": true,
+      "compatibilityNotes": "docs/engineering/m8-compatibility.md"
+    }
+  ]
 }

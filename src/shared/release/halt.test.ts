@@ -29,14 +29,16 @@ describe("halt and withdraw", () => {
     expect(policy.halt.preserve.join("\n")).toMatch(/recovery/i);
   });
 
-  it("offers no prior installer for 0.1.0 and does not invent one", () => {
+  it("offers no prior installer when withdrawing the only recorded tag", () => {
     const registry = parseVerifiedInstallerRegistry(
       JSON.parse(read("docs/engineering/verified-installers.json")),
     );
-    expect(registry.installers).toEqual([]);
-    expect(resolvePriorVerifiedInstaller(registry, "0.1.0")).toBeNull();
+    expect(registry.installers).toEqual([
+      expect.objectContaining({ gitTag: "v0.1.2", verified: true }),
+    ]);
+    expect(resolvePriorVerifiedInstaller(registry, "0.1.2")).toBeNull();
     const plan = planWithdraw({
-      tag: "v0.1.0",
+      tag: "v0.1.2",
       trigger: "confirmed-corruption",
       policy: JSON.parse(read("docs/engineering/rollout-policy.json")),
       registry,
@@ -130,7 +132,7 @@ describe("halt and withdraw", () => {
         resolve(root, "scripts/withdraw-release.mjs"),
         "plan",
         "--tag",
-        "v0.1.0",
+        "v0.1.2",
         "--reason",
         "failed-install",
       ],

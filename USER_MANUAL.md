@@ -94,7 +94,7 @@ To update, close SaVaGe and run a newer (or the same) tagged setup. There is no 
 
 To uninstall, use **Apps → Installed apps** or the setup’s uninstaller, and **leave “Delete the application data” unchecked** if you want recovery checkpoints kept. Uninstall does not delete project files. Reinstalling later can still offer Recover for leftover checkpoints.
 
-If a tagged setup is **withdrawn**, keep your `.savage` files. Leave **Delete the application data** unchecked. **Help → Export Diagnostics…** only if you agree to share a redacted log — nothing is uploaded automatically. Install the last verified tagged setup you were given and check its SHA-256. This unsigned 0.1.0 line has no prior verified installer; keep copies of your files and wait for a replacement tag.
+If a tagged setup is **withdrawn**, keep your `.savage` files. Leave **Delete the application data** unchecked. **Help → Export Diagnostics…** only if you agree to share a redacted log — nothing is uploaded automatically. Install the last verified tagged setup you were given and check its SHA-256. The first verified installer in this unsigned line is **0.1.2**; withdrawing that tag has no older verified setup — keep copies of your files and wait for a replacement tag.
 
 If you install an older tagged setup over a newer one, recovery and your `.savage` files stay where they are. That does **not** convert newer documents to version 1. Open version-1 files as usual. A newer project still will not open — use the newer SaVaGe, or **Save As** a version-1 copy from that app before you go back.
 

@@ -72,7 +72,7 @@ describe("rollback rehearsal", () => {
     );
   });
 
-  it("blocks a live prior-NSIS rehearsal for 0.1.0 because no previous installer is recorded", () => {
+  it("blocks a live prior-NSIS rehearsal until a different verified tag exists", () => {
     const plan = planRollbackRehearsal({
       policy: JSON.parse(read("docs/engineering/rollback-policy.json")),
       registry: JSON.parse(read("docs/engineering/verified-installers.json")),

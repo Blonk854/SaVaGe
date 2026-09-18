@@ -58,8 +58,9 @@ Commit / tag: fd54d8fb59a24052bd39784cdfca720247500d84 / v0.1.0
 - [x] `scripts/inspect-install.ps1` reports per-user install, bundled Help present, no `.savage` association.
 - [x] **Help → About SaVaGe** shows this version and the unsigned notice.
 - [x] **Help → User Manual (PDF)…** opens the bundled guide.
-- [ ] Save a `.savage` outside the install directory. Convert, edit, undo, and window close still work.
-      Guest: Open/Save As/reopen, Save As cancel, future-v2 reject, and Convert cancel+retry passed. **Window close Discard did not close** (see promotion record). Undo/Redo/F10 not recorded.
+- [x] Save a `.savage` outside the install directory. Convert, edit, undo, and window close still work.
+      Guest 0.1.0: Open/Save As/reopen, Save As cancel, future-v2 reject, and Convert cancel+retry passed; **Discard on close did not quit**.
+      Guest 0.1.2 (`660206b7…4575`): Discard on close quits, Cancel leaves the app open, Open in Editor Discard starts unsaved, Ctrl+Z works off the canvas.
 - [ ] At 150% and 200% scaling, Convert/Edit required controls remain reachable (maximize on 1080p @ 200% if needed).
 - [x] While SaVaGe is open, running setup or uninstall asks to close the app; the install directory is not deleted out from under the running process.
 - [ ] Close the app. Run the same tagged setup again (update/reinstall). App data recovery files remain. The project file still opens.

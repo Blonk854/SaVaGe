@@ -13,7 +13,7 @@ failed reader cannot hide a write-back to the corpus.
 
 ## Project reader/writer matrix
 
-| Format | This reader (0.1.0) | This writer | Rule |
+| Format | This reader (0.1.2) | This writer | Rule |
 |---|---|---|---|
 | `.savage` schema 1 | Read | Write | Native lossless. Open a **copy** of corpus files. |
 | `.savage` schema ≥2 | Reject | None | Actionable error. Original bytes unchanged. Newer SaVaGe must Save As a v1 copy if a downgrade is required. |
@@ -22,7 +22,7 @@ failed reader cannot hide a write-back to the corpus.
 | Recovery format ≥2 or schema ≥2 | Reject | None | File left in place (not quarantined, not overwritten). |
 | Corrupt recovery JSON | Reject | — | Quarantine by renaming to `.quarantine`. Contents are not repaired. |
 
-Older binaries need not read a future format. That limitation is explicit: 0.1.0 only
+Older binaries need not read a future format. That limitation is explicit: 0.1.x only
 understands schema 1 / recovery format 1.
 
 ## SVG support (release notes)
