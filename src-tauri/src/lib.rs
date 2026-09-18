@@ -10,6 +10,7 @@ use commands::diagnostics::{export_diagnostics, record_diagnostic, DiagnosticLog
 use commands::export::{export_png, write_project_file, write_svg_export};
 use commands::help::open_user_manual;
 use commands::import::{read_image_preview, read_text_file};
+use commands::lifecycle::exit_application;
 use commands::recovery::{delete_recovery, list_recoveries, write_recovery};
 use commands::source_grants::{
     claim_dropped_image, pick_image_source, pick_open_source, SourceGrantManager,
@@ -53,7 +54,8 @@ pub fn run() {
             pick_svg_destination,
             pick_png_destination,
             record_diagnostic,
-            export_diagnostics
+            export_diagnostics,
+            exit_application
         ])
         .run(tauri::generate_context!())
         .expect("error while running SaVaGe");

@@ -1,6 +1,6 @@
 [package]
 name = "savage"
-version = "0.1.1"
+version = "0.1.2"
 description = "SaVaGe — Image to SVG converter and vector editor"
 authors = ["SaVaGe"]
 edition = "2021"

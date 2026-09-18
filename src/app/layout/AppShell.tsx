@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TitleBar } from "./TitleBar";
 import { Toolbar } from "./Toolbar";
@@ -27,6 +27,8 @@ import {
   openFile,
   saveProject,
 } from "../../features/editor/fileIo";
+import { handleWindowCloseRequest } from "../../shared/ui/nativeConfirm";
+import { UnsavedChangesDialog } from "../../shared/ui/UnsavedChangesDialog";
 import { copySelection, pasteClipboard } from "../../features/editor/clipboard";
 import { AlignBooleanBar } from "../../features/tools/AlignBooleanBar";
 import {
@@ -90,10 +92,24 @@ export function AppShell() {
   useEffect(() => {
     if (!isTauri()) return;
     let disposed = false;
+    let allowingDestroy = false;
+    const currentWindow = getCurrentWindow();
     let unlisten: (() => void) | undefined;
-    void getCurrentWindow()
+    void currentWindow
       .onCloseRequested(async (event) => {
-        if (!(await confirmDocumentReplacement())) event.preventDefault();
+        if (allowingDestroy) return;
+        await handleWindowCloseRequest({
+          preventDefault: () => event.preventDefault(),
+          confirm: () => confirmDocumentReplacement(),
+          destroy: async () => {
+            allowingDestroy = true;
+            try {
+              await invoke("exit_application");
+            } catch {
+              await currentWindow.destroy();
+            }
+          },
+        });
       })
       .then((stop) => {
         if (disposed) stop();
@@ -118,11 +134,19 @@ export function AppShell() {
       if (!(event.ctrlKey || event.metaKey)) return;
       if (isTypingTarget(event.target)) return;
       const key = event.key.toLowerCase();
-      if (key !== "s" && key !== "n" && key !== "o") return;
+      if (key !== "s" && key !== "n" && key !== "o" && key !== "z" && key !== "y") return;
       event.preventDefault();
       if (key === "s") runSave(event.shiftKey);
       else if (key === "n") void newProject();
-      else void openFile().catch((error) => flash(error instanceof Error ? error.message : String(error), "error"));
+      else if (key === "o")
+        void openFile().catch((error) => flash(error instanceof Error ? error.message : String(error), "error"));
+      else if (key === "y" || (key === "z" && event.shiftKey)) {
+        temporal.getState().redo();
+        useUiStore.getState().markDirty();
+      } else if (key === "z") {
+        temporal.getState().undo();
+        useUiStore.getState().markDirty();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -399,6 +423,7 @@ export function AppShell() {
         .right-body { min-height: 0; min-width: 0; overflow: auto; }
         .right-body .sv-panel { height: 100%; }
       `}</style>
+      <UnsavedChangesDialog />
     </div>
   );
 }

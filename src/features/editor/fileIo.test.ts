@@ -7,6 +7,7 @@ import {
   useProjectSessionStore,
 } from "../../shared/stores/projectSessionStore";
 import { confirmDocumentReplacement, openConvertedSvg, openFile, saveProject } from "./fileIo";
+import { resolveUnsavedChangesPrompt } from "../../shared/ui/unsavedChangesPrompt";
 
 describe("saveProject", () => {
   beforeEach(() => {
@@ -147,6 +148,16 @@ describe("saveProject", () => {
     await expect(first).resolves.toBe(true);
     await expect(second).resolves.toBe(true);
     expect(prompts).toBe(1);
+  });
+
+  it("discards through the in-app prompt when no decision override is given", async () => {
+    useDocumentStore.getState().updateArtboard(
+      useDocumentStore.getState().doc.activeArtboardId,
+      { width: 500 },
+    );
+    const result = confirmDocumentReplacement();
+    resolveUnsavedChangesPrompt("discard");
+    await expect(result).resolves.toBe(true);
   });
 
   it("becomes clean when undo returns to the saved payload and modified on redo", () => {

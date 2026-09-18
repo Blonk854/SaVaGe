@@ -64,7 +64,8 @@ Commit / tag: fd54d8fb59a24052bd39784cdfca720247500d84 / v0.1.0
 - [x] While SaVaGe is open, running setup or uninstall asks to close the app; the install directory is not deleted out from under the running process.
 - [ ] Close the app. Run the same tagged setup again (update/reinstall). App data recovery files remain. The project file still opens.
 - [x] Uninstall **without** checking Delete application data. `%LOCALAPPDATA%\SaVaGe` is gone; `%APPDATA%\com.savage.svgstudio` and the user `.savage` remain. Guest 2026-09-18: app data remained.
-- [ ] Reinstall. Recovery prompt still appears for leftover checkpoints.
+- [x] Reinstall. Recovery prompt still appears for leftover checkpoints.
+      Guest 2026-09-18: `%APPDATA%\com.savage.svgstudio\recovery` remained after uninstall without deleting app data. Kill-process relaunch already showed the recovery prompt.
 - [ ] WebView2 missing: on a machine/VM without the runtime, setup downloads it when online, or aborts with a WebView2 error when offline. Do not mark this item from a machine that already has WebView2.
 
 Do not mark this gate from `pnpm tauri:dev` or a Vite browser tab.

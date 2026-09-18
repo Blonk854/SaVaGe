@@ -3,7 +3,20 @@ import { message } from "@tauri-apps/plugin-dialog";
 export type ReplacementDecision = "save" | "discard" | "cancel";
 
 function dialogValue(result: unknown): string {
-  return String(result ?? "").trim().toLowerCase();
+  if (result == null) return "";
+  if (typeof result === "string" || typeof result === "number" || typeof result === "boolean") {
+    return String(result).trim().toLowerCase();
+  }
+  if (typeof result === "object") {
+    const record = result as Record<string, unknown>;
+    const keys = Object.keys(record);
+    if (keys.length === 1) {
+      const inner = record[keys[0]];
+      if (typeof inner === "string" && inner.trim()) return inner.trim().toLowerCase();
+      return keys[0].trim().toLowerCase();
+    }
+  }
+  return "";
 }
 
 /** Windows rfd may return Yes/No/Ok/Cancel instead of the custom button label. */
@@ -19,16 +32,14 @@ export function replacementDecisionFromDialog(result: unknown): ReplacementDecis
   return "cancel";
 }
 
-export async function promptSaveDiscardCancel(
-  question = "Save changes before replacing the current project?",
-): Promise<ReplacementDecision> {
-  return replacementDecisionFromDialog(
-    await message(question, {
-      title: "Unsaved changes",
-      kind: "warning",
-      buttons: { yes: "Save", no: "Discard", cancel: "Cancel" },
-    }),
-  );
+export async function handleWindowCloseRequest(options: {
+  preventDefault: () => void;
+  confirm: () => Promise<boolean>;
+  destroy: () => Promise<void>;
+}): Promise<void> {
+  options.preventDefault();
+  if (!(await options.confirm())) return;
+  await options.destroy();
 }
 
 export async function askLabeledYesNo(

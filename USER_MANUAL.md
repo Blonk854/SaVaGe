@@ -1,7 +1,7 @@
 # SaVaGe User Manual
 
 **Product:** SaVaGe — image-to-SVG converter and vector editor for Windows  
-**Document version:** matches application v0.1.1
+**Document version:** matches application v0.1.2
 
 ---
 
@@ -471,7 +471,7 @@ Booleans need at least two selected **filled** shapes that can be treated as clo
 
 | Command | Behavior |
 |---|---|
-| **New** | **Ctrl+N**. Starts an empty Edit document. If the current document is not a saved `.savage` match, SaVaGe asks **Save**, **Discard**, or **Cancel**. Closing the window uses the same three-button decision. |
+| **New** | **Ctrl+N**. Starts an empty Edit document. If the current document is not a saved `.savage` match, SaVaGe asks **Save**, **Discard**, or **Cancel** in the app. Closing the window uses the same in-app prompt. |
 | **Open…** | **Ctrl+O**. Opens `.savage` or `.svg` into Edit. Photos and PNG/JPEG/WEBP/GIF/BMP/TIFF switch to Convert and attach the file. A damaged project file shows an error instead of crashing. |
 | **Save** | **Ctrl+S**. Writes the current `.savage` if one is already the save target. The first save on an Unsaved document opens a location dialog. |
 | **Save As…** | **Ctrl+Shift+S**. Always asks for a location. The current project path changes only after a successful write. Cancel leaves the previous file (or Unsaved) as the save target. |

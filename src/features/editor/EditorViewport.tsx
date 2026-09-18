@@ -158,7 +158,6 @@ export function EditorViewport() {
       if (shouldIgnoreCanvasShortcut(e.target, e.key)) return;
       const store = useDocumentStore.getState();
       const ui = useUiStore.getState();
-      const temporal = useDocumentStore.temporal.getState();
 
       if (e.code === "Space") spacePan.current = true;
       if (e.key === "Delete" || e.key === "Backspace") {
@@ -169,17 +168,6 @@ export function EditorViewport() {
         }
         store.deleteNodes(store.selection);
         e.preventDefault();
-      }
-      if (e.ctrlKey && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        if (e.shiftKey) temporal.redo();
-        else temporal.undo();
-        ui.markDirty();
-      }
-      if (e.ctrlKey && e.key.toLowerCase() === "y") {
-        e.preventDefault();
-        temporal.redo();
-        ui.markDirty();
       }
       if (e.ctrlKey && e.key.toLowerCase() === "a") {
         e.preventDefault();

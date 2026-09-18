@@ -6,5 +6,6 @@ pub mod export;
 pub mod file_identity;
 pub mod help;
 pub mod import;
+pub mod lifecycle;
 pub mod recovery;
 pub mod source_grants;

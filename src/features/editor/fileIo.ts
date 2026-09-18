@@ -20,10 +20,8 @@ import {
   RASTER_EXTENSIONS,
   type GrantedImageSource,
 } from "../converter/rasterFiles";
-import {
-  promptSaveDiscardCancel,
-  type ReplacementDecision,
-} from "../../shared/ui/nativeConfirm";
+import { type ReplacementDecision } from "../../shared/ui/nativeConfirm";
+import { promptSaveDiscardCancel } from "../../shared/ui/unsavedChangesPrompt";
 import {
   discardCurrentRecovery,
   recoverySequenceFor,
@@ -80,7 +78,11 @@ export async function confirmDocumentReplacement(
     const decision = await decide();
     if (decision === "cancel") return false;
     if (decision === "discard") {
-      void discardCurrentRecovery();
+      try {
+        await discardCurrentRecovery();
+      } catch {
+        /* still allow discard if recovery cleanup fails */
+      }
       return true;
     }
     const result = await saveCurrent();

@@ -3,7 +3,7 @@
 Record the date, commit, Windows version, WebView2 version, account privilege, and artifact
 checksum with each run. Use a copy of every input document.
 
-Release artifact: `src-tauri/target/release/bundle/nsis/SaVaGe_0.1.1_x64-setup.exe`
+Release artifact: `src-tauri/target/release/bundle/nsis/SaVaGe_0.1.2_x64-setup.exe`
 with `SHA256SUMS.txt` and `provenance.json` from the same tagged commit. Debug NSIS
 packages are not release evidence. Current installers are unsigned; confirm the SHA-256 before installing.
 Install/update/uninstall evidence is recorded in
