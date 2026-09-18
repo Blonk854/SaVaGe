@@ -72,16 +72,17 @@ describe("rollback rehearsal", () => {
     );
   });
 
-  it("blocks a live prior-NSIS rehearsal until a different verified tag exists", () => {
+  it("uses the last different catalogued tag as the prior NSIS", () => {
     const plan = planRollbackRehearsal({
       policy: JSON.parse(read("docs/engineering/rollback-policy.json")),
       registry: JSON.parse(read("docs/engineering/verified-installers.json")),
       currentVersion: (JSON.parse(read("package.json")) as { version: string }).version,
     });
-    expect(plan.priorInstaller).toBeNull();
-    expect(plan.liveNsisBlocked).toBe(true);
-    expect(plan.binaryDowngradeIsDocumentRollback).toBe(false);
-    expect(plan.notes).toMatch(/No prior verified installer/i);
+    expect(plan.priorInstaller).toEqual(
+      expect.objectContaining({ gitTag: "v0.1.2", verified: true }),
+    );
+    expect(plan.liveNsisBlocked).toBe(false);
+    expect(plan.notes).toMatch(/v0.1.2/);
     expect(
       planRollbackRehearsal({
         policy: JSON.parse(read("docs/engineering/rollback-policy.json")),
@@ -94,6 +95,13 @@ describe("rollback rehearsal", () => {
         currentVersion: "0.1.0",
       }).liveNsisBlocked,
     ).toBe(false);
+    expect(
+      planRollbackRehearsal({
+        policy: JSON.parse(read("docs/engineering/rollback-policy.json")),
+        registry: { policyVersion: 1, installers: [] },
+        currentVersion: "0.1.0",
+      }).liveNsisBlocked,
+    ).toBe(true);
     expect(read("USER_MANUAL.md")).toMatch(/convert newer documents to version 1/i);
     expect(read(".github/workflows/release.yml")).not.toMatch(/tauri-plugin-updater/);
   });
@@ -105,12 +113,12 @@ describe("rollback rehearsal", () => {
     });
     const plan = JSON.parse(output) as {
       liveNsisBlocked: boolean;
-      priorInstaller: unknown;
+      priorInstaller: { gitTag?: string } | null;
       copies: unknown[];
       binaryDowngradeIsDocumentRollback: boolean;
     };
-    expect(plan.liveNsisBlocked).toBe(true);
-    expect(plan.priorInstaller).toBeNull();
+    expect(plan.liveNsisBlocked).toBe(false);
+    expect(plan.priorInstaller?.gitTag).toBe("v0.1.2");
     expect(plan.binaryDowngradeIsDocumentRollback).toBe(false);
     expect(plan.copies.length).toBeGreaterThanOrEqual(3);
   });

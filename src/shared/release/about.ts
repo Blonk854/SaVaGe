@@ -2,7 +2,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { isTauri } from "@tauri-apps/api/core";
 import { message } from "@tauri-apps/plugin-dialog";
 
-export const BROWSER_APP_VERSION = "0.1.2";
+export const BROWSER_APP_VERSION = "0.1.3";
 
 export const UNSIGNED_INSTALLER_NOTICE =
   "This build is unsigned. Windows may warn that the publisher is unknown. Verify the installer SHA-256 from the tagged release provenance before installing. Authenticode signing is required before a broad stable release.";
