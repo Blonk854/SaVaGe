@@ -9,7 +9,7 @@ use commands::destination_grants::{
 use commands::diagnostics::{export_diagnostics, record_diagnostic, DiagnosticLog};
 use commands::export::{export_png, write_project_file, write_svg_export};
 use commands::help::open_user_manual;
-use commands::import::{read_image_preview, read_text_file};
+use commands::import::{read_image_preview, read_project_file, read_text_file};
 use commands::lifecycle::exit_application;
 use commands::recovery::{delete_recovery, list_recoveries, write_recovery};
 use commands::source_grants::{
@@ -38,6 +38,7 @@ pub fn run() {
             convert_image_to_svg,
             cancel_convert_job,
             read_text_file,
+            read_project_file,
             read_image_preview,
             write_project_file,
             write_svg_export,

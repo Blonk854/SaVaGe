@@ -29,6 +29,8 @@ import {
 } from "../../features/editor/fileIo";
 import { handleWindowCloseRequest } from "../../shared/ui/nativeConfirm";
 import { UnsavedChangesDialog } from "../../shared/ui/UnsavedChangesDialog";
+import { SaveConflictDialog } from "../../shared/ui/SaveConflictDialog";
+import { saveFailureMessage } from "../../shared/ui/saveConflictPrompt";
 import { copySelection, pasteClipboard } from "../../features/editor/clipboard";
 import { AlignBooleanBar } from "../../features/tools/AlignBooleanBar";
 import {
@@ -125,8 +127,14 @@ export function AppShell() {
     void saveProject(saveAs)
       .then((result) => {
         if (result === "saved") flash("Project saved", "success");
+        if (result === "reloaded") flash("Reloaded from disk", "info");
       })
-      .catch((error) => flash(error instanceof Error ? error.message : String(error), "error"));
+      .catch((error) =>
+        flash(
+          saveFailureMessage(error instanceof Error ? error.message : String(error)),
+          "error",
+        ),
+      );
   };
 
   useEffect(() => {
@@ -424,6 +432,7 @@ export function AppShell() {
         .right-body .sv-panel { height: 100%; }
       `}</style>
       <UnsavedChangesDialog />
+      <SaveConflictDialog />
     </div>
   );
 }

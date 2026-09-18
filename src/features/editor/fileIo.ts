@@ -23,6 +23,11 @@ import {
 import { type ReplacementDecision } from "../../shared/ui/nativeConfirm";
 import { promptSaveDiscardCancel } from "../../shared/ui/unsavedChangesPrompt";
 import {
+  isSaveConflictMessage,
+  promptSaveConflict,
+  type SaveConflictDecision,
+} from "../../shared/ui/saveConflictPrompt";
+import {
   discardCurrentRecovery,
   recoverySequenceFor,
 } from "./recovery";
@@ -86,7 +91,8 @@ export async function confirmDocumentReplacement(
       return true;
     }
     const result = await saveCurrent();
-    return result === "saved" && !isProjectModified(useDocumentStore.getState().doc);
+    if (result === "cancelled" || result === "stale") return false;
+    return !isProjectModified(useDocumentStore.getState().doc);
   })();
   try {
     return await replacementConfirmation;
@@ -248,10 +254,50 @@ export async function openConvertedSvg(
   return true;
 }
 
+export type SaveResult = "saved" | "cancelled" | "stale" | "reloaded";
+
+export type SaveConflictDecisionProvider = () => Promise<SaveConflictDecision>;
+
+interface SaveOptions {
+  overwrite?: boolean;
+  decideConflict?: SaveConflictDecisionProvider;
+}
+
+function nativeErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+async function promptConflictDecision(): Promise<SaveConflictDecision> {
+  return promptSaveConflict();
+}
+
+async function reloadProjectFromGrant(
+  destination: GrantedDestination,
+  invokeCommand: FileIoDependencies["invoke"],
+): Promise<void> {
+  const readResult = parseReadResult(
+    await invokeCommand("read_project_file", {
+      destinationGrantId: destination.grantId,
+    }),
+  );
+  const document = parseSavageDocument(readResult.contents);
+  useProjectSessionStore.getState().startSession({
+    displayName: fileDisplayName(destination.path),
+    projectPath: destination.path,
+    projectDestinationGrantId: destination.grantId,
+    fileFingerprint: readResult.fingerprint,
+    savedContents: projectContents(document),
+  });
+  useDocumentStore.getState().loadDocument(document);
+}
+
 export async function saveProject(
   saveAs = false,
   dependencies: FileIoDependencies = defaultDependencies,
-): Promise<"saved" | "cancelled" | "stale"> {
+  options: SaveOptions = {},
+): Promise<SaveResult> {
   const session = useProjectSessionStore.getState();
   const contents = projectContents(useDocumentStore.getState().doc);
   const snapshot = session.beginSave(
@@ -278,7 +324,9 @@ export async function saveProject(
   }
   try {
     const expectedFingerprint =
-      destination.path === session.projectPath ? session.fileFingerprint : null;
+      options.overwrite || destination.path !== session.projectPath
+        ? null
+        : session.fileFingerprint;
     const fingerprint = parseFingerprint(
       await enqueueWrite(
         destination.grantId,
@@ -303,6 +351,34 @@ export async function saveProject(
     return "saved";
   } catch (error) {
     useProjectSessionStore.getState().finishSaveFailure(snapshot);
+    const message = nativeErrorMessage(error);
+    if (!options.overwrite && isSaveConflictMessage(message)) {
+      const decision = await (options.decideConflict ?? promptConflictDecision)();
+      if (decision === "reload") {
+        try {
+          await reloadProjectFromGrant(destination, dependencies.invoke);
+          return "reloaded";
+        } catch (reloadError) {
+          recordDiagnostic({
+            level: "error",
+            code: "reload_failed",
+            operation: "save",
+            operationId: snapshot.operationId,
+            sessionId: snapshot.sessionId,
+            stage: "reload",
+            message: nativeErrorMessage(reloadError),
+          });
+          throw reloadError;
+        }
+      }
+      if (decision === "saveAs") {
+        return saveProject(true, dependencies, options);
+      }
+      if (decision === "overwrite") {
+        return saveProject(false, dependencies, { ...options, overwrite: true });
+      }
+      return "cancelled";
+    }
     recordDiagnostic({
       level: "error",
       code: "save_failed",
@@ -310,7 +386,7 @@ export async function saveProject(
       operationId: snapshot.operationId,
       sessionId: snapshot.sessionId,
       stage: "write",
-      message: error instanceof Error ? error.message : String(error),
+      message,
     });
     throw error;
   }

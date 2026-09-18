@@ -15,6 +15,8 @@ Install/update/uninstall evidence is recorded in
 - [ ] Edit one visible object and save to a new `.savage` destination.
 - [ ] Close, reopen the saved project, and verify the edit is present.
 - [ ] Cancel Save As and verify no destination or document content changes.
+- [ ] Two-instance Save: save in a second window, then Save in the first. Confirm Reload / Save As /
+      Overwrite / Cancel. Cancel leaves the on-disk file as the second window wrote it.
 - [ ] Attempt to open malformed and over-limit input; verify the active document is unchanged.
 - [ ] Convert a raster with Cancel during tracing; confirm the UI stays busy until the job exits and retry still works.
 - [ ] Exercise Undo/Redo, keyboard menu dismissal, and window close behavior.

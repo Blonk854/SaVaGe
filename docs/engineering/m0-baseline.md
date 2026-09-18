@@ -68,12 +68,16 @@ WebView2 behavior, or NSIS installation.
 	without deleting the destination.
 - Native reads and writes return a size/modified-time fingerprint. Repeat Save rechecks it before
 	replacement and rejects detected external changes. The Rust test proves the original external
-	content survives a conflict.
+	content survives a conflict, and that an explicit overwrite with no expected fingerprint
+	replaces the destination.
+- A fingerprint mismatch on Save presents in-app **Reload**, **Save As**, **Overwrite**, or
+	**Cancel**. Reload reads through the destination grant and replaces the open document only
+	after the disk copy parses. Overwrite retries with no expected fingerprint. Locked, permission,
+	and disk-full failures map to specific toasts. Timestamp/size fingerprints reduce common
+	accidental overwrites but are not a universal race-proof file identity.
 
-Remaining M3 hardening includes richer typed error presentation, two-instance and filesystem fault
-injection (locks, read-only, disk-full, long paths, removable media), and a documented
-overwrite/reload conflict UI. Timestamp/size fingerprints reduce common accidental overwrites but
-are not a universal race-proof file identity.
+Remaining M3 hardening includes two-instance and filesystem fault injection on packaged Windows
+(read-only, long paths, removable media) beyond the existing lock-preservation unit test.
 
 ## M4 Recovery Evidence
 

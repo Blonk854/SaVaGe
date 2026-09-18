@@ -215,6 +215,216 @@ describe("saveProject", () => {
     });
   });
 
+  it("overwrites without a fingerprint after a conflict confirmation", async () => {
+    const expectedFingerprint = { size: 10, modifiedMs: 20 };
+    useProjectSessionStore.getState().startSession({
+      displayName: "Project",
+      projectPath: "C:\\project.savage",
+      projectDestinationGrantId: "grant_1",
+      fileFingerprint: expectedFingerprint,
+      savedContents: projectContents(useDocumentStore.getState().doc),
+    });
+    const writes: Array<Record<string, unknown> | undefined> = [];
+    let writeCount = 0;
+
+    const result = await saveProject(
+      false,
+      {
+        chooseOpen: async () => null,
+        chooseSave: async () => {
+          throw new Error("overwrite must not open Save As");
+        },
+        invoke: async (command, args) => {
+          if (command !== "write_project_file") throw new Error(command);
+          writes.push(args);
+          writeCount += 1;
+          if (writeCount === 1) {
+            throw new Error("conflict: destination changed since it was opened or saved");
+          }
+          return { size: 12, modifiedMs: 22 };
+        },
+      },
+      { decideConflict: async () => "overwrite" },
+    );
+
+    expect(result).toBe("saved");
+    expect(writes[0]?.expectedFingerprint).toEqual(expectedFingerprint);
+    expect(writes[1]?.expectedFingerprint).toBeNull();
+    expect(useProjectSessionStore.getState().fileFingerprint).toEqual({
+      size: 12,
+      modifiedMs: 22,
+    });
+  });
+
+  it("reloads through the destination grant after a conflict", async () => {
+    const local = createEmptyDocument();
+    useDocumentStore.getState().loadDocument(local);
+    useProjectSessionStore.getState().startSession({
+      displayName: "Project",
+      projectPath: "C:\\project.savage",
+      projectDestinationGrantId: "grant_1",
+      fileFingerprint: { size: 10, modifiedMs: 20 },
+      savedContents: projectContents(local),
+    });
+    useDocumentStore.getState().updateArtboard(local.activeArtboardId, { width: 640 });
+    const diskDocument = createEmptyDocument();
+    const commands: string[] = [];
+
+    const result = await saveProject(
+      false,
+      {
+        chooseOpen: async () => null,
+        chooseSave: async () => {
+          throw new Error("reload must not open Save As");
+        },
+        invoke: async (command, args) => {
+          commands.push(command);
+          if (command === "write_project_file") {
+            throw new Error("conflict: destination changed since it was opened or saved");
+          }
+          if (command === "read_project_file") {
+            expect(args?.destinationGrantId).toBe("grant_1");
+            return {
+              contents: projectContents(diskDocument),
+              fingerprint: { size: 40, modifiedMs: 50 },
+            };
+          }
+          throw new Error(command);
+        },
+      },
+      { decideConflict: async () => "reload" },
+    );
+
+    expect(result).toBe("reloaded");
+    expect(commands).toEqual(["write_project_file", "read_project_file"]);
+    expect(useProjectSessionStore.getState().fileFingerprint).toEqual({
+      size: 40,
+      modifiedMs: 50,
+    });
+    expect(useDocumentStore.getState().doc.activeArtboardId).toBe(diskDocument.activeArtboardId);
+    expect(isProjectModified(useDocumentStore.getState().doc)).toBe(false);
+  });
+
+  it("saves to a new path when the user chooses Save As after a conflict", async () => {
+    useProjectSessionStore.getState().startSession({
+      displayName: "Project",
+      projectPath: "C:\\project.savage",
+      projectDestinationGrantId: "grant_1",
+      fileFingerprint: { size: 10, modifiedMs: 20 },
+      savedContents: projectContents(useDocumentStore.getState().doc),
+    });
+    const writes: Array<Record<string, unknown> | undefined> = [];
+
+    const result = await saveProject(
+      false,
+      {
+        chooseOpen: async () => null,
+        chooseSave: async () => ({
+          path: "C:\\copy.savage",
+          grantId: "grant_copy",
+        }),
+        invoke: async (command, args) => {
+          if (command !== "write_project_file") throw new Error(command);
+          writes.push(args);
+          if (writes.length === 1) {
+            throw new Error("conflict: destination changed since it was opened or saved");
+          }
+          return { size: 13, modifiedMs: 23 };
+        },
+      },
+      { decideConflict: async () => "saveAs" },
+    );
+
+    expect(result).toBe("saved");
+    expect(writes[0]?.destinationGrantId).toBe("grant_1");
+    expect(writes[1]?.destinationGrantId).toBe("grant_copy");
+    expect(writes[1]?.expectedFingerprint).toBeNull();
+    expect(useProjectSessionStore.getState().projectPath).toBe("C:\\copy.savage");
+  });
+
+  it("cancels a conflicted save without changing the destination", async () => {
+    useProjectSessionStore.getState().startSession({
+      displayName: "Project",
+      projectPath: "C:\\project.savage",
+      projectDestinationGrantId: "grant_1",
+      fileFingerprint: { size: 10, modifiedMs: 20 },
+      savedContents: projectContents(useDocumentStore.getState().doc),
+    });
+
+    const result = await saveProject(
+      false,
+      {
+        chooseOpen: async () => null,
+        chooseSave: async () => {
+          throw new Error("cancel must not open Save As");
+        },
+        invoke: async () => {
+          throw new Error("conflict: destination changed since it was opened or saved");
+        },
+      },
+      { decideConflict: async () => "cancel" },
+    );
+
+    expect(result).toBe("cancelled");
+    expect(useProjectSessionStore.getState().projectPath).toBe("C:\\project.savage");
+    expect(useProjectSessionStore.getState().fileFingerprint).toEqual({
+      size: 10,
+      modifiedMs: 20,
+    });
+  });
+
+  it("keeps the open document when a conflict reload is not a valid project", async () => {
+    const before = projectContents(useDocumentStore.getState().doc);
+    useProjectSessionStore.getState().startSession({
+      displayName: "Project",
+      projectPath: "C:\\project.savage",
+      projectDestinationGrantId: "grant_1",
+      fileFingerprint: { size: 10, modifiedMs: 20 },
+      savedContents: before,
+    });
+
+    await expect(
+      saveProject(
+        false,
+        {
+          chooseOpen: async () => null,
+          chooseSave: async () => null,
+          invoke: async (command) => {
+            if (command === "write_project_file") {
+              throw new Error("conflict: destination changed since it was opened or saved");
+            }
+            return { contents: "{", fingerprint: { size: 1, modifiedMs: 2 } };
+          },
+        },
+        { decideConflict: async () => "reload" },
+      ),
+    ).rejects.toThrow();
+    expect(projectContents(useDocumentStore.getState().doc)).toBe(before);
+    expect(useProjectSessionStore.getState().projectPath).toBe("C:\\project.savage");
+  });
+
+  it("allows replacement after reload when the reloaded document is clean", async () => {
+    useDocumentStore.getState().updateArtboard(
+      useDocumentStore.getState().doc.activeArtboardId,
+      { width: 500 },
+    );
+    const mayReplace = await confirmDocumentReplacement(
+      async () => "save",
+      async () => {
+        useProjectSessionStore.getState().startSession({
+          displayName: "Reloaded",
+          projectPath: "C:\\project.savage",
+          projectDestinationGrantId: "grant_1",
+          savedContents: projectContents(useDocumentStore.getState().doc),
+        });
+        return "reloaded";
+      },
+    );
+
+    expect(mayReplace).toBe(true);
+    expect(isProjectModified(useDocumentStore.getState().doc)).toBe(false);
+  });
+
   it("adopts the native project destination grant when opening a project", async () => {
     const document = createEmptyDocument();
     const result = await openFile({

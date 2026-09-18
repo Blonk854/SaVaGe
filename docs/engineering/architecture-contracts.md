@@ -32,6 +32,10 @@ production transform implementation, to pin multiplication order and skew behavi
   may acknowledge only that captured state in the same session; later edits remain dirty.
 - Save As changes the active destination only after a successful write. Open parses a candidate
   before the replacement decision, and stale save completion cannot alter a newer session.
+- Repeat Save that detects a destination fingerprint mismatch leaves the on-disk file unchanged
+  and offers Reload, Save As, Overwrite, or Cancel. Reload reads through the destination grant
+  and commits only after the disk copy parses. Overwrite writes with no expected fingerprint.
+  Size/mtime fingerprints are not a universal race-proof identity.
 - Modified state is derived from the current deterministic serialization and the acknowledged
   saved payload. This keeps the checkpoint identifiable after history eviction and makes undo to
   saved content clean without storing repaint or selection state in history.
@@ -43,8 +47,8 @@ production transform implementation, to pin multiplication order and skew behavi
   Derived-cache, diagnostic-ring, and on-disk recovery budgets stay separate.
 
 Focused history and deferred-promise tests enforce these rules, including cancellation,
-out-of-order completion, edit-during-save, prompt deduplication, undo/redo cleanliness, and
-repeat-save fingerprint forwarding.
+out-of-order completion, edit-during-save, prompt deduplication, undo/redo cleanliness,
+repeat-save fingerprint forwarding, and save-conflict Reload / Save As / Overwrite.
 
 ## Plugin Command Contract
 

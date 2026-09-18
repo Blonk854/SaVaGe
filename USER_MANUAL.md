@@ -473,7 +473,7 @@ Booleans need at least two selected **filled** shapes that can be treated as clo
 |---|---|
 | **New** | **Ctrl+N**. Starts an empty Edit document. If the current document is not a saved `.savage` match, SaVaGe asks **Save**, **Discard**, or **Cancel** in the app. Closing the window uses the same in-app prompt. |
 | **Open…** | **Ctrl+O**. Opens `.savage` or `.svg` into Edit. Photos and PNG/JPEG/WEBP/GIF/BMP/TIFF switch to Convert and attach the file. A damaged project file shows an error instead of crashing. |
-| **Save** | **Ctrl+S**. Writes the current `.savage` if one is already the save target. The first save on an Unsaved document opens a location dialog. |
+| **Save** | **Ctrl+S**. Writes the current `.savage` if one is already the save target. The first save on an Unsaved document opens a location dialog. If the file changed on disk since it was opened or last saved, SaVaGe offers **Reload**, **Save As…**, **Overwrite**, or **Cancel**. |
 | **Save As…** | **Ctrl+Shift+S**. Always asks for a location. The current project path changes only after a successful write. Cancel leaves the previous file (or Unsaved) as the save target. |
 | **Export SVG…** | Writes an SVG file. Does not mark the project Saved. |
 | **Export PNG…** | Writes a PNG snapshot at 2× resolution. Does not mark the project Saved. |
@@ -774,6 +774,9 @@ Menu items do not show key badges in the title bar; the shortcuts in this sectio
 | Paste did nothing | Click the canvas first; copy from SaVaGe or paste SVG |
 | Open failed | The file may not be a valid version-1 `.savage` project or SVG — check the toast. Newer project versions are not rewritten |
 | Save As cancelled | The previous project path stays current; nothing is written |
+| Save says the file changed on disk | Another SaVaGe window or program wrote the file. **Reload** takes the disk copy (and discards unsaved edits in this window), **Save As…** keeps both, **Overwrite** replaces the disk file, **Cancel** leaves both as they are |
+| Save failed because the file is in use | Close the other program using the file, then Save again |
+| Save failed because the disk is full | Free space, then Save or **Save As…** to another drive |
 | Export left the project Modified | Expected — export is not a project save |
 | Recovery prompt after a crash | Recover opens Unsaved work; Save As to keep it. Open Original leaves the checkpoint behind |
 | Need error details for support | **Help → Export Diagnostics…**, review the JSON, then share only that file |

@@ -7,6 +7,7 @@ use base64::Engine;
 use image::{GenericImageView, ImageFormat};
 use serde::Serialize;
 
+use super::destination_grants::DestinationGrantManager;
 use super::file_identity::{fingerprint, FileFingerprint};
 use super::source_grants::SourceGrantManager;
 use tauri::State;
@@ -30,11 +31,12 @@ pub struct ImagePreview {
     format: String,
 }
 
-fn read_text_file_with_limit(path: &str, max_bytes: u64) -> Result<ReadTextResult, String> {
-    let file = File::open(path).map_err(|e| format!("Failed to open {path}: {e}"))?;
+fn read_text_file_with_limit(path: &Path, max_bytes: u64) -> Result<ReadTextResult, String> {
+    let display = path.display();
+    let file = File::open(path).map_err(|e| format!("Failed to open {display}: {e}"))?;
     let size = file
         .metadata()
-        .map_err(|e| format!("Failed to inspect {path}: {e}"))?
+        .map_err(|e| format!("Failed to inspect {display}: {e}"))?
         .len();
     if size > max_bytes {
         return Err(format!(
@@ -45,7 +47,7 @@ fn read_text_file_with_limit(path: &str, max_bytes: u64) -> Result<ReadTextResul
     let mut bytes = Vec::with_capacity(size as usize);
     file.take(max_bytes + 1)
         .read_to_end(&mut bytes)
-        .map_err(|e| format!("Failed to read {path}: {e}"))?;
+        .map_err(|e| format!("Failed to read {display}: {e}"))?;
     if bytes.len() as u64 > max_bytes {
         return Err(format!(
             "File grew beyond the {max_bytes}-byte limit while it was being read"
@@ -55,12 +57,21 @@ fn read_text_file_with_limit(path: &str, max_bytes: u64) -> Result<ReadTextResul
         String::from_utf8(bytes).map_err(|_| "File is not valid UTF-8 text".to_string())?;
     Ok(ReadTextResult {
         contents,
-        fingerprint: fingerprint(std::path::Path::new(path))?,
+        fingerprint: fingerprint(path)?,
     })
 }
 
 #[tauri::command]
 pub fn read_text_file(path: String) -> Result<ReadTextResult, String> {
+    read_text_file_with_limit(Path::new(&path), MAX_TEXT_FILE_BYTES)
+}
+
+#[tauri::command]
+pub fn read_project_file(
+    grants: State<'_, DestinationGrantManager>,
+    destination_grant_id: String,
+) -> Result<ReadTextResult, String> {
+    let path = grants.resolve_project(&destination_grant_id)?;
     read_text_file_with_limit(&path, MAX_TEXT_FILE_BYTES)
 }
 
@@ -121,14 +132,12 @@ mod tests {
 
         fs::write(&path, b"1234").expect("write exact-limit fixture");
         assert_eq!(
-            read_text_file_with_limit(path.to_str().unwrap(), 4)
-                .unwrap()
-                .contents,
+            read_text_file_with_limit(&path, 4).unwrap().contents,
             "1234"
         );
 
         fs::write(&path, b"12345").expect("write over-limit fixture");
-        let error = read_text_file_with_limit(path.to_str().unwrap(), 4).unwrap_err();
+        let error = read_text_file_with_limit(&path, 4).unwrap_err();
         assert!(error.contains("too large"));
 
         let _ = fs::remove_file(path);

@@ -303,6 +303,11 @@ mod tests {
             .contains("conflict"));
         assert_eq!(fs::read(&path).unwrap(), b"external change");
 
+        let overwritten =
+            write_text_file_atomic(&path, b"third", 5, None).expect("explicit overwrite");
+        assert_eq!(fs::read(&path).unwrap(), b"third");
+        assert_ne!(overwritten, second);
+
         fs::remove_dir_all(dir).expect("remove fixture directory");
     }
 
