@@ -42,9 +42,9 @@ npx --yes pnpm@10.17.1 tauri build --debug
 
 ## Open M0 Gates
 
-- Packaged smoke on a non-admin Windows account: Guest signed off `v0.1.2` on
-	2026-09-18 ([m8-install.md](m8-install.md), [promotion-records/v0.1.2.md](promotion-records/v0.1.2.md)).
-	Still open: WebView2-missing VM; two-instance Save conflict UI (`6367630`) needs the next NSIS.
+- Packaged smoke on a non-admin Windows account: Guest signed off `v0.1.2` (install,
+	scaling, HC/Narrator, close, recovery) and `v0.1.3` (two-instance Save) on 2026-09-18.
+	Still open: WebView2-missing VM.
 - Local `cargo-audit` is optional; CI runs the pinned `rustsec/audit-check` action.
 
 The automation probe found Edge 153.0.4234.32, but neither `tauri-driver` nor a matching
@@ -80,10 +80,11 @@ WebView2 behavior, or NSIS installation.
 	accidental overwrites but are not a universal race-proof file identity.
 - Native filesystem fault tests cover locked files, read-only or directory-occupied destinations,
 	Unicode names, long paths, and a missing volume (unmounted-media analogue). Failed writes leave
-	the original bytes and do not leak temporaries.
+	the original bytes and do not leak temporaries. Guest `v0.1.3` signed off two-instance
+	Reload / Save As / Overwrite / Cancel on 2026-09-18.
 
-Remaining M3 hardening is the packaged two-instance conflict run, plus live removable-media
-and disk-full injection beyond the missing-volume unit test.
+Remaining M3 hardening is live removable-media and disk-full injection beyond the
+missing-volume unit test.
 
 ## M4 Recovery Evidence
 

@@ -29,22 +29,24 @@ describe("halt and withdraw", () => {
     expect(policy.halt.preserve.join("\n")).toMatch(/recovery/i);
   });
 
-  it("offers no prior installer when withdrawing the only recorded tag", () => {
+  it("offers the last other catalogued tag when withdrawing a recorded installer", () => {
     const registry = parseVerifiedInstallerRegistry(
       JSON.parse(read("docs/engineering/verified-installers.json")),
     );
     expect(registry.installers).toEqual([
       expect.objectContaining({ gitTag: "v0.1.2", verified: true }),
+      expect.objectContaining({ gitTag: "v0.1.3", verified: true }),
     ]);
-    expect(resolvePriorVerifiedInstaller(registry, "0.1.2")).toBeNull();
+    expect(resolvePriorVerifiedInstaller(registry, "0.1.3")?.gitTag).toBe("v0.1.2");
+    expect(resolvePriorVerifiedInstaller(registry, "0.1.2")?.gitTag).toBe("v0.1.3");
     const plan = planWithdraw({
-      tag: "v0.1.2",
+      tag: "v0.1.3",
       trigger: "confirmed-corruption",
       policy: JSON.parse(read("docs/engineering/rollout-policy.json")),
       registry,
     });
     expect(plan.halt).toBe(true);
-    expect(plan.offerPrior).toBeNull();
+    expect(plan.offerPrior).toEqual(expect.objectContaining({ gitTag: "v0.1.2" }));
     expect(plan.github).toEqual({
       draft: true,
       prerelease: true,
@@ -57,7 +59,7 @@ describe("halt and withdraw", () => {
       diagnosticsConsentRequired: true,
     });
     expect(plan.notes).toMatch(/WITHDRAWN/);
-    expect(plan.notes).toMatch(/No prior verified installer/);
+    expect(plan.notes).toMatch(/Offer the prior verified installer v0\.1\.2/);
     expect(plan.notes).toMatch(/binary downgrade is not document rollback/i);
     expect(plan.forbidden.join("\n")).toMatch(/gh release delete/i);
     expect(plan.forbidden.join("\n")).toMatch(/git tag -d/i);
@@ -132,15 +134,19 @@ describe("halt and withdraw", () => {
         resolve(root, "scripts/withdraw-release.mjs"),
         "plan",
         "--tag",
-        "v0.1.2",
+        "v0.1.3",
         "--reason",
         "failed-install",
       ],
       { encoding: "utf8", cwd: root },
     );
-    const plan = JSON.parse(output) as { halt: boolean; offerPrior: unknown; github: { deleteTag: boolean } };
+    const plan = JSON.parse(output) as {
+      halt: boolean;
+      offerPrior: { gitTag?: string } | null;
+      github: { deleteTag: boolean };
+    };
     expect(plan.halt).toBe(true);
-    expect(plan.offerPrior).toBeNull();
+    expect(plan.offerPrior?.gitTag).toBe("v0.1.2");
     expect(plan.github.deleteTag).toBe(false);
   });
 });

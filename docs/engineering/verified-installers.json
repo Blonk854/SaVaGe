@@ -17,6 +17,14 @@
       "fileName": "SaVaGe_0.1.2_x64-setup.exe",
       "verified": true,
       "compatibilityNotes": "docs/engineering/m8-compatibility.md"
+    },
+    {
+      "version": "0.1.3",
+      "gitTag": "v0.1.3",
+      "sha256": "b54b1a75d53d8bce8ab01977345bd08c59b188654d72d714335c5b4a62b85726",
+      "fileName": "SaVaGe_0.1.3_x64-setup.exe",
+      "verified": true,
+      "compatibilityNotes": "docs/engineering/m8-compatibility.md"
     }
   ]
 }

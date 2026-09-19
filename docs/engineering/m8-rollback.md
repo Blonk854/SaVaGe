@@ -14,8 +14,8 @@ recovery snapshots.
 
 | Step | Evidence now | Live NSIS |
 |---|---|---|
-| Reinstall a previous binary while retaining app data | Same `identifier`, `allowDowngrades: true`, uninstall default keeps `%APPDATA%\com.savage.svgstudio` | Blocked for 0.1.2 — catalog has only this tag, so there is no *prior* verified NSIS |
-| Open preserved compatible originals | Copies of `legacy-v1.savage` and `skew-nested.savage` parse as schema 1 without write-back | Same copies after a real prior-NSIS install |
+| Reinstall a previous binary while retaining app data | Same `identifier`, `allowDowngrades: true`, uninstall default keeps `%APPDATA%\com.savage.svgstudio` | Guest 2026-09-18: `v0.1.2` (`660206b7…4575`) installed over `v0.1.3` without deleting app data |
+| Open preserved compatible originals | Copies of `legacy-v1.savage` and `skew-nested.savage` parse as schema 1 without write-back | Guest 2026-09-18 after prior-NSIS install |
 | Recover newer work | This reader cannot open schema ≥2. Message tells the user to use a newer SaVaGe or **Save As** a version-1 copy from that version. Future recovery envelopes are left in place | Do not delete those files after downgrade |
 
 Do not mark the live column from Vite or `tauri:dev`.
@@ -30,13 +30,11 @@ Do not mark the live column from Vite or `tauri:dev`.
 6. Open (or attempt to open) the schema ≥2 copy and a future recovery file. They must fail in memory and keep their original bytes.
 7. Newer work that must be edited in the older app was **Save As** schema 1 from the newer writer **before** this downgrade. The older binary cannot produce that copy from a file it cannot read.
 
-## 0.1.2
+## 0.1.3
 
-The first verified catalog row is this tag. Live prior-NSIS rehearsal is still
-**blocked** until a later tag is recorded: rolling `0.1.2` back needs a different
-verified SHA. Unsigned `v0.1.0` / `v0.1.1` exist locally but are not catalogued.
-Automated leave-in-place tests still run. See
-[rollback-records/v0.1.2.md](rollback-records/v0.1.2.md).
+Catalog rows are `v0.1.2` then `v0.1.3`. Guest signed off live prior-NSIS
+rehearsal on 2026-09-18. Automated leave-in-place tests still pass.
+See [rollback-records/v0.1.3.md](rollback-records/v0.1.3.md).
 
 ## Revert
 

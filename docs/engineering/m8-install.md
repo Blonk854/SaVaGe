@@ -55,6 +55,8 @@ Commit / tag: 918834b25e3372821aa296491ca71695ea24be91 / v0.1.2
 
 Guest signed off this non-admin install on 2026-09-18. Earlier 0.1.0 / 0.1.1 notes stay under the workflow bullets.
 
+Guest `v0.1.3` (`b54b1a75…5726`, commit `665851be19cec99e29b4c645cbb886d587ec2947`) signed off 2026-09-18: two-instance Save presents Reload / Save As / Overwrite / Cancel, then live prior-NSIS rollback to `v0.1.2` without deleting app data. Install/uninstall/scaling evidence remains on `v0.1.2`. WebView2-missing is still open.
+
 - [x] SHA-256 matches `SHA256SUMS.txt`. SmartScreen warning is expected for unsigned builds.
 - [x] Install as the current user with no UAC elevation. Start Menu **SaVaGe** launches.
 - [x] `scripts/inspect-install.ps1` reports per-user install, bundled Help present, no `.savage` association.

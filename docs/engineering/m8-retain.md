@@ -1,6 +1,6 @@
 # M8.7 Retain Prior Installers
 
-Recorded: 2026-09-17; catalog updated 2026-09-18
+Recorded: 2026-09-17; catalog updated 2026-09-18 (`v0.1.2`, then `v0.1.3`)
 
 Catalog: [verified-installers.json](verified-installers.json). Compatibility notes
 stay in-tree with the fixtures. Binaries live on each tagged GitHub Release.
@@ -12,11 +12,11 @@ file (manual reinstall).
 
 ## What is retained
 
-| Item | Where | 0.1.2 |
+| Item | Where | Catalog |
 |---|---|---|
-| NSIS + SHA-256 + provenance | GitHub Release for that git tag; optional local `artifacts/verified/` | SHA-256 `660206b722e3f284ea447758fc3434af74744c6a2fbb31ff1e203e6a8c5d4575` recorded. `.exe` is not in git. |
+| NSIS + SHA-256 + provenance | GitHub Release for that git tag; optional local `artifacts/verified/` | `v0.1.2` `660206b7…4575`; `v0.1.3` `b54b1a75…5726`. `.exe` is not in git. |
 | Compatibility matrix | [m8-compatibility.md](m8-compatibility.md), [release-notes-0.1.0.md](release-notes-0.1.0.md), `fixtures/compatibility/` | Present now |
-| Catalog rows | `verified-installers.json` `installers` | `v0.1.2` only. Do not replace that SHA. |
+| Catalog rows | `verified-installers.json` `installers` | `v0.1.2`, `v0.1.3`. Do not replace those SHAs. |
 
 `retainPrevious: true`. Adding a later tag **appends**. The same tag with
 different bytes is refused. `v0.1.0` and `v0.1.1` are not catalogued: Guest
@@ -26,7 +26,7 @@ found close did not quit.
 
 ```powershell
 npx --yes pnpm@10.17.1 exec node scripts/retain-installer.mjs list
-npx --yes pnpm@10.17.1 exec node scripts/retain-installer.mjs record --installer src-tauri\target\release\bundle\nsis\SaVaGe_0.1.2_x64-setup.exe
+npx --yes pnpm@10.17.1 exec node scripts/retain-installer.mjs record --installer src-tauri\target\release\bundle\nsis\SaVaGe_0.1.3_x64-setup.exe
 ```
 
 `record` checks `provenance.json` and `SHA256SUMS.txt` beside the setup. It does

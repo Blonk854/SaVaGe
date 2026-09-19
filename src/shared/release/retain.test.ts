@@ -24,13 +24,22 @@ const recorded012 = {
   compatibilityNotes: "docs/engineering/m8-compatibility.md",
 };
 
+const recorded013 = {
+  version: "0.1.3",
+  gitTag: "v0.1.3",
+  sha256: "b54b1a75d53d8bce8ab01977345bd08c59b188654d72d714335c5b4a62b85726",
+  fileName: "SaVaGe_0.1.3_x64-setup.exe",
+  verified: true as const,
+  compatibilityNotes: "docs/engineering/m8-compatibility.md",
+};
+
 describe("verified installer retention", () => {
   it("keeps previous installers and compatibility notes without an updater", () => {
     const catalog = parseInstallerCatalog(JSON.parse(read("docs/engineering/verified-installers.json")));
     expect(catalog.autoUpdater).toBe(false);
     expect(catalog.distribution).toBe("manual-reinstall");
     expect(catalog.retainPrevious).toBe(true);
-    expect(catalog.installers).toEqual([recorded012]);
+    expect(catalog.installers).toEqual([recorded012, recorded013]);
     assertCompatibilityNotesExist(catalog, root);
     expect(installerFileName("0.1.2")).toBe("SaVaGe_0.1.2_x64-setup.exe");
     expect(read("USER_MANUAL.md")).toMatch(/no automatic updater/i);
@@ -40,21 +49,22 @@ describe("verified installer retention", () => {
   it("appends a new verified installer and refuses to replace retained bytes", () => {
     const catalog = parseInstallerCatalog(JSON.parse(read("docs/engineering/verified-installers.json")));
     const next = {
-      version: "0.1.3",
-      gitTag: "v0.1.3",
+      version: "0.1.4",
+      gitTag: "v0.1.4",
       sha256: "bbb",
       verified: true as const,
     };
     const withNext = retainVerifiedInstaller(catalog, next);
-    expect(withNext.installers.map((installer) => installer.gitTag)).toEqual(["v0.1.2", "v0.1.3"]);
+    expect(withNext.installers.map((installer) => installer.gitTag)).toEqual(["v0.1.2", "v0.1.3", "v0.1.4"]);
     expect(retainVerifiedInstaller(withNext, catalog.installers[0]).installers.map((installer) => installer.gitTag)).toEqual([
       "v0.1.2",
       "v0.1.3",
+      "v0.1.4",
     ]);
     expect(() =>
       retainVerifiedInstaller(withNext, { ...catalog.installers[0], sha256: "ccc" }),
     ).toThrow(/different bytes/);
-    expect(catalog.installers).toEqual([recorded012]);
+    expect(catalog.installers).toEqual([recorded012, recorded013]);
   });
 
   it("rejects an updater catalog or dropping previous installers", () => {
@@ -72,14 +82,14 @@ describe("verified installer retention", () => {
     expect(existsSync(resolve(root, "docs/engineering/m8-retain.md"))).toBe(true);
   });
 
-  it("lists the recorded 0.1.2 catalog from the CLI", () => {
+  it("lists the recorded 0.1.2 and 0.1.3 catalog from the CLI", () => {
     const output = execFileSync("node", [resolve(root, "scripts/retain-installer.mjs"), "list"], {
       encoding: "utf8",
       cwd: root,
     });
     const listed = JSON.parse(output) as { retainPrevious: boolean; installers: typeof recorded012[] };
     expect(listed.retainPrevious).toBe(true);
-    expect(listed.installers).toEqual([recorded012]);
+    expect(listed.installers).toEqual([recorded012, recorded013]);
   });
 
   it("refuses to record an installer without provenance sidecars", () => {

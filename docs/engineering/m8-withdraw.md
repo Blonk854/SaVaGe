@@ -56,8 +56,9 @@ Do **not** `gh release delete`, `git tag -d`, or delete `SHA256SUMS.txt` /
 ## Offer the prior verified installer
 
 Offer the last entry in `verified-installers.json` that is not the withdrawn
-version, with its SHA-256. The first catalogued tag is **0.1.2**. Withdrawing
-`v0.1.2` still has **no prior installer to offer**. Do not invent one.
+version, with its SHA-256. Withdrawing `v0.1.3` offers `v0.1.2`
+(`660206b7…4575`). Withdrawing `v0.1.2` offers `v0.1.3` (`b54b1a75…5726`). There
+is still no catalogued installer older than **0.1.2**. Do not invent one.
 
 Users who already installed the withdrawn build keep their documents. If a prior
 setup exists, they close SaVaGe and run that NSIS file (allowDowngrades is on).

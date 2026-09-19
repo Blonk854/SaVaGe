@@ -37,12 +37,14 @@ Install/update/uninstall evidence is recorded in
 - [ ] **Help → User Manual (PDF)…** opens the bundled guide; spot-check Save/Save As and the
       shortcut table against the running menus.
 
-Guest `v0.1.2` (`660206b7…4575`) signed off 2026-09-18 on this machine: install, Help,
-Open/Save/reopen, Save As cancel, malformed/future reject, Convert cancel+retry, Undo/Redo,
-window close, 960×600, 150%/200% scaling, High Contrast, Narrator, kill-process recovery,
-uninstall without deleting app data, leftover recovery, closed-app reinstall. Skip prior-NSIS
-rollback (catalog has only this tag). Two-instance Reload / Save As / Overwrite is not in
-0.1.2; re-run that row on the next tagged NSIS. WebView2-missing is not a Guest item here.
+Guest `v0.1.2` (`660206b7…4575`) signed off 2026-09-18: install, Help, Open/Save/reopen,
+Save As cancel, malformed/future reject, Convert cancel+retry, Undo/Redo, window close,
+960×600, 150%/200% scaling, High Contrast, Narrator, kill-process recovery, uninstall
+without deleting app data, leftover recovery, closed-app reinstall. WebView2-missing is
+not a Guest item here.
+
+Guest `v0.1.3` (`b54b1a75…5726`) signed off 2026-09-18: two-instance Save Reload / Save As /
+Overwrite / Cancel, then live prior-NSIS rollback to `v0.1.2` without deleting app data.
 
 Do not mark this gate complete from a Vite browser run. Native dialogs, filesystem IPC,
 WebView2, installation, and process-close behavior must be observed in the packaged app.
