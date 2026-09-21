@@ -133,7 +133,8 @@ upgrade/reinstall retention, and real disk-pressure qualification remain manual 
 	current stage.
 - Native validation caps source files at 64 MiB, decoded dimensions at 16,384 per side and 40 million
 	pixels, requested output dimensions at 4,096, and generated SVG at 32 MiB. Enumerated options and
-	job/session identifiers are validated before tracing.
+	job/session identifiers are validated before tracing. PNG export uses the same 16,384-per-side and
+	40-million-pixel caps, plus a 32 MiB SVG input cap, and refuses before allocating a pixmap.
 - Raster paths are authorized only by a native picker or a recently observed native drag/drop event.
 	The native layer canonicalizes supported raster files and binds them to opaque UUID grants with a
 	30-minute lifetime and a 64-grant process bound; pending drop observations expire after 30 seconds

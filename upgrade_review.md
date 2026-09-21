@@ -237,7 +237,7 @@ This is the practical remaining-work list for the current repo state, based on t
 - Evidence: [src/shared/document/parseSavage.ts](src/shared/document/parseSavage.ts), [src/shared/document/deserialize.ts](src/shared/document/deserialize.ts), [src/shared/document/serialize.ts](src/shared/document/serialize.ts)
 
 ### 6.3 Native job and resource boundaries
-- Add preflight resource checks for raster decode, conversion, and PNG export, including dimension, pixel-count, memory, and output-size limits.
+- Add preflight resource checks for raster decode, conversion, and PNG export, including dimension, pixel-count, memory, and output-size limits. **Done for convert and PNG export:** 16,384 per side, 40 million pixels, 32 MiB SVG/text output. Live disk-full and removable-media remain manual.
 - Confirm cancellation is truthful and bounded for heavy work, including conversion and export tasks.
 - Keep job/session/source-revision identity explicit so stale results cannot replace newer work.
 - Evidence: [src-tauri/src/commands/import.rs](src-tauri/src/commands/import.rs#L15-L90), [src-tauri/src/commands/export.rs](src-tauri/src/commands/export.rs#L200-L290), [src-tauri/src/commands/convert.rs](src-tauri/src/commands/convert.rs)

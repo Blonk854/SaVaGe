@@ -12,6 +12,9 @@ use super::diagnostics::{DiagnosticLevel, DiagnosticLog};
 use super::file_identity::{fingerprint, FileFingerprint};
 
 const MAX_TEXT_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
+const MAX_PNG_SVG_BYTES: usize = MAX_TEXT_OUTPUT_BYTES;
+const MAX_PNG_DIMENSION: u32 = 16_384;
+const MAX_PNG_PIXELS: u64 = 40_000_000;
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 fn temporary_path(destination: &Path, attempt: u64) -> Result<PathBuf, String> {
@@ -156,6 +159,62 @@ pub(crate) fn write_text_file_atomic(
     fingerprint(path)
 }
 
+fn png_export_scale(scale: Option<f32>) -> f32 {
+    scale.unwrap_or(1.0).clamp(0.25, 8.0)
+}
+
+fn planned_png_size(svg_width: f32, svg_height: f32, scale: f32) -> Result<(u32, u32), String> {
+    if !svg_width.is_finite() || !svg_height.is_finite() || svg_width <= 0.0 || svg_height <= 0.0 {
+        return Err("PNG source size is invalid".to_string());
+    }
+    let width = (svg_width * scale).round();
+    let height = (svg_height * scale).round();
+    if !width.is_finite() || !height.is_finite() {
+        return Err("PNG export size is not finite".to_string());
+    }
+    ensure_png_bounds(width.max(1.0) as u32, height.max(1.0) as u32)
+}
+
+fn ensure_png_bounds(width: u32, height: u32) -> Result<(u32, u32), String> {
+    if width > MAX_PNG_DIMENSION || height > MAX_PNG_DIMENSION {
+        return Err(format!(
+            "PNG is {width}×{height}; limit is {MAX_PNG_DIMENSION} per side"
+        ));
+    }
+    let pixels = u64::from(width).saturating_mul(u64::from(height));
+    if pixels > MAX_PNG_PIXELS {
+        return Err(format!("PNG is {pixels} pixels; limit is {MAX_PNG_PIXELS}"));
+    }
+    Ok((width, height))
+}
+
+fn ensure_png_svg_len(len: usize) -> Result<(), String> {
+    if len > MAX_PNG_SVG_BYTES {
+        Err(format!("SVG is {len} bytes; limit is {MAX_PNG_SVG_BYTES}"))
+    } else {
+        Ok(())
+    }
+}
+
+fn render_png_to_path(path: &Path, svg: &str, scale: Option<f32>) -> Result<(), String> {
+    ensure_png_svg_len(svg.len())?;
+    let scale = png_export_scale(scale);
+    let tree = Tree::from_str(svg, &Options::default()).map_err(|e| format!("Invalid SVG: {e}"))?;
+    let size = tree.size();
+    let (width, height) = planned_png_size(size.width(), size.height(), scale)?;
+    let mut pixmap =
+        Pixmap::new(width, height).ok_or_else(|| "Failed to allocate PNG pixmap".to_string())?;
+    let transform = Transform::from_scale(scale, scale);
+    resvg::render(&tree, transform, &mut pixmap.as_mut());
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    pixmap
+        .save_png(path)
+        .map_err(|e| format!("Failed to write PNG {}: {e}", path.display()))?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn write_project_file(
     grants: State<'_, DestinationGrantManager>,
@@ -227,27 +286,7 @@ pub fn export_png(
     scale: Option<f32>,
 ) -> Result<(), String> {
     let path = grants.consume_png(&destination_grant_id)?;
-    let result = (|| {
-        let scale = scale.unwrap_or(1.0).clamp(0.25, 8.0);
-        let opt = Options::default();
-        let tree = Tree::from_str(&svg, &opt).map_err(|e| format!("Invalid SVG: {e}"))?;
-        let size = tree.size();
-        let width = (size.width() * scale).round().max(1.0) as u32;
-        let height = (size.height() * scale).round().max(1.0) as u32;
-
-        let mut pixmap = Pixmap::new(width, height)
-            .ok_or_else(|| "Failed to allocate PNG pixmap".to_string())?;
-        let transform = Transform::from_scale(scale, scale);
-        resvg::render(&tree, transform, &mut pixmap.as_mut());
-
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-        }
-        pixmap
-            .save_png(&path)
-            .map_err(|e| format!("Failed to write PNG {}: {e}", path.display()))?;
-        Ok(())
-    })();
+    let result = render_png_to_path(&path, &svg, scale);
     if let Err(message) = &result {
         log.record(
             DiagnosticLevel::Error,
@@ -266,7 +305,10 @@ pub fn export_png(
 
 #[cfg(test)]
 mod tests {
-    use super::write_text_file_atomic;
+    use super::{
+        ensure_png_bounds, ensure_png_svg_len, planned_png_size, render_png_to_path,
+        write_text_file_atomic, MAX_PNG_DIMENSION, MAX_PNG_PIXELS, MAX_PNG_SVG_BYTES,
+    };
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -423,6 +465,52 @@ mod tests {
             .filter_map(|entry| entry.ok())
             .any(|entry| entry.file_name().to_string_lossy().contains(".savage-tmp-"));
         assert!(!leftover);
+        fs::remove_dir_all(dir).expect("remove fixture directory");
+    }
+
+    #[test]
+    fn png_preflight_rejects_oversize_before_pixmap_allocation() {
+        assert!(ensure_png_bounds(MAX_PNG_DIMENSION, 1).is_ok());
+        assert!(ensure_png_bounds(8_000, 5_000).is_ok());
+        assert!(ensure_png_bounds(MAX_PNG_DIMENSION + 1, 1)
+            .unwrap_err()
+            .contains("per side"));
+        let over_pixels = ((MAX_PNG_PIXELS / 10_000) + 1) as u32;
+        assert!(ensure_png_bounds(10_000, over_pixels)
+            .unwrap_err()
+            .contains("pixels"));
+        assert_eq!(planned_png_size(100.0, 50.0, 2.0).unwrap(), (200, 100));
+        assert!(planned_png_size(20_000.0, 20.0, 1.0)
+            .unwrap_err()
+            .contains("per side"));
+        assert!(planned_png_size(10_000.0, 10_000.0, 1.0)
+            .unwrap_err()
+            .contains("pixels"));
+
+        let dir = unique_dir("savage-png-bounds");
+        let huge = dir.join("huge.png");
+        let error = render_png_to_path(
+            &huge,
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="20000" height="20"></svg>"#,
+            Some(1.0),
+        )
+        .expect_err("dimension cap");
+        assert!(error.contains("per side"), "{error}");
+        assert!(!huge.exists());
+
+        assert!(ensure_png_svg_len(MAX_PNG_SVG_BYTES).is_ok());
+        assert!(ensure_png_svg_len(MAX_PNG_SVG_BYTES + 1)
+            .unwrap_err()
+            .contains("bytes"));
+
+        let ok = dir.join("ok.png");
+        render_png_to_path(
+            &ok,
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#111"/></svg>"##,
+            Some(1.0),
+        )
+        .expect("small png");
+        assert!(ok.is_file());
         fs::remove_dir_all(dir).expect("remove fixture directory");
     }
 }
