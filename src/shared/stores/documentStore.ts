@@ -23,6 +23,7 @@ import type {
   SvgDocument,
   Transform2D,
 } from "../document/types";
+import { identity, nodeWorldMatrix, transformForNewParent } from "../geometry/transform";
 import { projectContents } from "./projectSessionStore";
 
 interface DocumentState {
@@ -61,6 +62,35 @@ function findParent(doc: SvgDocument, id: NodeId): NodeId | null {
     if (node.type === "group" && node.children.includes(id)) return node.id;
   }
   return null;
+}
+
+function isAncestor(doc: SvgDocument, ancestorId: NodeId, nodeId: NodeId): boolean {
+  let current = findParent(doc, nodeId);
+  while (current) {
+    if (current === ancestorId) return true;
+    current = findParent(doc, current);
+  }
+  return false;
+}
+
+function groupableSelection(doc: SvgDocument, selection: NodeId[]): NodeId[] {
+  return selection.filter(
+    (id) =>
+      doc.nodes[id] &&
+      !selection.some((other) => other !== id && isAncestor(doc, other, id)),
+  );
+}
+
+function removeFromCurrentParent(doc: SvgDocument, id: NodeId) {
+  const parentId = findParent(doc, id);
+  if (parentId) {
+    const group = doc.nodes[parentId];
+    if (group?.type === "group") {
+      group.children = group.children.filter((child) => child !== id);
+    }
+    return;
+  }
+  doc.rootChildIds = doc.rootChildIds.filter((child) => child !== id);
 }
 
 function collectDescendants(doc: SvgDocument, id: NodeId, out: Set<NodeId>) {
@@ -189,11 +219,27 @@ export const useDocumentStore = create<DocumentState>()(
           }),
         ),
 
-      groupSelection: () =>
+      groupSelection: () => {
+        const { doc, selection } = get();
+        const ids = groupableSelection(doc, selection);
+        if (ids.length < 2) return;
+        const parents = ids.map((id) => findParent(doc, id));
+        const sharedParent = parents[0];
+        const sameParent = parents.every((parent) => parent === sharedParent);
+        const parentWorld = sharedParent ? nodeWorldMatrix(doc, sharedParent) : identity();
+        const groupWorld = sameParent ? parentWorld : identity();
+        if (!groupWorld) return;
+        const nextLocals = new Map<NodeId, Transform2D>();
+        for (const id of ids) {
+          const world = nodeWorldMatrix(doc, id);
+          if (!world) return;
+          const local = transformForNewParent(world, groupWorld);
+          if (!local) return;
+          nextLocals.set(id, local);
+        }
+
         set(
           produce((state: DocumentState) => {
-            const ids = state.selection.filter((id) => state.doc.nodes[id]);
-            if (ids.length < 2) return;
             const groupId = nanoid(10);
             const group: GroupNode = {
               id: groupId,
@@ -203,40 +249,82 @@ export const useDocumentStore = create<DocumentState>()(
               locked: false,
               opacity: 1,
               blendMode: "normal",
-              transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, skewX: 0, skewY: 0 },
+              transform: sameParent
+                ? { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, skewX: 0, skewY: 0 }
+                : (transformForNewParent(groupWorld, identity()) ?? {
+                    x: 0,
+                    y: 0,
+                    rotation: 0,
+                    scaleX: 1,
+                    scaleY: 1,
+                    skewX: 0,
+                    skewY: 0,
+                  }),
               children: [...ids],
             };
+            const insertParent = sameParent ? sharedParent : null;
+            const siblings = insertParent
+              ? (state.doc.nodes[insertParent] as GroupNode | undefined)?.children
+              : state.doc.rootChildIds;
+            const insertAt = siblings
+              ? Math.min(
+                  ...ids.map((id) => {
+                    const index = siblings.indexOf(id);
+                    return index < 0 ? siblings.length : index;
+                  }),
+                )
+              : 0;
             for (const id of ids) {
-              const parentId = findParent(state.doc, id);
-              if (parentId) {
-                const g = state.doc.nodes[parentId] as GroupNode;
-                g.children = g.children.filter((c) => c !== id);
-              } else {
-                state.doc.rootChildIds = state.doc.rootChildIds.filter((c) => c !== id);
-              }
+              removeFromCurrentParent(state.doc, id);
+              const node = state.doc.nodes[id];
+              const local = nextLocals.get(id);
+              if (node && local) node.transform = local;
             }
             state.doc.nodes[groupId] = group;
-            state.doc.rootChildIds.push(groupId);
+            const list = insertParent
+              ? (state.doc.nodes[insertParent] as GroupNode).children
+              : state.doc.rootChildIds;
+            list.splice(Math.max(0, Math.min(insertAt, list.length)), 0, groupId);
             state.selection = [groupId];
           }),
-        ),
+        );
+      },
 
-      ungroup: (id) =>
+      ungroup: (id) => {
+        const { doc } = get();
+        const node = doc.nodes[id];
+        if (!node || node.type !== "group") return;
+        const parentId = findParent(doc, id);
+        const parentWorld = parentId ? nodeWorldMatrix(doc, parentId) : identity();
+        if (!parentWorld) return;
+        const nextLocals = new Map<NodeId, Transform2D>();
+        for (const childId of node.children) {
+          const world = nodeWorldMatrix(doc, childId);
+          if (!world) return;
+          const local = transformForNewParent(world, parentWorld);
+          if (!local) return;
+          nextLocals.set(childId, local);
+        }
+
         set(
           produce((state: DocumentState) => {
-            const node = state.doc.nodes[id];
-            if (!node || node.type !== "group") return;
-            const parentId = findParent(state.doc, id);
-            const list = parentId
-              ? (state.doc.nodes[parentId] as GroupNode).children
-              : state.doc.rootChildIds;
+            const group = state.doc.nodes[id];
+            if (!group || group.type !== "group") return;
+            const parent = parentId ? state.doc.nodes[parentId] : null;
+            const list = parent?.type === "group" ? parent.children : state.doc.rootChildIds;
             const idx = list.indexOf(id);
             if (idx < 0) return;
-            list.splice(idx, 1, ...node.children);
+            for (const childId of group.children) {
+              const child = state.doc.nodes[childId];
+              const local = nextLocals.get(childId);
+              if (child && local) child.transform = local;
+            }
+            list.splice(idx, 1, ...group.children);
             delete state.doc.nodes[id];
-            state.selection = [...node.children];
+            state.selection = [...group.children];
           }),
-        ),
+        );
+      },
 
       setNodeTransform: (id, t) =>
         set(
@@ -470,13 +558,15 @@ export const useDocumentStore = create<DocumentState>()(
           }),
         ),
 
-      detachSymbol: (instanceId) =>
+      detachSymbol: (instanceId) => {
+        const { doc, selection } = get();
+        const id = instanceId ?? selection[0];
+        if (!id) return;
+        const expanded = expandSymbolInstance(doc, id);
+        if (!expanded) return;
         set(
           produce((state: DocumentState) => {
-            const id = instanceId ?? state.selection[0];
-            if (!id) return;
-            const expanded = expandSymbolInstance(state.doc, id);
-            if (!expanded) return;
+            if (!state.doc.nodes[id] || state.doc.nodes[id]?.type !== "symbolInstance") return;
             const parentId = findParent(state.doc, id);
             delete state.doc.nodes[id];
             Object.assign(state.doc.nodes, expanded.nodes);
@@ -494,7 +584,8 @@ export const useDocumentStore = create<DocumentState>()(
             }
             state.selection = [...expanded.roots];
           }),
-        ),
+        );
+      },
 
       deleteSymbol: (symbolId) => {
         const instances = Object.values(get().doc.nodes)

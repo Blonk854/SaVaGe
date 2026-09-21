@@ -15,6 +15,11 @@ either contract require a focused regression test and compatibility review.
   requiring that inverse must reject the edit without moving or deleting content.
 - The decomposed version-1 storage shape remains unchanged for now. Reparenting that cannot
   be represented losslessly by it must not silently discard shear.
+- Group, ungroup, copy, and symbol detach bake `parentWorld * local` through `matrixToTransform`.
+  Ungrouping a rotated or scaled group keeps child world points. Copy writes the selected node's
+  world matrix onto the clipboard root so paste does not drop ancestor transforms. Detach bakes
+  the instance world onto symbol roots and leaves nested locals unchanged. If decomposition
+  cannot reconstruct the matrix, the edit is refused.
 
 The independent transform test uses hand-calculated coordinates, rather than another
 production transform implementation, to pin multiplication order and skew behavior.
@@ -88,7 +93,10 @@ repeat-save fingerprint forwarding, and save-conflict Reload / Save As / Overwri
   memory with an actionable message; Open never writes the source. A newer writer that cannot
   produce schema 1 must require Save As to a new path and leave the original copy.
 - SVG is a bounded interchange format. Unsupported markup is dropped on import rather than
-  executed or silently claimed as a round trip. The published matrix is
+  executed or silently claimed as a round trip. Import rejects DOCTYPE/entity declarations,
+  stylesheets, over-limit source/nodes/depth/path points, remote `url()` / `javascript:` paint,
+  and `<image>` rasters. Scene nodes receive new internal IDs. Export escapes attribute and
+  text fields and writes only bounded `data:image/*;base64` image hrefs. The published matrix is
   [m8-compatibility.md](m8-compatibility.md).
 
 ## Diagnostic Log Contract

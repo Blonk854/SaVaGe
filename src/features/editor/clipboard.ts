@@ -4,6 +4,7 @@ import { documentToSvgString } from "../../shared/document/serialize";
 import { svgStringToDocument } from "../../shared/document/deserialize";
 import { createEmptyDocument } from "../../shared/document/emptyDocument";
 import type { SceneNode, SvgDocument } from "../../shared/document/types";
+import { matrixToTransform, nodeWorldMatrix } from "../../shared/geometry/transform";
 import { useDocumentStore } from "../../shared/stores/documentStore";
 import { useUiStore } from "../../shared/stores/uiStore";
 
@@ -26,6 +27,9 @@ function selectionAsDocument(): SvgDocument | null {
 
   for (const id of selection) {
     visit(id);
+    const world = nodeWorldMatrix(doc, id);
+    const baked = world ? matrixToTransform(world) : null;
+    if (baked && out.nodes[id]) out.nodes[id].transform = baked;
     out.rootChildIds.push(id);
   }
 

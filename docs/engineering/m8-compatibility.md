@@ -36,8 +36,11 @@ understands schema 1 / recovery format 1.
 | Solid, linear, radial, mesh paint | Lossless | Lossless | Mesh is SVG 2; browsers may skip it |
 | Text | Bounded | Bounded | Bundled DM Sans / Syne outlines |
 | clipPath / symbol / use | Not imported as scene | Native clips/symbols export | Re-open SVG will not rebuild symbols |
-| `<image>` rasters | Dropped | Native image nodes export | Convert rasters instead |
+| `<image>` rasters | Dropped | Bounded `data:image` only | Convert rasters instead. Remote hrefs are omitted. |
 | script, foreignObject, SMIL, iframe | Dropped | Not written | Hostile markup is not round-tripped |
+| Event handlers, remote url()/javascript: paint | Dropped | Not written | Local hex/rgb/hsl/keywords only |
+| DOCTYPE / ENTITY / xml-stylesheet | Reject | Not written | No entity expansion or external sheets |
+| `<image>` href on export | Dropped on import | Bounded data: only | Remote or `javascript:` hrefs are omitted |
 
 Do not claim exact SVG round trips for every file. Native project save/reopen is the
 fidelity path.

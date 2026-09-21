@@ -87,13 +87,13 @@ export const SVG_SUPPORT: FormatCompatibilityRow[] = [
     format: "embedded raster <image>",
     reader: "unsupported",
     writer: "lossless",
-    notes: "Import drops image elements. Convert rasters instead.",
+    notes: "Import drops image elements. Export writes only bounded data:image hrefs.",
   },
   {
     format: "script, foreignObject, animation, remote fetch",
     reader: "unsupported",
     writer: "unsupported",
-    notes: "Rejected at ingest. Not serialized back out.",
+    notes: "Rejected at ingest. Remote url()/javascript: paint and DOCTYPE/entity/stylesheet sources are refused. Not serialized back out.",
   },
 ];
 

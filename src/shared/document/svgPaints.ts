@@ -34,6 +34,19 @@ export function parseUrlRef(raw: string): string | null {
   return m ? m[1] : null;
 }
 
+/** Local paint only: hex, rgb/hsl, or a short color keyword. No remote url() or javascript:. */
+export function isSafePaintColor(raw: string): boolean {
+  const value = raw.trim();
+  if (!value) return false;
+  if (/url\s*\(/i.test(value) || /javascript:/i.test(value) || /data:/i.test(value)) {
+    return false;
+  }
+  if (value === "none" || value === "transparent" || value === "currentColor") return true;
+  if (/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value)) return true;
+  if (/^(rgb|rgba|hsl|hsla)\(/i.test(value)) return true;
+  return /^[a-z]{1,24}$/i.test(value);
+}
+
 function leftoverColor(raw: string): string | null {
   const rest = raw.replace(/url\(\s*['"]?#[^'")\s]+['"]?\s*\)/i, "").trim();
   if (!rest || rest === "none") return null;
@@ -53,7 +66,8 @@ function parseCoord(raw: string | null, fallback: number): number {
 
 function parseStop(el: Element): GradientStop {
   const offset = parseCoord(el.getAttribute("offset"), 0);
-  const color = el.getAttribute("stop-color") || attrOrStyle(el, "stop-color") || "#000000";
+  const rawColor = el.getAttribute("stop-color") || attrOrStyle(el, "stop-color") || "#000000";
+  const color = isSafePaintColor(rawColor) ? rawColor.trim() : "#000000";
   const opacityRaw = el.getAttribute("stop-opacity") ?? attrOrStyle(el, "stop-opacity");
   const opacity = opacityRaw != null ? Number(opacityRaw) : 1;
   return {
@@ -68,8 +82,8 @@ function gradientHref(el: Element): string | null {
     el.getAttribute("href") ||
     el.getAttribute("xlink:href") ||
     el.getAttributeNS("http://www.w3.org/1999/xlink", "href");
-  if (!href) return null;
-  return href.startsWith("#") ? href.slice(1) : href;
+  if (!href || !href.startsWith("#")) return null;
+  return href.slice(1);
 }
 
 function unitsOf(el: Element): GradientUnits {
@@ -256,9 +270,12 @@ export function resolvePaint(
     const server = servers.get(urlId);
     if (server) return mapToLocal(server, el);
     const fallback = leftoverColor(raw);
-    if (fallback) return solidFill(fallback, Number.isFinite(opacity) ? opacity : 1);
+    if (fallback && isSafePaintColor(fallback)) {
+      return solidFill(fallback, Number.isFinite(opacity) ? opacity : 1);
+    }
     return { type: "none" };
   }
+  if (!isSafePaintColor(raw)) return { type: "none" };
   return solidFill(raw, Number.isFinite(opacity) ? opacity : 1);
 }
 
@@ -289,6 +306,7 @@ export const SKIP_TAGS = new Set([
   "canvas",
   "handler",
   "listener",
+  "link",
   "use",
   "image",
 ]);

@@ -6,6 +6,7 @@ import {
   solidFill,
   type RectNode,
 } from "../document/types";
+import { applyMat, nodeWorldMatrix } from "../geometry/transform";
 import { useDocumentStore } from "./documentStore";
 import {
   projectContents,
@@ -139,6 +140,45 @@ describe("document history boundaries", () => {
     expect(useDocumentStore.temporal.getState().pastStates).toHaveLength(2);
     useDocumentStore.temporal.getState().undo();
     expect(useDocumentStore.getState().doc.nodes.old.name).toBe("old");
+  });
+});
+
+describe("groupSelection and ungroup", () => {
+  beforeEach(() => {
+    useDocumentStore.temporal.getState().clear();
+    const doc = createEmptyDocument();
+    useDocumentStore.setState({ doc, selection: [] });
+    useDocumentStore.getState().addNode(rect("a", 10));
+    useDocumentStore.getState().addNode(rect("b", 30));
+  });
+
+  it("keeps world points stable when ungrouping a rotated group", () => {
+    useDocumentStore.getState().setSelection(["a", "b"]);
+    useDocumentStore.getState().groupSelection();
+    const groupId = useDocumentStore.getState().selection[0];
+    const before = {
+      a: applyMat(nodeWorldMatrix(useDocumentStore.getState().doc, "a")!, 0, 0),
+      b: applyMat(nodeWorldMatrix(useDocumentStore.getState().doc, "b")!, 1, 0),
+    };
+    useDocumentStore.getState().setNodeTransform(groupId, {
+      ...useDocumentStore.getState().doc.nodes[groupId].transform,
+      rotation: 90,
+    });
+    const rotated = {
+      a: applyMat(nodeWorldMatrix(useDocumentStore.getState().doc, "a")!, 0, 0),
+      b: applyMat(nodeWorldMatrix(useDocumentStore.getState().doc, "b")!, 1, 0),
+    };
+    expect(rotated.a.x).not.toBeCloseTo(before.a.x);
+    useDocumentStore.getState().ungroup(groupId);
+    expect(useDocumentStore.getState().doc.nodes[groupId]).toBeUndefined();
+    const after = {
+      a: applyMat(nodeWorldMatrix(useDocumentStore.getState().doc, "a")!, 0, 0),
+      b: applyMat(nodeWorldMatrix(useDocumentStore.getState().doc, "b")!, 1, 0),
+    };
+    expect(after.a.x).toBeCloseTo(rotated.a.x);
+    expect(after.a.y).toBeCloseTo(rotated.a.y);
+    expect(after.b.x).toBeCloseTo(rotated.b.x);
+    expect(after.b.y).toBeCloseTo(rotated.b.y);
   });
 });
 

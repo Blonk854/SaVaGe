@@ -218,6 +218,76 @@ Extend current modules and libraries where practical. Add a helper or service on
 | M3  | Session, undo, and safe file lifecycle                | M0, M1                             | Snapshot-correct Save/Open/Close and real Windows write tests         |
 | M4  | Recovery and file compatibility                       | M2, M3                             | Recovery fault tests and reader/writer matrix                         |
 | M5  | Native job lifecycle and complete boundary hardening  | M0, M1; M3 session contract        | Bounded work, honest cancellation, native authorization and CSP tests |
+
+## 6. Remaining work checklist
+
+This is the practical remaining-work list for the current repo state, based on the evidence reviewed in [savage_upgrade.md](savage_upgrade.md) and on the fresh verification runs for the frontend and Rust checks.
+
+### 6.1 Geometry and correctness
+- Finish the single transform contract for rendering, bounds, hit testing, selection handles, snapping, flattening, clipboard, grouping, and SVG export/import.
+- Nested group/ungroup/copy now bake world matrices through `matrixToTransform` so rotated/scaled groups keep appearance. Symbol detach bakes instance world onto symbol roots and keeps nested locals. SVG import/export fidelity of symbol/use remains unsupported on the SVG interchange path.
+- Correct boolean operand selection so unsupported or non-participating shapes are not deleted. **Done:** mixed selections keep non-participants (`booleanOps.test.ts`).
+- Add geometry conformance coverage for mixed transforms, negative scale, rotation, translation, and multilevel groups.
+- Evidence: [src/shared/stores/documentStore.ts](src/shared/stores/documentStore.ts), [src/shared/geometry/flatten.ts](src/shared/geometry/flatten.ts#L71-L78), [src/features/tools/booleanOps.ts](src/features/tools/booleanOps.ts#L1-L46)
+
+### 6.2 Validation and safety
+- Strengthen `.savage` validation to check required fields, finite geometry, paint values, ID uniqueness, ownership, reference integrity, depth, and resource limits before data enters the document store. **Done for Open:** finite transforms/geometry/paint, unique ownership, clip/symbol references, depth, and path-point limits.
+- Harden SVG import and SVG serialization so loaded/exported files remain safe and faithful within the supported subset. **Done:** bounded ingest, internal IDs, local-only paint, escaped export, data-only image hrefs.
+- Add adversarial tests for malformed JSON, deep nesting, duplicate IDs, oversized inputs, and non-finite numbers.
+- Evidence: [src/shared/document/parseSavage.ts](src/shared/document/parseSavage.ts), [src/shared/document/deserialize.ts](src/shared/document/deserialize.ts), [src/shared/document/serialize.ts](src/shared/document/serialize.ts)
+
+### 6.3 Native job and resource boundaries
+- Add preflight resource checks for raster decode, conversion, and PNG export, including dimension, pixel-count, memory, and output-size limits.
+- Confirm cancellation is truthful and bounded for heavy work, including conversion and export tasks.
+- Keep job/session/source-revision identity explicit so stale results cannot replace newer work.
+- Evidence: [src-tauri/src/commands/import.rs](src-tauri/src/commands/import.rs#L15-L90), [src-tauri/src/commands/export.rs](src-tauri/src/commands/export.rs#L200-L290), [src-tauri/src/commands/convert.rs](src-tauri/src/commands/convert.rs)
+
+### 6.4 File lifecycle and user protection
+- Finish the session-state model for project path, display name, revision tracking, modified status, save time, and recovery state.
+- Verify Save, Save As, New, Open, Replace-with-conversion, Close, and app shutdown still present Save/Discard/Cancel decisions for modified documents.
+- Keep recent projects and reopen-last-project behavior available and consistent with the plan.
+- Evidence: [src/features/editor/fileIo.ts](src/features/editor/fileIo.ts), [src/shared/stores/projectSessionStore.ts](src/shared/stores/projectSessionStore.ts), [src/app/layout/TitleBar.tsx](src/app/layout/TitleBar.tsx#L263)
+
+### 6.5 Recovery and persistence
+- Confirm recovery snapshots are sequence-aware and newer-than-original aware.
+- Ensure recovery does not overwrite newer user work or lose the original destination on a failed save.
+- Finish cleanup rules so snapshots are removed only after verified success or explicit discard.
+- Evidence: [src/features/editor/recovery.ts](src/features/editor/recovery.ts), [src-tauri/src/commands/recovery.rs](src-tauri/src/commands/recovery.rs)
+
+### 6.6 CI and quality gates
+- Add coverage reporting to CI and ensure the required quality gateways run on pull requests and protected release branches.
+- Include JavaScript dependency auditing and release-artifact upload for tests, coverage, benchmark, and installer outputs.
+- Make the release pipeline reflect the plan’s acceptance gates rather than only the minimum build/test flow.
+- Evidence: [.github/workflows/check.yml](.github/workflows/check.yml), [.github/workflows/release.yml](.github/workflows/release.yml), [package.json](package.json#L6-L28)
+
+### 6.7 E2E, accessibility, and visual regression
+- Add the critical journey tests called for by the plan: import/convert/save/reopen/export, malformed input handling, recovery, close prompts, and keyboard-only file workflows.
+- Add accessibility checks for menus, list-based panels, focus, and live-region status updates.
+- Add visual regression coverage for the main editor and converter states.
+- Evidence: [savage_upgrade.md](savage_upgrade.md#L674-L794)
+
+### 6.8 Performance and release-readiness baselines
+- Establish benchmark fixtures and repeatable measurement commands for startup, import, render, pan/zoom, hit testing, save, reopen, and export.
+- Record baseline results on a named reference machine and compare them against the plan’s targets.
+- Finish the documented release gates for alpha/beta/1.0 quality.
+- Evidence: [savage_upgrade.md](savage_upgrade.md#L27-L60), [docs/engineering/m0-baseline.md](docs/engineering/m0-baseline.md#L5-L50)
+
+### 6.9 UX and workflow polish
+- Finish the converter workflow: warning states, custom preset tracking, visible progress, compare modes, and open/export actions.
+- Improve the empty editor, controls, contextual help, and command palette as described in the plan.
+- Evidence: [src/features/converter/ConverterView.tsx](src/features/converter/ConverterView.tsx), [src/features/converter/ConvertPreview.tsx](src/features/converter/ConvertPreview.tsx#L35), [src/app/layout/TitleBar.tsx](src/app/layout/TitleBar.tsx), [src/app/layout/AppShell.tsx](src/app/layout/AppShell.tsx)
+
+### 6.10 Deferred expansion work
+- Export presets, batch conversion, comparison tooling, file associations, and plugin maturity remain future work and should stay deferred until the safety and correctness milestones are closed.
+- Evidence: [savage_upgrade.md](savage_upgrade.md#L692-L751)
+
+## 7. Verification summary
+
+Fresh verification was run against the current repo state:
+- Frontend: `npx --yes pnpm@10.17.1 check:frontend` → 206/206 frontend tests passed and the production build succeeded.
+- Rust: `npx --yes pnpm@10.17.1 check:rust` → 25/25 Rust tests passed, formatting and Clippy checks succeeded.
+
+These checks confirm the repo is in a strong state, but they do not prove the full upgrade plan is implemented. The checklist above still represents the remaining work required to satisfy the plan’s acceptance criteria and Definition of Done.
 | M6  | Core usability and visual/accessibility consolidation | M2, M3, M5                         | Verified primary user journey and accessible interface states         |
 | M7  | Measured performance improvements                     | Baseline M0; stable M2-M6 behavior | Before/after profiles and enforced regression budgets                 |
 | M8  | Release qualification and staged rollout              | M1-M7                              | Verified installer, compatibility evidence, rollback rehearsal        |

@@ -1,5 +1,12 @@
 import { nanoid } from "nanoid";
 import { selectionBounds } from "../geometry/bounds";
+import {
+  invertMat,
+  multiply,
+  nodeWorldMatrix,
+  transformForNewParent,
+  transformToMatrix,
+} from "../geometry/transform";
 import type {
   NodeId,
   SceneNode,
@@ -90,9 +97,21 @@ export function expandSymbolInstance(
   const symbol = doc.symbols[inst.symbolId];
   if (!symbol) return null;
 
+  const instanceWorld = nodeWorldMatrix(doc, instanceId);
+  if (!instanceWorld) return null;
+  const instanceLocal = transformToMatrix(inst.transform);
+  const inverseLocal = invertMat(instanceLocal);
+  if (!inverseLocal) return null;
+  const parentWorld = multiply(instanceWorld, inverseLocal);
+
+  const mini: SvgDocument = {
+    ...doc,
+    rootChildIds: symbol.rootChildIds,
+    nodes: symbol.nodes,
+  };
+
   const nodes: Record<NodeId, SceneNode> = {};
   const map = new Map<NodeId, NodeId>();
-
   for (const oldId of Object.keys(symbol.nodes)) {
     map.set(oldId, nanoid(10));
   }
@@ -100,28 +119,26 @@ export function expandSymbolInstance(
   for (const [oldId, src] of Object.entries(symbol.nodes)) {
     const clone = structuredClone(src) as SceneNode;
     clone.id = map.get(oldId)!;
-    // Bake instance transform (translate + scale + rotation simplified)
-    const lx = clone.transform.x;
-    const ly = clone.transform.y;
-    const rad = (inst.transform.rotation * Math.PI) / 180;
-    const sx = lx * inst.transform.scaleX;
-    const sy = ly * inst.transform.scaleY;
-    const rx = sx * Math.cos(rad) - sy * Math.sin(rad);
-    const ry = sx * Math.sin(rad) + sy * Math.cos(rad);
-    clone.transform = {
-      ...clone.transform,
-      x: rx + inst.transform.x,
-      y: ry + inst.transform.y,
-      rotation: clone.transform.rotation + inst.transform.rotation,
-      scaleX: clone.transform.scaleX * inst.transform.scaleX,
-      scaleY: clone.transform.scaleY * inst.transform.scaleY,
-    };
+    if (clone.clipPathId && map.has(clone.clipPathId)) {
+      clone.clipPathId = map.get(clone.clipPathId)!;
+    }
     if (clone.type === "group") {
-      clone.children = clone.children.map((c) => map.get(c) ?? c);
+      clone.children = clone.children.map((child) => map.get(child) ?? child);
     }
     nodes[clone.id] = clone;
   }
 
+  for (const oldRoot of symbol.rootChildIds) {
+    const newId = map.get(oldRoot);
+    const clone = newId ? nodes[newId] : undefined;
+    const symbolWorld = nodeWorldMatrix(mini, oldRoot);
+    if (!newId || !clone || !symbolWorld) return null;
+    const local = transformForNewParent(multiply(instanceWorld, symbolWorld), parentWorld);
+    if (!local) return null;
+    clone.transform = local;
+  }
+
   const roots = symbol.rootChildIds.map((rid) => map.get(rid)!).filter(Boolean);
+  if (roots.length !== symbol.rootChildIds.length) return null;
   return { roots, nodes };
 }

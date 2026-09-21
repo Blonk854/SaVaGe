@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { applyMat, identity, invertMat, transformToMatrix } from "./transform";
+import {
+  applyMat,
+  identity,
+  invertMat,
+  matrixToTransform,
+  transformForNewParent,
+  transformToMatrix,
+} from "./transform";
 import { defaultTransform } from "../document/types";
 import { transformForWorldSize } from "./bounds";
 
@@ -34,6 +41,41 @@ describe("transformToMatrix", () => {
     const point = applyMat(matrix, 1, 2);
     expect(point.x).toBeCloseTo(16);
     expect(point.y).toBeCloseTo(4);
+  });
+});
+
+describe("matrixToTransform", () => {
+  it("round-trips translation, rotation, scale, and skewX", () => {
+    const source = {
+      ...defaultTransform(12, -8),
+      rotation: 35,
+      scaleX: 2,
+      scaleY: 0.5,
+      skewX: 20,
+    };
+    const recovered = matrixToTransform(transformToMatrix(source));
+    expect(recovered).toBeTruthy();
+    const point = applyMat(transformToMatrix(source), 3, 7);
+    expect(applyMat(transformToMatrix(recovered!), 3, 7).x).toBeCloseTo(point.x);
+    expect(applyMat(transformToMatrix(recovered!), 3, 7).y).toBeCloseTo(point.y);
+  });
+
+  it("recovers a parent-relative local for mixed rotation and scale", () => {
+    const parent = transformToMatrix({ ...defaultTransform(), rotation: 90, scaleX: 2, scaleY: 1 });
+    const world = transformToMatrix({ ...defaultTransform(10, 0) });
+    const local = transformForNewParent(world, parent);
+    expect(local).toBeTruthy();
+    const composed = transformToMatrix(local!);
+    const again = {
+      a: parent.a * composed.a + parent.c * composed.b,
+      b: parent.b * composed.a + parent.d * composed.b,
+      c: parent.a * composed.c + parent.c * composed.d,
+      d: parent.b * composed.c + parent.d * composed.d,
+      e: parent.a * composed.e + parent.c * composed.f + parent.e,
+      f: parent.b * composed.e + parent.d * composed.f + parent.f,
+    };
+    expect(applyMat(again, 0, 0).x).toBeCloseTo(applyMat(world, 0, 0).x);
+    expect(applyMat(again, 0, 0).y).toBeCloseTo(applyMat(world, 0, 0).y);
   });
 });
 

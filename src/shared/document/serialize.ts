@@ -29,7 +29,7 @@ class DefsBuilder {
     if (paint.type === "solid") {
       const opacity =
         paint.opacity < 1 ? ` ${attr}-opacity="${paint.opacity}"` : "";
-      return `${attr}="${paint.color}"${opacity}`;
+      return `${attr}="${escapeXml(paint.color)}"${opacity}`;
     }
     if (paint.type === "mesh") {
       const id = `m${this.n++}`;
@@ -41,7 +41,7 @@ class DefsBuilder {
       const stops = paint.stops
         .map(
           (s) =>
-            `<stop offset="${s.offset}" stop-color="${s.color}" stop-opacity="${s.opacity}" />`,
+            `<stop offset="${s.offset}" stop-color="${escapeXml(s.color)}" stop-opacity="${s.opacity}" />`,
         )
         .join("");
       this.grads.push(
@@ -53,7 +53,7 @@ class DefsBuilder {
       const stops = paint.stops
         .map(
           (s) =>
-            `<stop offset="${s.offset}" stop-color="${s.color}" stop-opacity="${s.opacity}" />`,
+            `<stop offset="${s.offset}" stop-color="${escapeXml(s.color)}" stop-opacity="${s.opacity}" />`,
         )
         .join("");
       this.grads.push(
@@ -73,7 +73,7 @@ class DefsBuilder {
     if (shadowOn) {
       const s = effects.shadow;
       parts.push(
-        `<feDropShadow dx="${s.x}" dy="${s.y}" stdDeviation="${s.blur / 2}" flood-color="${s.color}" flood-opacity="${s.opacity}" />`,
+        `<feDropShadow dx="${s.x}" dy="${s.y}" stdDeviation="${s.blur / 2}" flood-color="${escapeXml(s.color)}" flood-opacity="${s.opacity}" />`,
       );
     }
     if (blurOn) {
@@ -111,7 +111,7 @@ class DefsBuilder {
       .map((id) => serializeSymbolNode(symbol.nodes, id, this))
       .join("\n");
     this.symbols.push(
-      `<symbol id="sym-${symbolId}" viewBox="0 0 ${symbol.width} ${symbol.height}">${body}</symbol>`,
+      `<symbol id="sym-${escapeXml(symbolId)}" viewBox="0 0 ${symbol.width} ${symbol.height}">${body}</symbol>`,
     );
   }
 
@@ -177,15 +177,27 @@ function commonAttrs(doc: SvgDocument, node: SceneNode, defs: DefsBuilder): stri
   const display = node.visible ? "" : ` display="none"`;
   const filter = defs.filterAttr(node.effects);
   const clip = defs.clipAttr(doc, node);
-  return ` id="${node.id}" data-name="${escapeXml(node.name)}"${transformAttr(node.transform)}${opacity}${display}${filter}${clip}`;
+  return ` id="${escapeXml(node.id)}" data-name="${escapeXml(node.name)}"${transformAttr(node.transform)}${opacity}${display}${filter}${clip}`;
 }
 
 function escapeXml(s: string): string {
   return s
     .replaceAll("&", "&amp;")
     .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+const MAX_EMBEDDED_IMAGE_CHARS = 2 * 1024 * 1024;
+
+export function safeEmbeddedImageHref(href: string): string | null {
+  const value = href.trim();
+  if (value.length === 0 || value.length > MAX_EMBEDDED_IMAGE_CHARS) return null;
+  if (!/^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=\s]+$/i.test(value)) {
+    return null;
+  }
+  return value;
 }
 
 export function subpathsToD(subpaths: PathSubpath[]): string {
@@ -262,8 +274,11 @@ function serializeNode(doc: SvgDocument, id: string, defs: DefsBuilder): string 
       return serializeLine(doc, node, defs);
     case "text":
       return serializeText(doc, node, defs);
-    case "image":
-      return `<image${commonAttrs(doc, node, defs)} href="${escapeXml(node.href)}" width="${node.width}" height="${node.height}" />`;
+    case "image": {
+      const href = safeEmbeddedImageHref(node.href);
+      if (!href) return "";
+      return `<image${commonAttrs(doc, node, defs)} href="${escapeXml(href)}" width="${node.width}" height="${node.height}" />`;
+    }
     case "symbolInstance":
       return serializeSymbolInstance(doc, node, defs);
   }
@@ -275,7 +290,7 @@ function serializeSymbolInstance(
   defs: DefsBuilder,
 ): string {
   defs.ensureSymbol(doc, node.symbolId);
-  return `<use${commonAttrs(doc, node, defs)} href="#sym-${node.symbolId}" width="${node.width}" height="${node.height}" />`;
+  return `<use${commonAttrs(doc, node, defs)} href="#sym-${escapeXml(node.symbolId)}" width="${node.width}" height="${node.height}" />`;
 }
 
 export function documentToSvgString(doc: SvgDocument, opts?: { activeOnly?: boolean }): string {
@@ -302,7 +317,7 @@ export function documentToSvgString(doc: SvgDocument, opts?: { activeOnly?: bool
   const boardRects = activeBoards
     .map((a) => {
       const fill = a.background ?? "#ffffff";
-      return `<rect data-artboard="${escapeXml(a.name)}" x="${a.x}" y="${a.y}" width="${a.width}" height="${a.height}" fill="${fill}" />`;
+      return `<rect data-artboard="${escapeXml(a.name)}" x="${a.x}" y="${a.y}" width="${a.width}" height="${a.height}" fill="${escapeXml(fill)}" />`;
     })
     .join("\n");
 

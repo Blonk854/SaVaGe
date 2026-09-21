@@ -124,6 +124,29 @@ describe("parseSavageDocument", () => {
     expect(() => parseSavageDocument(JSON.stringify(doc))).toThrow(/recursive symbol/i);
   });
 
+  it("rejects non-finite geometry and paint before the document is committed", () => {
+    const nanWidth = createEmptyDocument();
+    nanWidth.nodes.shape = { ...rect("shape"), width: Number.NaN };
+    nanWidth.rootChildIds = ["shape"];
+    expect(() => parseSavageDocument(JSON.stringify(nanWidth))).toThrow(/finite number/);
+
+    const infinite = createEmptyDocument();
+    infinite.nodes.shape = {
+      ...rect("shape"),
+      transform: { ...defaultTransform(), x: "Infinity" as unknown as number },
+    };
+    infinite.rootChildIds = ["shape"];
+    expect(() => parseSavageDocument(JSON.stringify(infinite))).toThrow(/finite number/);
+
+    const badPaint = createEmptyDocument();
+    badPaint.nodes.shape = {
+      ...rect("shape"),
+      fill: { type: "solid", color: "#fff", opacity: "NaN" as unknown as number },
+    };
+    badPaint.rootChildIds = ["shape"];
+    expect(() => parseSavageDocument(JSON.stringify(badPaint))).toThrow(/finite number/);
+  });
+
   it("validates an in-memory document at the same commit boundary", () => {
     const src = createEmptyDocument(400, 300, "Poster");
     expect(validateSavageDocument(src).name).toBe("Poster");

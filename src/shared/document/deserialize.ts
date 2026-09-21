@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { createEmptyDocument } from "./emptyDocument";
+import { SAVAGE_LIMITS, validateSavageDocument } from "./parseSavage";
 import {
   defaultStroke,
   defaultTransform,
@@ -17,11 +18,51 @@ import {
   type PaintServerMap,
 } from "./svgPaints";
 
+const MAX_TEXT_CHARS = 32 * 1024;
+
+interface IngestBudget {
+  servers: PaintServerMap;
+  nodes: number;
+  pathPoints: number;
+}
+
+function finiteNumber(raw: string | null | undefined, fallback: number): number {
+  if (raw == null || raw === "") return fallback;
+  const n = Number(String(raw).replace(/px$/i, "").trim());
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function rejectHostileSvgSource(svg: string) {
+  if (svg.length > SAVAGE_LIMITS.sourceCharacters) {
+    throw new Error(`SVG exceeds the ${SAVAGE_LIMITS.sourceCharacters}-character limit`);
+  }
+  if (/<!DOCTYPE/i.test(svg) || /<!ENTITY/i.test(svg)) {
+    throw new Error("SVG with a document type or entity declaration is not supported");
+  }
+  if (/<\?xml-stylesheet/i.test(svg)) {
+    throw new Error("SVG stylesheets are not supported");
+  }
+}
+
+function claimNode(budget: IngestBudget) {
+  budget.nodes += 1;
+  if (budget.nodes > SAVAGE_LIMITS.nodes) {
+    throw new Error(`SVG exceeds the ${SAVAGE_LIMITS.nodes}-node limit`);
+  }
+}
+
+function claimPathPoints(budget: IngestBudget, count: number) {
+  budget.pathPoints += count;
+  if (budget.pathPoints > SAVAGE_LIMITS.pathPoints) {
+    throw new Error(`SVG exceeds the ${SAVAGE_LIMITS.pathPoints}-point limit`);
+  }
+}
+
 function parseStroke(el: Element, servers: PaintServerMap): StrokeStyle {
   const stroke = defaultStroke();
   stroke.paint = resolvePaint(el, "stroke", servers);
   const w = el.getAttribute("stroke-width");
-  if (w) stroke.width = Number(w) || 1;
+  if (w) stroke.width = finiteNumber(w, 1);
   const cap = el.getAttribute("stroke-linecap");
   if (cap === "round" || cap === "square" || cap === "butt") stroke.lineCap = cap;
   const join = el.getAttribute("stroke-linejoin");
@@ -40,28 +81,29 @@ function parseTransform(el: Element) {
   const t = defaultTransform();
   const raw = el.getAttribute("transform");
   if (!raw) return t;
-  const translate = /translate\(\s*([-\d.]+)[\s,]+([-\d.]+)\s*\)/.exec(raw);
+  const translate = /translate\(\s*([-\d.eE+]+)[\s,]+([-\d.eE+]+)\s*\)/.exec(raw);
   if (translate) {
-    t.x = Number(translate[1]);
-    t.y = Number(translate[2]);
+    t.x = finiteNumber(translate[1], 0);
+    t.y = finiteNumber(translate[2], 0);
   }
-  const rotate = /rotate\(\s*([-\d.]+)/.exec(raw);
-  if (rotate) t.rotation = Number(rotate[1]);
-  const scale = /scale\(\s*([-\d.]+)(?:[\s,]+([-\d.]+))?\s*\)/.exec(raw);
+  const rotate = /rotate\(\s*([-\d.eE+]+)/.exec(raw);
+  if (rotate) t.rotation = finiteNumber(rotate[1], 0);
+  const scale = /scale\(\s*([-\d.eE+]+)(?:[\s,]+([-\d.eE+]+))?\s*\)/.exec(raw);
   if (scale) {
-    t.scaleX = Number(scale[1]);
-    t.scaleY = scale[2] !== undefined ? Number(scale[2]) : t.scaleX;
+    t.scaleX = finiteNumber(scale[1], 1);
+    t.scaleY = scale[2] !== undefined ? finiteNumber(scale[2], t.scaleX) : t.scaleX;
   }
   return t;
 }
 
-function baseFromEl(el: Element, name: string, id?: string) {
+function baseFromEl(el: Element, name: string) {
+  const opacity = finiteNumber(el.getAttribute("opacity"), 1);
   return {
-    id: id ?? nanoid(10),
-    name: el.getAttribute("data-name") || name,
+    id: nanoid(10),
+    name: el.getAttribute("data-name") || el.getAttribute("id") || name,
     visible: el.getAttribute("display") !== "none",
     locked: false,
-    opacity: Number(el.getAttribute("opacity") ?? "1") || 1,
+    opacity,
     blendMode: "normal" as const,
     transform: parseTransform(el),
   };
@@ -335,13 +377,17 @@ function ingestElement(
   el: Element,
   doc: SvgDocument,
   parentChildren: NodeId[],
-  servers: PaintServerMap,
+  budget: IngestBudget,
+  depth: number,
 ): void {
+  if (depth > SAVAGE_LIMITS.graphDepth) {
+    throw new Error(`SVG exceeds the ${SAVAGE_LIMITS.graphDepth}-level depth limit`);
+  }
   const tag = (el.localName || el.tagName).toLowerCase();
   if (SKIP_TAGS.has(tag) || el.hasAttribute("data-artboard")) return;
   if (tag === "svg") {
     for (const child of Array.from(el.children)) {
-      ingestElement(child, doc, parentChildren, servers);
+      ingestElement(child, doc, parentChildren, budget, depth + 1);
     }
     return;
   }
@@ -349,83 +395,80 @@ function ingestElement(
   let node: SceneNode | null = null;
 
   if (tag === "g") {
-    const id = el.getAttribute("id") || nanoid(10);
     const children: NodeId[] = [];
     node = {
-      ...baseFromEl(el, "Group", id),
+      ...baseFromEl(el, "Group"),
       type: "group",
       children,
     };
-    doc.nodes[id] = node;
-    parentChildren.push(id);
+    claimNode(budget);
+    doc.nodes[node.id] = node;
+    parentChildren.push(node.id);
     for (const child of Array.from(el.children)) {
-      ingestElement(child, doc, children, servers);
+      ingestElement(child, doc, children, budget, depth + 1);
     }
     return;
   }
 
   if (tag === "path") {
-    const id = el.getAttribute("id") || nanoid(10);
+    const subpaths = parsePathD(el.getAttribute("d") || "");
+    claimPathPoints(budget, subpaths.reduce((sum, subpath) => sum + subpath.points.length, 0));
     node = {
-      ...baseFromEl(el, "Path", id),
+      ...baseFromEl(el, "Path"),
       type: "path",
-      subpaths: parsePathD(el.getAttribute("d") || ""),
-      fill: resolvePaint(el, "fill", servers),
-      stroke: parseStroke(el, servers),
+      subpaths,
+      fill: resolvePaint(el, "fill", budget.servers),
+      stroke: parseStroke(el, budget.servers),
       fillRule: el.getAttribute("fill-rule") === "evenodd" ? "evenodd" : "nonzero",
     };
   } else if (tag === "rect") {
-    const id = el.getAttribute("id") || nanoid(10);
-    const x = Number(el.getAttribute("x") ?? 0);
-    const y = Number(el.getAttribute("y") ?? 0);
+    const x = finiteNumber(el.getAttribute("x"), 0);
+    const y = finiteNumber(el.getAttribute("y"), 0);
     const t = parseTransform(el);
     t.x += x;
     t.y += y;
     node = {
-      ...baseFromEl(el, "Rectangle", id),
+      ...baseFromEl(el, "Rectangle"),
       transform: t,
       type: "rect",
-      width: Number(el.getAttribute("width") ?? 0),
-      height: Number(el.getAttribute("height") ?? 0),
-      rx: Number(el.getAttribute("rx") ?? 0),
-      ry: Number(el.getAttribute("ry") ?? 0),
-      fill: resolvePaint(el, "fill", servers),
-      stroke: parseStroke(el, servers),
+      width: finiteNumber(el.getAttribute("width"), 0),
+      height: finiteNumber(el.getAttribute("height"), 0),
+      rx: finiteNumber(el.getAttribute("rx"), 0),
+      ry: finiteNumber(el.getAttribute("ry"), 0),
+      fill: resolvePaint(el, "fill", budget.servers),
+      stroke: parseStroke(el, budget.servers),
     };
   } else if (tag === "ellipse" || tag === "circle") {
-    const id = el.getAttribute("id") || nanoid(10);
-    const cx = Number(el.getAttribute("cx") ?? 0);
-    const cy = Number(el.getAttribute("cy") ?? 0);
+    const cx = finiteNumber(el.getAttribute("cx"), 0);
+    const cy = finiteNumber(el.getAttribute("cy"), 0);
     const t = parseTransform(el);
     t.x += cx;
     t.y += cy;
-    const r = Number(el.getAttribute("r") ?? 0);
+    const r = finiteNumber(el.getAttribute("r"), 0);
     node = {
-      ...baseFromEl(el, tag === "circle" ? "Circle" : "Ellipse", id),
+      ...baseFromEl(el, tag === "circle" ? "Circle" : "Ellipse"),
       transform: t,
       type: "ellipse",
-      rx: tag === "circle" ? r : Number(el.getAttribute("rx") ?? 0),
-      ry: tag === "circle" ? r : Number(el.getAttribute("ry") ?? 0),
-      fill: resolvePaint(el, "fill", servers),
-      stroke: parseStroke(el, servers),
+      rx: tag === "circle" ? r : finiteNumber(el.getAttribute("rx"), 0),
+      ry: tag === "circle" ? r : finiteNumber(el.getAttribute("ry"), 0),
+      fill: resolvePaint(el, "fill", budget.servers),
+      stroke: parseStroke(el, budget.servers),
     };
   } else if (tag === "line") {
-    const id = el.getAttribute("id") || nanoid(10);
-    const x1 = Number(el.getAttribute("x1") ?? 0);
-    const y1 = Number(el.getAttribute("y1") ?? 0);
+    const x1 = finiteNumber(el.getAttribute("x1"), 0);
+    const y1 = finiteNumber(el.getAttribute("y1"), 0);
     const t = parseTransform(el);
     t.x += x1;
     t.y += y1;
     node = {
-      ...baseFromEl(el, "Line", id),
+      ...baseFromEl(el, "Line"),
       transform: t,
       type: "line",
-      x2: Number(el.getAttribute("x2") ?? 0) - x1,
-      y2: Number(el.getAttribute("y2") ?? 0) - y1,
-      stroke: parseStroke(el, servers),
+      x2: finiteNumber(el.getAttribute("x2"), 0) - x1,
+      y2: finiteNumber(el.getAttribute("y2"), 0) - y1,
+      stroke: parseStroke(el, budget.servers),
     };
   } else if (tag === "polygon" || tag === "polyline") {
-    const id = el.getAttribute("id") || nanoid(10);
     const pts = (el.getAttribute("points") || "")
       .trim()
       .split(/[\s,]+/)
@@ -435,50 +478,58 @@ function ingestElement(
     for (let i = 0; i + 1 < pts.length; i += 2) {
       points.push({ id: nanoid(8), x: pts[i], y: pts[i + 1], type: "corner" });
     }
+    claimPathPoints(budget, points.length);
     node = {
-      ...baseFromEl(el, tag === "polygon" ? "Polygon" : "Polyline", id),
+      ...baseFromEl(el, tag === "polygon" ? "Polygon" : "Polyline"),
       type: "path",
       subpaths: [{ closed: tag === "polygon", points }],
-      fill: resolvePaint(el, "fill", servers),
-      stroke: parseStroke(el, servers),
+      fill: resolvePaint(el, "fill", budget.servers),
+      stroke: parseStroke(el, budget.servers),
       fillRule: "nonzero",
     };
   } else if (tag === "text") {
-    const id = el.getAttribute("id") || nanoid(10);
+    const content = el.textContent || "";
+    if (content.length > MAX_TEXT_CHARS) {
+      throw new Error(`SVG text exceeds the ${MAX_TEXT_CHARS}-character limit`);
+    }
     node = {
-      ...baseFromEl(el, "Text", id),
+      ...baseFromEl(el, "Text"),
       type: "text",
-      content: el.textContent || "",
+      content,
       fontFamily: el.getAttribute("font-family") || "DM Sans Variable",
-      fontSize: Number(el.getAttribute("font-size") ?? 24),
-      fontWeight: Number(el.getAttribute("font-weight") ?? 400),
-      letterSpacing: Number(el.getAttribute("letter-spacing") ?? 0),
+      fontSize: finiteNumber(el.getAttribute("font-size"), 24),
+      fontWeight: finiteNumber(el.getAttribute("font-weight"), 400),
+      letterSpacing: finiteNumber(el.getAttribute("letter-spacing"), 0),
       lineHeight: 1.2,
-      fill: resolvePaint(el, "fill", servers),
-      stroke: parseStroke(el, servers),
+      fill: resolvePaint(el, "fill", budget.servers),
+      stroke: parseStroke(el, budget.servers),
     };
   }
 
   if (node) {
+    claimNode(budget);
     doc.nodes[node.id] = node;
     parentChildren.push(node.id);
-  } else {
-    for (const child of Array.from(el.children)) {
-      ingestElement(child, doc, parentChildren, servers);
-    }
+    return;
+  }
+
+  for (const child of Array.from(el.children)) {
+    ingestElement(child, doc, parentChildren, budget, depth + 1);
   }
 }
 
 export function svgStringToDocument(svg: string, name = "Converted"): SvgDocument {
+  rejectHostileSvgSource(svg);
   const parser = new DOMParser();
   const xml = parser.parseFromString(svg, "image/svg+xml");
   const root = xml.documentElement;
-  if (!root || root.tagName.toLowerCase() === "parsererror") {
+  const local = (root?.localName || root?.tagName || "").toLowerCase();
+  if (!root || local === "parsererror" || local !== "svg" || xml.querySelector("parsererror")) {
     throw new Error("Invalid SVG");
   }
 
-  const width = Number(root.getAttribute("width")?.replace("px", "")) || 0;
-  const height = Number(root.getAttribute("height")?.replace("px", "")) || 0;
+  const width = finiteNumber(root.getAttribute("width"), 0);
+  const height = finiteNumber(root.getAttribute("height"), 0);
   const vb = (root.getAttribute("viewBox") || "").split(/[\s,]+/).map(Number);
   const viewBox =
     vb.length === 4 && vb.every(Number.isFinite)
@@ -493,7 +544,11 @@ export function svgStringToDocument(svg: string, name = "Converted"): SvgDocumen
     doc.artboards[0].width = viewBox.w;
     doc.artboards[0].height = viewBox.h;
   }
-  const servers = collectPaintServers(root);
-  ingestElement(root, doc, doc.rootChildIds, servers);
-  return doc;
+  const budget: IngestBudget = {
+    servers: collectPaintServers(root),
+    nodes: 0,
+    pathPoints: 0,
+  };
+  ingestElement(root, doc, doc.rootChildIds, budget, 1);
+  return validateSavageDocument(doc);
 }

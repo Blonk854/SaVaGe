@@ -140,6 +140,79 @@ export function invertMat(m: Mat2D): Mat2D | null {
   };
 }
 
+function matricesClose(left: Mat2D, right: Mat2D, epsilon = 1e-6): boolean {
+  return (
+    Math.abs(left.a - right.a) <= epsilon &&
+    Math.abs(left.b - right.b) <= epsilon &&
+    Math.abs(left.c - right.c) <= epsilon &&
+    Math.abs(left.d - right.d) <= epsilon &&
+    Math.abs(left.e - right.e) <= epsilon &&
+    Math.abs(left.f - right.f) <= epsilon
+  );
+}
+
+/**
+ * Recover the version-1 decomposed fields from a matrix. The linear part is
+ * written as rotate * scale * skewX (skewY is folded into those terms).
+ * Returns null when reconstruction would silently drop shear or scale.
+ */
+export function matrixToTransform(m: Mat2D): Transform2D | null {
+  const col1 = Math.hypot(m.a, m.b);
+  let cos: number;
+  let sin: number;
+  let scaleX: number;
+  let scaleY: number;
+  let skewX: number;
+
+  if (col1 >= 1e-12) {
+    cos = m.a / col1;
+    sin = m.b / col1;
+    scaleX = col1;
+    const u12 = cos * m.c + sin * m.d;
+    const u22 = -sin * m.c + cos * m.d;
+    scaleY = u22;
+    skewX = (Math.atan(u12 / scaleX) * 180) / Math.PI;
+  } else {
+    const col2 = Math.hypot(m.c, m.d);
+    if (col2 < 1e-12) {
+      const zero: Transform2D = {
+        x: m.e,
+        y: m.f,
+        rotation: 0,
+        scaleX: 0,
+        scaleY: 0,
+        skewX: 0,
+        skewY: 0,
+      };
+      return matricesClose(transformToMatrix(zero), m) ? zero : null;
+    }
+    // First column vanished: rotation comes from the second axis.
+    cos = m.d / col2;
+    sin = -m.c / col2;
+    scaleX = 0;
+    scaleY = col2;
+    skewX = 0;
+  }
+
+  const next: Transform2D = {
+    x: m.e,
+    y: m.f,
+    rotation: (Math.atan2(sin, cos) * 180) / Math.PI,
+    scaleX,
+    scaleY,
+    skewX,
+    skewY: 0,
+  };
+  return matricesClose(transformToMatrix(next), m) ? next : null;
+}
+
+/** Local Transform2D so `parentWorld * local` equals `world`. */
+export function transformForNewParent(world: Mat2D, parentWorld: Mat2D): Transform2D | null {
+  const inverse = invertMat(parentWorld);
+  if (!inverse) return null;
+  return matrixToTransform(multiply(inverse, world));
+}
+
 export function screenToWorld(
   sx: number,
   sy: number,
