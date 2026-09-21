@@ -93,6 +93,12 @@ describe("release workflow pinning", () => {
     expect(release).toMatch(/pnpm install --frozen-lockfile/);
     expect(release).toMatch(/cargo fetch --locked --manifest-path src-tauri\/Cargo\.toml/);
     expect(check).toMatch(/pull_request/);
+    expect(check).toMatch(/cron:\s*"17 8 \* \* 1"/);
+    expect(check).toMatch(/pnpm audit:frontend/);
+    expect(release).toMatch(/pnpm audit:frontend/);
+    expect(read("scripts/release-package.ps1")).toMatch(/audit:frontend/);
+    expect(read("package.json")).toMatch(/"audit:frontend": "pnpm audit --prod"/);
+    expect(`${release}\n${check}`).not.toMatch(/coverageThreshold|thresholds:\s*\{/);
     expect(check).toMatch(/permissions:\s*\n\s*contents:\s*read/);
     expect(`${release}\n${check}`).not.toMatch(
       /WINDOWS_CERTIFICATE|TAURI_SIGNING|certificateThumbprint/,

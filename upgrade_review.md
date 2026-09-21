@@ -255,8 +255,8 @@ This is the practical remaining-work list for the current repo state, based on t
 - Evidence: [src/features/editor/recovery.ts](src/features/editor/recovery.ts), [src-tauri/src/commands/recovery.rs](src-tauri/src/commands/recovery.rs)
 
 ### 6.6 CI and quality gates
-- Add coverage reporting to CI and ensure the required quality gateways run on pull requests and protected release branches.
-- Include JavaScript dependency auditing and release-artifact upload for tests, coverage, benchmark, and installer outputs.
+- Add coverage reporting to CI and ensure the required quality gateways run on pull requests and protected release branches. Coverage upload remains optional and must not use a repository-wide percentage gate.
+- Include JavaScript dependency auditing and release-artifact upload for tests, coverage, benchmark, and installer outputs. **Done for JS audit:** `pnpm audit:frontend` (`pnpm audit --prod`) on pull requests, `main`/`master`, weekly schedule, tagged NSIS, and local `release:package`. No owned CVE exceptions.
 - Make the release pipeline reflect the plan’s acceptance gates rather than only the minimum build/test flow.
 - Evidence: [.github/workflows/check.yml](.github/workflows/check.yml), [.github/workflows/release.yml](.github/workflows/release.yml), [package.json](package.json#L6-L28)
 

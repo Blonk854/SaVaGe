@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main, master]
+  schedule:
+    - cron: "17 8 * * 1"
 
 permissions:
   contents: read
@@ -36,6 +38,9 @@ jobs:
 
       - name: Install JavaScript dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Production JavaScript audit
+        run: pnpm audit:frontend
 
       - name: Check version consistency
         run: node scripts/release-manifest.mjs check

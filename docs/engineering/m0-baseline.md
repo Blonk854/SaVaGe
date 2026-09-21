@@ -25,7 +25,7 @@ non-admin fallback when pnpm is not installed globally.
 | Rust tests | 11 tests passed |
 | Rust formatting | Passed after applying rustfmt to existing differences |
 | Clippy with `-D warnings` | Passed after one existing warning fix |
-| Production JavaScript audit | No known vulnerabilities |
+| Production JavaScript audit | No known vulnerabilities. CI: `pnpm audit:frontend` on PRs, `main`/`master`, weekly, tagged NSIS, and `release:package`. No owned CVE exceptions. |
 | Rust advisory audit | CI: `rustsec/audit-check` v2.0.0 against `src-tauri/Cargo.lock`. Local: `pnpm audit:rust` when `cargo-audit` is installed. |
 | Tauri debug application build | Passed |
 | NSIS debug package | Passed: `SaVaGe_0.1.0_x64-setup.exe` |
@@ -46,6 +46,12 @@ npx --yes pnpm@10.17.1 tauri build --debug
 	scaling, HC/Narrator, close, recovery) and `v0.1.3` (two-instance Save) on 2026-09-18.
 	Still open: WebView2-missing VM.
 - Local `cargo-audit` is optional; CI runs the pinned `rustsec/audit-check` action.
+- Production JavaScript findings fail `pnpm audit:frontend`. There are no owned ignore-CVE
+	exceptions; a future low/moderate exception needs owner, mitigation, expiry, and re-review
+	before `pnpm.auditConfig.ignoreCves` is used.
+- Frontend coverage reports are optional CI artifacts only. Vitest has no repository-wide
+	percentage threshold; do not add one as a merge gate. Per-risk coverage belongs with the
+	tests for that boundary.
 
 The automation probe found Edge 153.0.4234.32, but neither `tauri-driver` nor a matching
 EdgeDriver is installed. Until a compatible pair is selected and pinned, native coverage is

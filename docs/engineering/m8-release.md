@@ -50,7 +50,7 @@ npx --yes pnpm@10.17.1 release:check
 npx --yes pnpm@10.17.1 release:package
 ```
 
-`scripts/release-package.ps1` runs frozen install, `pnpm check`, `cargo fetch --locked`,
+`scripts/release-package.ps1` runs frozen install, `pnpm audit:frontend`, `pnpm check`, `cargo fetch --locked`,
 `pnpm tauri:build -- --ci --bundles nsis`, then writes checksums next to
 `src-tauri/target/release/bundle/nsis/SaVaGe_<version>_x64-setup.exe`.
 
@@ -61,8 +61,8 @@ must not be used for a distributed artifact.
 
 | Workflow | Trigger | Secrets | Output |
 |---|---|---|---|
-| `.github/workflows/check.yml` | pull requests and `main`/`master` | default `GITHUB_TOKEN` for cargo-audit | version check + `pnpm check` + Rust advisory audit |
-| `.github/workflows/release.yml` | tags `v*.*.*` | GitHub `GITHUB_TOKEN` only | NSIS + checksums + provenance |
+| `.github/workflows/check.yml` | pull requests, `main`/`master`, Monday 08:17 UTC | default `GITHUB_TOKEN` for cargo-audit | version check + `pnpm audit:frontend` + `pnpm check` + Rust advisory audit |
+| `.github/workflows/release.yml` | tags `v*.*.*` | GitHub `GITHUB_TOKEN` only | JS audit + checks + NSIS + checksums + provenance |
 
 Actions are pinned by commit SHA. Third-party actions used here:
 

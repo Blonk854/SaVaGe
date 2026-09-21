@@ -42,6 +42,7 @@ if (-not $AllowUntagged) {
 
 if (-not $SkipChecks) {
   Invoke-Pnpm install --frozen-lockfile
+  Invoke-Pnpm audit:frontend
   Invoke-Pnpm check
   cargo fetch --locked --manifest-path src-tauri/Cargo.toml
   if ($LASTEXITCODE -ne 0) { throw "cargo fetch --locked failed" }
