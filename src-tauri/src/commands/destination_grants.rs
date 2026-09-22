@@ -128,6 +128,14 @@ impl DestinationGrantManager {
         self.resolve(grant_id, DestinationKind::Project, false)
     }
 
+    pub fn resolve_svg(&self, grant_id: &str) -> Result<PathBuf, String> {
+        self.resolve(grant_id, DestinationKind::Svg, false)
+    }
+
+    pub fn resolve_png(&self, grant_id: &str) -> Result<PathBuf, String> {
+        self.resolve(grant_id, DestinationKind::Png, false)
+    }
+
     pub fn consume_svg(&self, grant_id: &str) -> Result<PathBuf, String> {
         self.resolve(grant_id, DestinationKind::Svg, true)
     }
@@ -262,10 +270,22 @@ mod tests {
             .issue(&directory.join("poster.txt"), DestinationKind::Project)
             .is_err());
         assert_eq!(
+            manager.resolve_svg(&svg.grant_id).unwrap(),
+            directory.canonicalize().unwrap().join("poster.svg")
+        );
+        assert_eq!(
+            manager.resolve_svg(&svg.grant_id).unwrap(),
+            directory.canonicalize().unwrap().join("poster.svg")
+        );
+        assert_eq!(
             manager.consume_svg(&svg.grant_id).unwrap(),
             directory.canonicalize().unwrap().join("poster.svg")
         );
         assert!(manager.consume_svg(&svg.grant_id).is_err());
+        assert_eq!(
+            manager.resolve_png(&png.grant_id).unwrap(),
+            directory.canonicalize().unwrap().join("poster.png")
+        );
         assert_eq!(
             manager.consume_png(&png.grant_id).unwrap(),
             directory.canonicalize().unwrap().join("poster.png")

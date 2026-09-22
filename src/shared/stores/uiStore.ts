@@ -44,6 +44,8 @@ interface UiState {
   frameMs: number;
   converting: boolean;
   convertProgressLabel: string;
+  exporting: boolean;
+  exportProgressLabel: string;
   hoverNodeId: string | null;
   dirty: boolean;
   booleanPreview: BooleanPreviewState | null;
@@ -60,6 +62,7 @@ interface UiState {
   setPerspective: (patch: Partial<PerspectiveGrid>) => void;
   setFrameMs: (ms: number) => void;
   setConverting: (v: boolean, label?: string) => void;
+  setExporting: (v: boolean, label?: string) => void;
   setHoverNodeId: (id: string | null) => void;
   setBooleanPreview: (preview: BooleanPreviewState | null) => void;
   setShapeBuilderActive: (v: boolean) => void;
@@ -81,6 +84,8 @@ export const useUiStore = create<UiState>((set) => ({
   frameMs: 0,
   converting: false,
   convertProgressLabel: "",
+  exporting: false,
+  exportProgressLabel: "",
   hoverNodeId: null,
   dirty: true,
   booleanPreview: null,
@@ -123,6 +128,12 @@ export const useUiStore = create<UiState>((set) => ({
       s.converting === converting && s.convertProgressLabel === label
         ? s
         : { converting, convertProgressLabel: label },
+    ),
+  setExporting: (exporting, label = "") =>
+    set((s) =>
+      s.exporting === exporting && s.exportProgressLabel === label
+        ? s
+        : { exporting, exportProgressLabel: label },
     ),
   setHoverNodeId: (hoverNodeId) =>
     set((s) => (s.hoverNodeId === hoverNodeId ? s : { hoverNodeId, dirty: true })),

@@ -1,10 +1,13 @@
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{Options, Tree};
+use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use super::destination_grants::DestinationGrantManager;
@@ -13,6 +16,7 @@ use super::file_identity::{fingerprint, FileFingerprint};
 
 const MAX_TEXT_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
 const MAX_PNG_SVG_BYTES: usize = MAX_TEXT_OUTPUT_BYTES;
+const MAX_PNG_OUTPUT_BYTES: usize = 256 * 1024 * 1024;
 const MAX_PNG_DIMENSION: u32 = 16_384;
 const MAX_PNG_PIXELS: u64 = 40_000_000;
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -196,23 +200,364 @@ fn ensure_png_svg_len(len: usize) -> Result<(), String> {
     }
 }
 
-fn render_png_to_path(path: &Path, svg: &str, scale: Option<f32>) -> Result<(), String> {
-    ensure_png_svg_len(svg.len())?;
-    let scale = png_export_scale(scale);
-    let tree = Tree::from_str(svg, &Options::default()).map_err(|e| format!("Invalid SVG: {e}"))?;
-    let size = tree.size();
-    let (width, height) = planned_png_size(size.width(), size.height(), scale)?;
-    let mut pixmap =
-        Pixmap::new(width, height).ok_or_else(|| "Failed to allocate PNG pixmap".to_string())?;
-    let transform = Transform::from_scale(scale, scale);
-    resvg::render(&tree, transform, &mut pixmap.as_mut());
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportJobRequest {
+    job_id: String,
+    session_id: String,
+    source_revision: u64,
+    destination_grant_id: String,
+    contents: String,
+    #[serde(default)]
+    scale: Option<f32>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportJobResult {
+    job_id: String,
+    session_id: String,
+    source_revision: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ExportJobError {
+    code: &'static str,
+    message: String,
+    job_id: String,
+}
+
+impl ExportJobError {
+    fn new(code: &'static str, message: impl Into<String>, job_id: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+            job_id: job_id.into(),
+        }
     }
-    pixmap
-        .save_png(path)
-        .map_err(|e| format!("Failed to write PNG {}: {e}", path.display()))?;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ExportJobState {
+    Running,
+    CancelRequested,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportJobSnapshot {
+    job_id: String,
+    session_id: String,
+    state: ExportJobState,
+}
+
+#[derive(Clone, Default)]
+struct JobCancellation {
+    requested: Arc<AtomicBool>,
+}
+
+impl JobCancellation {
+    fn request(&self) {
+        self.requested.store(true, Ordering::Release);
+    }
+
+    fn is_requested(&self) -> bool {
+        self.requested.load(Ordering::Acquire)
+    }
+
+    fn checkpoint(&self, stage: &'static str, job_id: &str) -> Result<(), ExportJobError> {
+        if self.is_requested() {
+            Err(ExportJobError::new(
+                "cancelled",
+                format!("Export was cancelled before the {stage} stage completed"),
+                job_id,
+            ))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+struct ActiveExportJob {
+    job_id: String,
+    session_id: String,
+    cancel: JobCancellation,
+}
+
+#[derive(Clone, Default)]
+pub struct ExportJobManager {
+    slot: Arc<Mutex<Option<ActiveExportJob>>>,
+}
+
+struct ExportPermit {
+    slot: Arc<Mutex<Option<ActiveExportJob>>>,
+}
+
+impl Drop for ExportPermit {
+    fn drop(&mut self) {
+        if let Ok(mut slot) = self.slot.lock() {
+            *slot = None;
+        }
+    }
+}
+
+impl ExportJobManager {
+    fn try_start(
+        &self,
+        job_id: &str,
+        session_id: &str,
+    ) -> Result<(ExportPermit, JobCancellation), ExportJobError> {
+        let mut slot = self
+            .slot
+            .lock()
+            .map_err(|_| ExportJobError::new("worker_failed", "Export job state failed", job_id))?;
+        if slot.is_some() {
+            return Err(ExportJobError::new(
+                "job_busy",
+                "Another export is already running",
+                job_id,
+            ));
+        }
+        let cancel = JobCancellation::default();
+        *slot = Some(ActiveExportJob {
+            job_id: job_id.into(),
+            session_id: session_id.into(),
+            cancel: cancel.clone(),
+        });
+        Ok((
+            ExportPermit {
+                slot: Arc::clone(&self.slot),
+            },
+            cancel,
+        ))
+    }
+
+    fn request_cancel(&self, job_id: &str) -> Result<ExportJobSnapshot, ExportJobError> {
+        let slot = self
+            .slot
+            .lock()
+            .map_err(|_| ExportJobError::new("worker_failed", "Export job state failed", job_id))?;
+        let Some(job) = slot.as_ref() else {
+            return Err(ExportJobError::new(
+                "job_not_running",
+                "No export is running",
+                job_id,
+            ));
+        };
+        if job.job_id != job_id {
+            return Err(ExportJobError::new(
+                "stale_job",
+                "That export is no longer running",
+                job_id,
+            ));
+        }
+        job.cancel.request();
+        Ok(Self::snapshot_locked(job))
+    }
+
+    #[cfg(test)]
+    fn snapshot(&self, job_id: &str) -> Result<ExportJobSnapshot, ExportJobError> {
+        let slot = self
+            .slot
+            .lock()
+            .map_err(|_| ExportJobError::new("worker_failed", "Export job state failed", job_id))?;
+        let Some(job) = slot.as_ref() else {
+            return Err(ExportJobError::new(
+                "job_not_running",
+                "No export is running",
+                job_id,
+            ));
+        };
+        if job.job_id != job_id {
+            return Err(ExportJobError::new(
+                "stale_job",
+                "That export is no longer running",
+                job_id,
+            ));
+        }
+        Ok(Self::snapshot_locked(job))
+    }
+
+    fn snapshot_locked(job: &ActiveExportJob) -> ExportJobSnapshot {
+        ExportJobSnapshot {
+            job_id: job.job_id.clone(),
+            session_id: job.session_id.clone(),
+            state: if job.cancel.is_requested() {
+                ExportJobState::CancelRequested
+            } else {
+                ExportJobState::Running
+            },
+        }
+    }
+}
+
+fn validate_id(value: &str, label: &str, job_id: &str) -> Result<(), ExportJobError> {
+    if value.is_empty()
+        || value.len() > 64
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+    {
+        return Err(ExportJobError::new(
+            "invalid_input",
+            format!("Invalid {label}"),
+            job_id,
+        ));
+    }
     Ok(())
+}
+
+fn export_stage(code: &str) -> &'static str {
+    match code {
+        "job_busy" => "queue",
+        "invalid_input" | "destination_not_authorized" | "stale_job" | "job_not_running" => {
+            "authorize"
+        }
+        "invalid_svg" => "parse",
+        "export_failed" => "render",
+        "output_too_large" => "output",
+        "worker_failed" => "worker",
+        "cancelled" => "cancel",
+        "ok" => "complete",
+        _ => "unknown",
+    }
+}
+
+fn map_write_error(message: String, job_id: &str) -> ExportJobError {
+    if message.contains("too large") {
+        ExportJobError::new("output_too_large", message, job_id)
+    } else {
+        ExportJobError::new("export_failed", message, job_id)
+    }
+}
+
+fn run_svg_export(
+    path: &Path,
+    contents: &[u8],
+    cancel: &JobCancellation,
+    job_id: &str,
+) -> Result<(), ExportJobError> {
+    cancel.checkpoint("write", job_id)?;
+    write_text_file_atomic(path, contents, MAX_TEXT_OUTPUT_BYTES, None)
+        .map(|_| ())
+        .map_err(|message| map_write_error(message, job_id))
+}
+
+fn render_png_with_cancel(
+    path: &Path,
+    svg: &str,
+    scale: Option<f32>,
+    cancel: &JobCancellation,
+    job_id: &str,
+) -> Result<(), ExportJobError> {
+    cancel.checkpoint("parse", job_id)?;
+    ensure_png_svg_len(svg.len())
+        .map_err(|message| ExportJobError::new("output_too_large", message, job_id))?;
+    let scale = png_export_scale(scale);
+    let tree = Tree::from_str(svg, &Options::default()).map_err(|error| {
+        ExportJobError::new("invalid_svg", format!("Invalid SVG: {error}"), job_id)
+    })?;
+    let size = tree.size();
+    let (width, height) = planned_png_size(size.width(), size.height(), scale)
+        .map_err(|message| ExportJobError::new("export_failed", message, job_id))?;
+    cancel.checkpoint("render", job_id)?;
+    let mut pixmap = Pixmap::new(width, height).ok_or_else(|| {
+        ExportJobError::new("export_failed", "Failed to allocate PNG pixmap", job_id)
+    })?;
+    resvg::render(
+        &tree,
+        Transform::from_scale(scale, scale),
+        &mut pixmap.as_mut(),
+    );
+    cancel.checkpoint("write", job_id)?;
+    let bytes = pixmap.encode_png().map_err(|error| {
+        ExportJobError::new(
+            "export_failed",
+            format!("Failed to encode PNG: {error}"),
+            job_id,
+        )
+    })?;
+    write_text_file_atomic(path, &bytes, MAX_PNG_OUTPUT_BYTES, None)
+        .map(|_| ())
+        .map_err(|message| map_write_error(message, job_id))
+}
+
+#[cfg(test)]
+fn render_png_to_path(path: &Path, svg: &str, scale: Option<f32>) -> Result<(), String> {
+    render_png_with_cancel(path, svg, scale, &JobCancellation::default(), "png")
+        .map_err(|error| error.message)
+}
+
+async fn export_once<F>(
+    manager: State<'_, ExportJobManager>,
+    job_id: String,
+    session_id: String,
+    work: F,
+) -> Result<(), ExportJobError>
+where
+    F: FnOnce(&JobCancellation) -> Result<(), ExportJobError> + Send + 'static,
+{
+    validate_id(&job_id, "job ID", &job_id)?;
+    validate_id(&session_id, "session ID", &job_id)?;
+    let (permit, cancel) = manager.try_start(&job_id, &session_id)?;
+    let worker_job_id = job_id.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _permit = permit;
+        work(&cancel)
+    })
+    .await
+    .map_err(|error| ExportJobError::new("worker_failed", error.to_string(), worker_job_id))?
+}
+
+fn finish_export(
+    log: &DiagnosticLog,
+    started: Instant,
+    job_id: &str,
+    session_id: &str,
+    source_revision: u64,
+    result: Result<(), ExportJobError>,
+) -> Result<ExportJobResult, ExportJobError> {
+    match &result {
+        Ok(_) => log.record(
+            DiagnosticLevel::Info,
+            "ok",
+            "export",
+            "Export succeeded",
+            None,
+            Some(job_id),
+            Some(session_id),
+            Some(export_stage("ok")),
+            Some(started.elapsed().as_millis() as u64),
+        ),
+        Err(error) if error.code == "cancelled" => log.record(
+            DiagnosticLevel::Warn,
+            error.code,
+            "export",
+            &error.message,
+            None,
+            Some(&error.job_id),
+            Some(session_id),
+            Some(export_stage(error.code)),
+            Some(started.elapsed().as_millis() as u64),
+        ),
+        Err(error) => log.record(
+            DiagnosticLevel::Error,
+            error.code,
+            "export",
+            &error.message,
+            None,
+            Some(&error.job_id),
+            Some(session_id),
+            Some(export_stage(error.code)),
+            Some(started.elapsed().as_millis() as u64),
+        ),
+    }
+    result.map(|_| ExportJobResult {
+        job_id: job_id.into(),
+        session_id: session_id.into(),
+        source_revision,
+    })
 }
 
 #[tauri::command]
@@ -253,61 +598,77 @@ pub fn write_project_file(
 }
 
 #[tauri::command]
-pub fn write_svg_export(
-    grants: State<'_, DestinationGrantManager>,
-    log: State<'_, DiagnosticLog>,
-    destination_grant_id: String,
-    contents: String,
-) -> Result<(), String> {
-    let path = grants.consume_svg(&destination_grant_id)?;
-    write_text_file_atomic(&path, contents.as_bytes(), MAX_TEXT_OUTPUT_BYTES, None)
-        .map(|_| ())
-        .inspect_err(|message| {
-            log.record(
-                DiagnosticLevel::Error,
-                "export_failed",
-                "export",
-                message,
-                None,
-                None,
-                None,
-                Some("write"),
-                None,
-            );
-        })
+pub fn cancel_export_job(
+    manager: State<'_, ExportJobManager>,
+    job_id: String,
+) -> Result<ExportJobSnapshot, ExportJobError> {
+    validate_id(&job_id, "job ID", &job_id)?;
+    manager.request_cancel(&job_id)
 }
 
 #[tauri::command]
-pub fn export_png(
+pub async fn write_svg_export(
+    manager: State<'_, ExportJobManager>,
     grants: State<'_, DestinationGrantManager>,
     log: State<'_, DiagnosticLog>,
-    destination_grant_id: String,
-    svg: String,
-    scale: Option<f32>,
-) -> Result<(), String> {
-    let path = grants.consume_png(&destination_grant_id)?;
-    let result = render_png_to_path(&path, &svg, scale);
-    if let Err(message) = &result {
-        log.record(
-            DiagnosticLevel::Error,
-            "export_failed",
-            "export",
-            message,
-            None,
-            None,
-            None,
-            Some("render"),
-            None,
-        );
+    request: ExportJobRequest,
+) -> Result<ExportJobResult, ExportJobError> {
+    let started = Instant::now();
+    let job_id = request.job_id.clone();
+    let session_id = request.session_id.clone();
+    let source_revision = request.source_revision;
+    let grant_id = request.destination_grant_id.clone();
+    let path = grants
+        .resolve_svg(&grant_id)
+        .map_err(|message| ExportJobError::new("destination_not_authorized", message, &job_id))?;
+    let contents = request.contents.into_bytes();
+    let worker_job_id = job_id.clone();
+    let result = export_once(manager, job_id.clone(), session_id.clone(), move |cancel| {
+        cancel.checkpoint("authorize", &worker_job_id)?;
+        run_svg_export(&path, &contents, cancel, &worker_job_id)
+    })
+    .await;
+    if result.is_ok() {
+        let _ = grants.consume_svg(&grant_id);
     }
-    result
+    finish_export(&log, started, &job_id, &session_id, source_revision, result)
+}
+
+#[tauri::command]
+pub async fn export_png(
+    manager: State<'_, ExportJobManager>,
+    grants: State<'_, DestinationGrantManager>,
+    log: State<'_, DiagnosticLog>,
+    request: ExportJobRequest,
+) -> Result<ExportJobResult, ExportJobError> {
+    let started = Instant::now();
+    let job_id = request.job_id.clone();
+    let session_id = request.session_id.clone();
+    let source_revision = request.source_revision;
+    let grant_id = request.destination_grant_id.clone();
+    let path = grants
+        .resolve_png(&grant_id)
+        .map_err(|message| ExportJobError::new("destination_not_authorized", message, &job_id))?;
+    let svg = request.contents;
+    let scale = request.scale;
+    let worker_job_id = job_id.clone();
+    let result = export_once(manager, job_id.clone(), session_id.clone(), move |cancel| {
+        cancel.checkpoint("authorize", &worker_job_id)?;
+        render_png_with_cancel(&path, &svg, scale, cancel, &worker_job_id)
+    })
+    .await;
+    if result.is_ok() {
+        let _ = grants.consume_png(&grant_id);
+    }
+    finish_export(&log, started, &job_id, &session_id, source_revision, result)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
         ensure_png_bounds, ensure_png_svg_len, planned_png_size, render_png_to_path,
-        write_text_file_atomic, MAX_PNG_DIMENSION, MAX_PNG_PIXELS, MAX_PNG_SVG_BYTES,
+        render_png_with_cancel, run_svg_export, write_text_file_atomic, ExportJobManager,
+        ExportJobState, MAX_PNG_DIMENSION, MAX_PNG_PIXELS, MAX_PNG_SVG_BYTES,
     };
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -511,6 +872,70 @@ mod tests {
         )
         .expect("small png");
         assert!(ok.is_file());
+        fs::remove_dir_all(dir).expect("remove fixture directory");
+    }
+
+    #[test]
+    fn permits_only_one_export_until_the_worker_finishes() {
+        let manager = ExportJobManager::default();
+        let (permit, _) = manager
+            .try_start("job_1", "session_1")
+            .expect("first job starts");
+        let error = match manager.try_start("job_2", "session_1") {
+            Ok(_) => panic!("second job should be rejected"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code, "job_busy");
+        drop(permit);
+        assert!(manager.try_start("job_3", "session_1").is_ok());
+    }
+
+    #[test]
+    fn cancel_keeps_the_slot_and_skips_the_write() {
+        let manager = ExportJobManager::default();
+        let (permit, cancel) = manager
+            .try_start("job_1", "session_1")
+            .expect("first job starts");
+        assert_eq!(
+            manager.snapshot("job_1").expect("running").state,
+            ExportJobState::Running
+        );
+        let snapshot = manager.request_cancel("job_1").expect("cancel requested");
+        assert_eq!(snapshot.state, ExportJobState::CancelRequested);
+        assert!(cancel.is_requested());
+        let busy = match manager.try_start("job_2", "session_1") {
+            Ok(_) => panic!("second job should still be rejected"),
+            Err(error) => error,
+        };
+        assert_eq!(busy.code, "job_busy");
+        assert_eq!(
+            manager.request_cancel("job_missing").unwrap_err().code,
+            "stale_job"
+        );
+
+        let dir = unique_dir("savage-export-cancel");
+        let svg_path = dir.join("skip.svg");
+        let png_path = dir.join("skip.png");
+        let svg_error =
+            run_svg_export(&svg_path, b"<svg></svg>", &cancel, "job_1").expect_err("cancelled svg");
+        assert_eq!(svg_error.code, "cancelled");
+        assert!(!svg_path.exists());
+        let png_error = render_png_with_cancel(
+            &png_path,
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#111"/></svg>"##,
+            Some(1.0),
+            &cancel,
+            "job_1",
+        )
+        .expect_err("cancelled png");
+        assert_eq!(png_error.code, "cancelled");
+        assert!(!png_path.exists());
+
+        drop(permit);
+        assert_eq!(
+            manager.request_cancel("job_1").unwrap_err().code,
+            "job_not_running"
+        );
         fs::remove_dir_all(dir).expect("remove fixture directory");
     }
 }

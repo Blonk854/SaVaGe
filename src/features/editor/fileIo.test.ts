@@ -6,7 +6,16 @@ import {
   projectContents,
   useProjectSessionStore,
 } from "../../shared/stores/projectSessionStore";
-import { confirmDocumentReplacement, openConvertedSvg, openFile, saveProject } from "./fileIo";
+import {
+  cancelExportJob,
+  confirmDocumentReplacement,
+  exportPng,
+  exportSvg,
+  openConvertedSvg,
+  openFile,
+  saveProject,
+} from "./fileIo";
+import { useUiStore } from "../../shared/stores/uiStore";
 import { resolveUnsavedChangesPrompt } from "../../shared/ui/unsavedChangesPrompt";
 
 describe("saveProject", () => {
@@ -513,5 +522,52 @@ describe("openConvertedSvg", () => {
     expect(useProjectSessionStore.getState().displayName).toBe("logo_flat");
     expect(useProjectSessionStore.getState().projectDestinationGrantId).toBeNull();
     expect(isProjectModified(useDocumentStore.getState().doc)).toBe(true);
+  });
+});
+
+describe("export jobs", () => {
+  beforeEach(() => {
+    useDocumentStore.getState().loadDocument(createEmptyDocument());
+    useProjectSessionStore.getState().startSession({ displayName: "Export" });
+    useUiStore.getState().setExporting(false);
+  });
+
+  it("requires native results to echo the job, session, and source revision", async () => {
+    await expect(
+      exportSvg(async (command) => {
+        if (command === "pick_svg_destination") {
+          return { path: "C:\\out\\mark.svg", grantId: "grant_svg" };
+        }
+        return { jobId: "other", sessionId: "other", sourceRevision: 0 };
+      }, "job_export"),
+    ).rejects.toThrow("stale or invalid");
+    expect(useUiStore.getState().exporting).toBe(false);
+  });
+
+  it("keeps busy until cancel confirms CancelRequested", async () => {
+    await expect(
+      cancelExportJob("job_1", async () => ({ jobId: "other", state: "cancelRequested" })),
+    ).rejects.toThrow("did not confirm");
+
+    await expect(
+      cancelExportJob("job_1", async (command, args) => {
+        expect(command).toBe("cancel_export_job");
+        expect(args).toEqual({ jobId: "job_1" });
+        expect(useUiStore.getState().exportProgressLabel).toMatch(/Stopping/);
+        return { jobId: "job_1", state: "cancelRequested" };
+      }),
+    ).resolves.toEqual({ jobId: "job_1", state: "cancelRequested" });
+  });
+
+  it("treats a cancelled native export as an honest stop, not a write", async () => {
+    await expect(
+      exportPng(2, async (command) => {
+        if (command === "pick_png_destination") {
+          return { path: "C:\\out\\mark.png", grantId: "grant_png" };
+        }
+        throw { code: "cancelled", message: "Export was cancelled before the write stage completed" };
+      }, "job_png"),
+    ).rejects.toThrow(/current stage finishes/);
+    expect(useUiStore.getState().exporting).toBe(false);
   });
 });

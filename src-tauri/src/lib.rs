@@ -7,7 +7,9 @@ use commands::destination_grants::{
     pick_png_destination, pick_project_destination, pick_svg_destination, DestinationGrantManager,
 };
 use commands::diagnostics::{export_diagnostics, record_diagnostic, DiagnosticLog};
-use commands::export::{export_png, write_project_file, write_svg_export};
+use commands::export::{
+    cancel_export_job, export_png, write_project_file, write_svg_export, ExportJobManager,
+};
 use commands::help::open_user_manual;
 use commands::import::{read_image_preview, read_project_file, read_text_file};
 use commands::lifecycle::exit_application;
@@ -21,6 +23,7 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .manage(ConvertJobManager::default())
+        .manage(ExportJobManager::default())
         .manage(SourceGrantManager::default())
         .manage(DestinationGrantManager::default())
         .manage(DiagnosticLog::default())
@@ -43,6 +46,7 @@ pub fn run() {
             write_project_file,
             write_svg_export,
             export_png,
+            cancel_export_job,
             boolean_op,
             open_user_manual,
             write_recovery,

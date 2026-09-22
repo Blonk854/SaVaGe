@@ -1,7 +1,9 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
+import { nanoid } from "nanoid";
 import { useDocumentStore } from "../../shared/stores/documentStore";
 import { useUiStore } from "../../shared/stores/uiStore";
+import { isCancelledConversion } from "../converter/convertApi";
 import { documentToSvgString } from "../../shared/document/serialize";
 import { svgStringToDocument } from "../../shared/document/deserialize";
 import { parseSavageDocument } from "../../shared/document/parseSavage";
@@ -66,6 +68,8 @@ const defaultDependencies: FileIoDependencies = {
 
 const writeQueues = new Map<string, Promise<unknown>>();
 let replacementConfirmation: Promise<boolean> | null = null;
+let activeExportJobId: string | null = null;
+let nextExportRevision = 1;
 
 export type ReplacementDecisionProvider = () => Promise<ReplacementDecision>;
 
@@ -392,35 +396,139 @@ export async function saveProject(
   }
 }
 
-export async function exportSvg() {
-  const destination = await invoke<unknown>("pick_svg_destination", {
-    defaultFileName: fileNameOnly(
-      `${useDocumentStore.getState().doc.name || "export"}.svg`,
-      "export.svg",
-    ),
-  });
-  if (!destination) return;
-  const granted = parseGrantedDestination(destination);
-  const svg = documentToSvgString(useDocumentStore.getState().doc);
-  await invoke("write_svg_export", {
-    destinationGrantId: granted.grantId,
-    contents: svg,
-  });
+function assertExportResult(
+  value: unknown,
+  jobId: string,
+  sessionId: string,
+  sourceRevision: number,
+) {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    (value as { jobId?: unknown }).jobId !== jobId ||
+    (value as { sessionId?: unknown }).sessionId !== sessionId ||
+    (value as { sourceRevision?: unknown }).sourceRevision !== sourceRevision
+  ) {
+    throw new Error("Native export returned a stale or invalid result");
+  }
 }
 
-export async function exportPng(scale = 2) {
-  const destination = await invoke<unknown>("pick_png_destination", {
+export async function cancelExportJob(
+  jobId: string | null = activeExportJobId,
+  invokeCommand: (
+    command: string,
+    args?: Record<string, unknown>,
+  ) => Promise<unknown> = invoke,
+): Promise<{ jobId: string; state: string }> {
+  if (!jobId) {
+    throw new Error("No export is running");
+  }
+  const wasExporting = useUiStore.getState().exporting;
+  useUiStore.getState().setExporting(true, "Stopping after the current stage…");
+  try {
+    const value = await invokeCommand("cancel_export_job", { jobId });
+    if (
+      !value ||
+      typeof value !== "object" ||
+      (value as { jobId?: unknown }).jobId !== jobId ||
+      (value as { state?: unknown }).state !== "cancelRequested"
+    ) {
+      throw new Error("Native export cancel did not confirm the running job");
+    }
+    return value as { jobId: string; state: string };
+  } catch (error) {
+    if (!wasExporting) useUiStore.getState().setExporting(false);
+    throw error;
+  }
+}
+
+async function runExportJob(
+  command: "write_svg_export" | "export_png",
+  pickCommand: "pick_svg_destination" | "pick_png_destination",
+  extension: "svg" | "png",
+  label: string,
+  invokeCommand: (
+    command: string,
+    args?: Record<string, unknown>,
+  ) => Promise<unknown>,
+  jobId: string,
+  extra: Record<string, unknown> = {},
+): Promise<"exported" | "cancelled"> {
+  if (useUiStore.getState().exporting) {
+    throw new Error("Wait for the current export to finish");
+  }
+  const destination = await invokeCommand(pickCommand, {
     defaultFileName: fileNameOnly(
-      `${useDocumentStore.getState().doc.name || "export"}.png`,
-      "export.png",
+      `${useDocumentStore.getState().doc.name || "export"}.${extension}`,
+      `export.${extension}`,
     ),
   });
-  if (!destination) return;
+  if (!destination) return "cancelled";
   const granted = parseGrantedDestination(destination);
-  const svg = documentToSvgString(useDocumentStore.getState().doc);
-  await invoke("export_png", {
-    destinationGrantId: granted.grantId,
-    svg,
-    scale,
-  });
+  const contents = documentToSvgString(useDocumentStore.getState().doc);
+  const sessionId = useProjectSessionStore.getState().sessionId;
+  const sourceRevision = nextExportRevision++;
+  activeExportJobId = jobId;
+  useUiStore.getState().setExporting(true, label);
+  try {
+    const value = await invokeCommand(command, {
+      request: {
+        jobId,
+        sessionId,
+        sourceRevision,
+        destinationGrantId: granted.grantId,
+        contents,
+        ...extra,
+      },
+    });
+    if (sessionId !== useProjectSessionStore.getState().sessionId) {
+      throw new Error("Export result was discarded because the project changed");
+    }
+    assertExportResult(value, jobId, sessionId, sourceRevision);
+    return "exported";
+  } catch (error) {
+    if (isCancelledConversion(error)) {
+      throw new Error("Export cancelled. The current stage finishes before the job exits.");
+    }
+    throw error;
+  } finally {
+    if (activeExportJobId === jobId) activeExportJobId = null;
+    useUiStore.getState().setExporting(false);
+  }
+}
+
+export async function exportSvg(
+  invokeCommand: (
+    command: string,
+    args?: Record<string, unknown>,
+  ) => Promise<unknown> = invoke,
+  jobId = nanoid(),
+) {
+  return runExportJob(
+    "write_svg_export",
+    "pick_svg_destination",
+    "svg",
+    "Exporting SVG…",
+    invokeCommand,
+    jobId,
+  );
+}
+
+export async function exportPng(
+  scale = 2,
+  invokeCommand: (
+    command: string,
+    args?: Record<string, unknown>,
+  ) => Promise<unknown> = invoke,
+  jobId = nanoid(),
+) {
+  return runExportJob(
+    "export_png",
+    "pick_png_destination",
+    "png",
+    "Exporting PNG…",
+    invokeCommand,
+    jobId,
+    { scale },
+  );
 }

@@ -61,6 +61,7 @@ describe("production CSP and native command boundary", () => {
     expect(lib).toMatch(/write_project_file/);
     expect(lib).toMatch(/write_svg_export/);
     expect(lib).toMatch(/export_png/);
+    expect(lib).toMatch(/cancel_export_job/);
     expect(lib).toMatch(/convert_image_to_svg/);
     expect(lib).not.toMatch(/\bwrite_text_file\b/);
   });

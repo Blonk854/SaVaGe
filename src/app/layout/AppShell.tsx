@@ -181,9 +181,25 @@ export function AppShell() {
         }
         onSave={() => runSave()}
         onSaveAs={() => runSave(true)}
-        onExportSvg={() => void exportSvg()}
+        onExportSvg={() =>
+          void exportSvg()
+            .then((result) => {
+              if (result === "exported") flash("SVG exported", "success");
+            })
+            .catch((e) => {
+              const message = e instanceof Error ? e.message : String(e);
+              flash(message, /cancelled/i.test(message) ? "warn" : "error");
+            })
+        }
         onExportPng={() =>
-          void exportPng().catch((e) => flash(e instanceof Error ? e.message : String(e), "error"))
+          void exportPng()
+            .then((result) => {
+              if (result === "exported") flash("PNG exported", "success");
+            })
+            .catch((e) => {
+              const message = e instanceof Error ? e.message : String(e);
+              flash(message, /cancelled/i.test(message) ? "warn" : "error");
+            })
         }
         onUndo={() => {
           temporal.getState().undo();

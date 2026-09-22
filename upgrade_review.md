@@ -238,7 +238,7 @@ This is the practical remaining-work list for the current repo state, based on t
 
 ### 6.3 Native job and resource boundaries
 - Add preflight resource checks for raster decode, conversion, and PNG export, including dimension, pixel-count, memory, and output-size limits. **Done for convert and PNG export:** 16,384 per side, 40 million pixels, 32 MiB SVG/text output. Live disk-full and removable-media remain manual.
-- Confirm cancellation is truthful and bounded for heavy work, including conversion and export tasks.
+- Confirm cancellation is truthful and bounded for heavy work, including conversion and export tasks. **Done for convert and export:** cooperative checkpoints, exclusive slot, CancelRequested until the worker exits, no destination write after cancel. `vtracer` / `resvg` stages are not interruptible.
 - Keep job/session/source-revision identity explicit so stale results cannot replace newer work.
 - Evidence: [src-tauri/src/commands/import.rs](src-tauri/src/commands/import.rs#L15-L90), [src-tauri/src/commands/export.rs](src-tauri/src/commands/export.rs#L200-L290), [src-tauri/src/commands/convert.rs](src-tauri/src/commands/convert.rs)
 

@@ -475,8 +475,8 @@ Booleans need at least two selected **filled** shapes that can be treated as clo
 | **Open…** | **Ctrl+O**. Opens `.savage` or `.svg` into Edit. Photos and PNG/JPEG/WEBP/GIF/BMP/TIFF switch to Convert and attach the file. A damaged project file shows an error instead of crashing. |
 | **Save** | **Ctrl+S**. Writes the current `.savage` if one is already the save target. The first save on an Unsaved document opens a location dialog. If the file changed on disk since it was opened or last saved, SaVaGe offers **Reload**, **Save As…**, **Overwrite**, or **Cancel**. |
 | **Save As…** | **Ctrl+Shift+S**. Always asks for a location. The current project path changes only after a successful write. Cancel leaves the previous file (or Unsaved) as the save target. |
-| **Export SVG…** | Writes an SVG file. Does not mark the project Saved. |
-| **Export PNG…** | Writes a PNG snapshot at 2× resolution. Does not mark the project Saved. |
+| **Export SVG…** | Writes an SVG file. Does not mark the project Saved. Status-bar **Cancel** requests a stop after the current stage; the job stays busy until it exits and a cancelled export does not write the file. |
+| **Export PNG…** | Writes a PNG snapshot at 2× resolution. Does not mark the project Saved. Cancel is the same cooperative stop as SVG export. |
 
 ### 7.2 Edit
 
@@ -766,6 +766,7 @@ Menu items do not show key badges in the title bar; the shortcuts in this sectio
 | Convert drop does nothing | Drop a PNG, JPEG, WEBP, GIF, BMP, or TIFF — Convert now explains unsupported files |
 | Convert to SVG is disabled | Attach a source first; hover the button for the reason |
 | Cancel stays busy | That is expected: tracing finishes the current stage before the job exits |
+| Export Cancel stays busy | Expected: SVG parse or PNG rasterize finishes the current stage before the job exits; the file is not written |
 | Converted, but still on Convert | Click **Open in Editor** (that is expected) |
 | Trace options changed banner | Click **Convert again** — the SVG pane is the previous result until you do |
 | Boolean fails | Select at least two filled closed shapes; ungroup if needed |

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useDocumentStore } from "../../shared/stores/documentStore";
 import { useUiStore } from "../../shared/stores/uiStore";
 import { useProjectSaveLabel } from "../../shared/stores/projectSaveLabel";
+import { cancelExportJob } from "../../features/editor/fileIo";
+import { isCancelledConversion } from "../../features/converter/convertApi";
 
 export function StatusBar() {
   const zoomPercent = useUiStore((s) => Math.round(s.zoom * 100));
@@ -11,6 +13,8 @@ export function StatusBar() {
   const selectionCount = useDocumentStore((s) => s.selection.length);
   const selectionKey = useDocumentStore((s) => s.selection.join("\0"));
   const saveLabel = useProjectSaveLabel();
+  const exporting = useUiStore((s) => s.exporting);
+  const exportProgressLabel = useUiStore((s) => s.exportProgressLabel);
   const [announcement, setAnnouncement] = useState("");
   const lastSelectionKey = useRef<string | null>(null);
 
@@ -43,6 +47,26 @@ export function StatusBar() {
       <span className="muted">{mode} · {activeTool}</span>
       <span className="spacer" />
       <span className={saveLabel === "Saved" ? "muted" : "warn"}>{saveLabel}</span>
+      {exporting && (
+        <>
+          <span className="sep" />
+          <span className="warn">{exportProgressLabel || "Exporting…"}</span>
+          <button
+            type="button"
+            className="statusbar__cancel"
+            onClick={() => {
+              void cancelExportJob().catch((error) => {
+                if (!isCancelledConversion(error)) {
+                  console.warn(error);
+                }
+              });
+            }}
+            aria-label="Stop export after the current stage"
+          >
+            Cancel
+          </button>
+        </>
+      )}
       <span className="sep" />
       <span className={frameMs > 16 ? "warn" : "muted"}>{frameMs.toFixed(1)} ms</span>
       <style>{`
@@ -68,6 +92,14 @@ export function StatusBar() {
         }
         .statusbar .spacer { flex: 1 1 4rem; min-width: 0.25rem; }
         .statusbar .warn { color: var(--warn); }
+        .statusbar__cancel {
+          border: 1px solid var(--border);
+          background: transparent;
+          color: var(--fg-1);
+          font: inherit;
+          padding: 0 0.4rem;
+          cursor: pointer;
+        }
       `}</style>
     </footer>
   );

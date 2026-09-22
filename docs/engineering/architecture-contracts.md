@@ -128,6 +128,21 @@ repeat-save fingerprint forwarding, and save-conflict Reload / Save As / Overwri
   the exclusive job slot. The grant remains usable for retry after cancel or failure until it
   expires.
 
+## Export Job Contract
+
+- One SVG or PNG export may run at a time. A second request is rejected with `job_busy` until
+  the worker actually exits, including after cancel is requested.
+- Job identity is job ID, session ID, and source revision. States used here are Running,
+  CancelRequested, Succeeded, Failed, and Cancelled. There is no queue; extra work is rejected.
+- Cancellation is cooperative between authorize, parse, render, and write. `usvg` parse and
+  `resvg` rasterize have no interrupt API, so CancelRequested during those stages waits for the
+  current stage, then skips the write and reports Cancelled. A cancelled export does not create
+  or replace the destination file.
+- The UI may request cancel and must keep the busy state until the native command returns a
+  terminal result. It must not claim that parse or rasterize stopped immediately.
+- Export destinations stay as live grants during work. The one-shot grant is consumed only after
+  a successful write, so cancel or failure can retry the same destination until the grant expires.
+
 ## Converter Presentation Contract
 
 - Unsupported Convert drops and failed claims explain why work did not start. Filename-only

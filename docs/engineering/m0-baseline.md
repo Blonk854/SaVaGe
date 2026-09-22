@@ -137,6 +137,10 @@ upgrade/reinstall retention, and real disk-pressure qualification remain manual 
 	interrupt checkpoint; a cancel during tracing waits for that call, discards the SVG, and then
 	returns `cancelled`. Convert UI Cancel keeps the busy state and says it is stopping after the
 	current stage.
+- SVG and PNG export share one exclusive job slot with the same honest cancel rules: parse and
+	rasterize are not interruptible; CancelRequested waits, skips the write, and leaves the
+	destination unchanged. The destination grant stays usable until a successful write consumes it.
+	The status bar Cancel control keeps the busy label until the native job exits.
 - Native validation caps source files at 64 MiB, decoded dimensions at 16,384 per side and 40 million
 	pixels, requested output dimensions at 4,096, and generated SVG at 32 MiB. Enumerated options and
 	job/session identifiers are validated before tracing. PNG export uses the same 16,384-per-side and
