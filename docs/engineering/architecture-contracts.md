@@ -10,7 +10,8 @@ either contract require a focused regression test and compatibility review.
   `translate * rotate * scale * skewX * skewY`.
 - Angles are stored in degrees and converted to radians only for matrix construction.
 - The complete affine matrix is the computation format for rendering, bounds, hit testing,
-  flattening, snapping, and handle placement.
+  flattening, snapping, and handle placement. Path snap points and path-anchor handles use
+  `nodeWorldMatrix`, not the node's local transform alone.
 - An inverse is unavailable when the determinant magnitude is below `1e-12`. Operations
   requiring that inverse must reject the edit without moving or deleting content.
 - The decomposed version-1 storage shape remains unchanged for now. Reparenting that cannot

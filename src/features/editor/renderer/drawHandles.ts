@@ -1,8 +1,7 @@
 import type { SvgDocument } from "../../../shared/document/types";
 import { selectionBounds } from "../../../shared/geometry/bounds";
-import { worldToScreen } from "../../../shared/geometry/transform";
+import { nodeWorldMatrix, worldToScreen } from "../../../shared/geometry/transform";
 import { subpathsToPath2D } from "../../../shared/geometry/path";
-import { transformToMatrix } from "../../../shared/geometry/transform";
 
 export interface HandlePoint {
   id: string;
@@ -70,15 +69,17 @@ export function drawSelectionChrome(
   if (showAnchors && selection.length === 1) {
     const node = doc.nodes[selection[0]];
     if (node?.type === "path") {
-      const m = transformToMatrix(node.transform);
-      ctx.fillStyle = "#22D3EE";
-      for (const sp of node.subpaths) {
-        for (const pt of sp.points) {
-          const wx = m.a * pt.x + m.c * pt.y + m.e;
-          const wy = m.b * pt.x + m.d * pt.y + m.f;
-          const s = worldToScreen(wx, wy, zoom, panX, panY);
-          ctx.fillRect(s.x - 3, s.y - 3, 6, 6);
-          handles.push({ id: `anchor:${pt.id}`, x: s.x, y: s.y });
+      const m = nodeWorldMatrix(doc, node.id);
+      if (m) {
+        ctx.fillStyle = "#22D3EE";
+        for (const sp of node.subpaths) {
+          for (const pt of sp.points) {
+            const wx = m.a * pt.x + m.c * pt.y + m.e;
+            const wy = m.b * pt.x + m.d * pt.y + m.f;
+            const s = worldToScreen(wx, wy, zoom, panX, panY);
+            ctx.fillRect(s.x - 3, s.y - 3, 6, 6);
+            handles.push({ id: `anchor:${pt.id}`, x: s.x, y: s.y });
+          }
         }
       }
       void subpathsToPath2D;

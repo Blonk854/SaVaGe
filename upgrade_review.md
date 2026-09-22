@@ -227,7 +227,7 @@ This is the practical remaining-work list for the current repo state, based on t
 - Finish the single transform contract for rendering, bounds, hit testing, selection handles, snapping, flattening, clipboard, grouping, and SVG export/import.
 - Nested group/ungroup/copy now bake world matrices through `matrixToTransform` so rotated/scaled groups keep appearance. Symbol detach bakes instance world onto symbol roots and keeps nested locals. SVG import/export fidelity of symbol/use remains unsupported on the SVG interchange path.
 - Correct boolean operand selection so unsupported or non-participating shapes are not deleted. **Done:** mixed selections keep non-participants (`booleanOps.test.ts`).
-- Add geometry conformance coverage for mixed transforms, negative scale, rotation, translation, and multilevel groups.
+- Add geometry conformance coverage for mixed transforms, negative scale, rotation, translation, and multilevel groups. **Done:** hand-calculated fixtures pin world corners, AABBs, flatten, hit-test rejection, nested-path snap, and selection handles (`conformance.test.ts`). Nested path snap/anchors now use `nodeWorldMatrix`. SVG symbol/use interchange remains unsupported.
 - Evidence: [src/shared/stores/documentStore.ts](src/shared/stores/documentStore.ts), [src/shared/geometry/flatten.ts](src/shared/geometry/flatten.ts#L71-L78), [src/features/tools/booleanOps.ts](src/features/tools/booleanOps.ts#L1-L46)
 
 ### 6.2 Validation and safety

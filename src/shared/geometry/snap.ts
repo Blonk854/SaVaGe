@@ -4,7 +4,7 @@ import {
   type PerspectiveGrid,
 } from "./perspective";
 import { nodeWorldBounds } from "./bounds";
-import { applyMat, transformToMatrix } from "./transform";
+import { applyMat, nodeWorldMatrix } from "./transform";
 
 export const SNAP_GRID = 32;
 
@@ -73,7 +73,8 @@ export function collectSnapPoints(doc: SvgDocument, limit = 2500): { x: number; 
     const b = nodeWorldBounds(doc, id);
     if (b.w > 0 || b.h > 0) addBoundsPoints(pts, b.x, b.y, b.w, b.h);
     if (node.type === "path") {
-      const m = transformToMatrix(node.transform);
+      const m = nodeWorldMatrix(doc, id);
+      if (!m) continue;
       for (const sp of node.subpaths) {
         for (const p of sp.points) {
           pts.push(applyMat(m, p.x, p.y));
