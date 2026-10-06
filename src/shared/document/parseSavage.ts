@@ -1,6 +1,7 @@
 import { createEmptyDocument } from "./emptyDocument";
 import type { Paint, SceneNode, StrokeStyle, SvgDocument, Transform2D } from "./types";
 import { defaultStroke, defaultTransform } from "./types";
+import { assertUniqueJsonKeys } from "./uniqueJsonKeys";
 
 export const SAVAGE_LIMITS = {
   sourceCharacters: 16 * 1024 * 1024,
@@ -324,6 +325,7 @@ export function parseSavageDocument(text: string): SvgDocument {
       `SaVaGe project exceeds the ${SAVAGE_LIMITS.sourceCharacters}-character limit`,
     );
   }
+  assertUniqueJsonKeys(text);
   let data: unknown;
   try {
     data = JSON.parse(text);

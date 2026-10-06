@@ -251,9 +251,10 @@ export async function openConvertedSvg(
   name: string,
   decide: ReplacementDecisionProvider = promptReplacementDecision,
 ): Promise<boolean> {
+  const document = svgStringToDocument(svg, name);
   if (!(await confirmDocumentReplacement(decide))) return false;
   useProjectSessionStore.getState().startSession({ displayName: name });
-  useDocumentStore.getState().replaceFromSvg(svg, name);
+  useDocumentStore.getState().loadDocument(document);
   useUiStore.getState().setMode("edit");
   return true;
 }

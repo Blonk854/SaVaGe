@@ -233,7 +233,7 @@ This is the practical remaining-work list for the current repo state, based on t
 ### 6.2 Validation and safety
 - Strengthen `.savage` validation to check required fields, finite geometry, paint values, ID uniqueness, ownership, reference integrity, depth, and resource limits before data enters the document store. **Done for Open:** finite transforms/geometry/paint, unique ownership, clip/symbol references, depth, and path-point limits.
 - Harden SVG import and SVG serialization so loaded/exported files remain safe and faithful within the supported subset. **Done:** bounded ingest, internal IDs, local-only paint, escaped export, data-only image hrefs.
-- Add adversarial tests for malformed JSON, deep nesting, duplicate IDs, oversized inputs, and non-finite numbers.
+- Add adversarial tests for malformed JSON, deep nesting, duplicate IDs, oversized inputs, and non-finite numbers. **Done:** `adversarial.test.ts` pins those cases for `.savage` and SVG ingest, including duplicate JSON keys. Failed Open and rejected converted SVG leave the document, history, and session unchanged.
 - Evidence: [src/shared/document/parseSavage.ts](src/shared/document/parseSavage.ts), [src/shared/document/deserialize.ts](src/shared/document/deserialize.ts), [src/shared/document/serialize.ts](src/shared/document/serialize.ts)
 
 ### 6.3 Native job and resource boundaries

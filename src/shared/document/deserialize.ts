@@ -474,11 +474,12 @@ function ingestElement(
       .split(/[\s,]+/)
       .map(Number)
       .filter((n) => Number.isFinite(n));
+    const pairCount = Math.floor(pts.length / 2);
+    claimPathPoints(budget, pairCount);
     const points: PathPoint[] = [];
     for (let i = 0; i + 1 < pts.length; i += 2) {
       points.push({ id: nanoid(8), x: pts[i], y: pts[i + 1], type: "corner" });
     }
-    claimPathPoints(budget, points.length);
     node = {
       ...baseFromEl(el, tag === "polygon" ? "Polygon" : "Polyline"),
       type: "path",

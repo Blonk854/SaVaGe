@@ -481,6 +481,33 @@ describe("saveProject", () => {
     expect(commands).toEqual(["read_text_file"]);
     expect(projectContents(useDocumentStore.getState().doc)).toBe(before);
   });
+
+  it("rejects malformed JSON without changing the document, history, or session", async () => {
+    useDocumentStore.getState().updateArtboard(
+      useDocumentStore.getState().doc.activeArtboardId,
+      { width: 640 },
+    );
+    const before = projectContents(useDocumentStore.getState().doc);
+    const sessionId = useProjectSessionStore.getState().sessionId;
+    const past = useDocumentStore.temporal.getState().pastStates.length;
+    expect(past).toBeGreaterThan(0);
+
+    await expect(
+      openFile({
+        chooseOpen: async () => ({ path: "C:\\projects\\broken.savage" }),
+        chooseSave: async () => null,
+        invoke: async () => ({
+          contents: "{",
+          fingerprint: { size: 1, modifiedMs: 1 },
+        }),
+      }),
+    ).rejects.toThrow(/JSON/);
+
+    expect(projectContents(useDocumentStore.getState().doc)).toBe(before);
+    expect(useProjectSessionStore.getState().sessionId).toBe(sessionId);
+    expect(useProjectSessionStore.getState().projectPath).toBeNull();
+    expect(useDocumentStore.temporal.getState().pastStates).toHaveLength(past);
+  });
 });
 
 describe("openConvertedSvg", () => {
@@ -522,6 +549,23 @@ describe("openConvertedSvg", () => {
     expect(useProjectSessionStore.getState().displayName).toBe("logo_flat");
     expect(useProjectSessionStore.getState().projectDestinationGrantId).toBeNull();
     expect(isProjectModified(useDocumentStore.getState().doc)).toBe(true);
+  });
+
+  it("does not replace the session when converted SVG is rejected", async () => {
+    const before = projectContents(useDocumentStore.getState().doc);
+    const sessionId = useProjectSessionStore.getState().sessionId;
+    await expect(
+      openConvertedSvg(
+        `<svg xmlns="http://www.w3.org/2000/svg"><path d="M 1e309 0"/></svg>`,
+        "hostile",
+        async () => {
+          throw new Error("must not ask to replace the document");
+        },
+      ),
+    ).rejects.toThrow(/finite number/);
+    expect(projectContents(useDocumentStore.getState().doc)).toBe(before);
+    expect(useProjectSessionStore.getState().sessionId).toBe(sessionId);
+    expect(useProjectSessionStore.getState().projectPath).toBe("C:\\projects\\original.savage");
   });
 });
 

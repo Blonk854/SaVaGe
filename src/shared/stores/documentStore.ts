@@ -3,7 +3,6 @@ import { temporal } from "zundo";
 import { produce } from "immer";
 import { nanoid } from "nanoid";
 import { createEmptyDocument } from "../document/emptyDocument";
-import { svgStringToDocument } from "../document/deserialize";
 import {
   createArtboard,
   ensureArtboards,
@@ -31,7 +30,6 @@ interface DocumentState {
   selection: NodeId[];
   loadDocument: (doc: SvgDocument) => void;
   commitDocument: (doc: SvgDocument, selection?: NodeId[]) => void;
-  replaceFromSvg: (svg: string, name?: string) => void;
   setSelection: (ids: NodeId[]) => void;
   addNode: (node: SceneNode, parentId?: NodeId | null) => void;
   updateNode: (id: NodeId, patch: Partial<SceneNode>) => void;
@@ -133,12 +131,6 @@ export const useDocumentStore = create<DocumentState>()(
           return;
         }
         set({ doc: next, selection: nextSelection });
-      },
-
-      replaceFromSvg: (svg, name) => {
-        const doc = normalizeDoc(svgStringToDocument(svg, name));
-        set({ doc, selection: [] });
-        useDocumentStore.temporal.getState().clear();
       },
 
       setSelection: (ids) => set({ selection: ids }),
