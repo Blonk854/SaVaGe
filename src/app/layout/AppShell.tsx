@@ -52,6 +52,9 @@ import { commitShapeBuilder } from "../../features/tools/shapeBuilderTool";
 import { openUserManual } from "../../features/editor/openManual";
 import { exportDiagnostics } from "../../shared/diagnostics";
 import { showAbout } from "../../shared/release/about";
+import { VisualFixtureStatus } from "../../shared/release/VisualFixtureStatus";
+import { installVisualFixture } from "../../shared/release/visualFixture";
+import { readVisualFixture } from "../../shared/release/visualFixtureName";
 import { simplifySelection } from "../../features/tools/simplifyPath";
 import { convertTextToOutlines } from "../../features/tools/textToOutlines";
 import { fitToArtboard, fitToSelection, setZoomCentered } from "../../features/editor/camera";
@@ -103,7 +106,14 @@ export function AppShell() {
     setPluginNotifier(flash);
   }, []);
 
-  useEffect(() => startRecoveryScheduler((message) => flash(message)), []);
+  useEffect(() => {
+    installVisualFixture();
+  }, []);
+
+  useEffect(() => {
+    if (readVisualFixture()) return;
+    return startRecoveryScheduler((message) => flash(message));
+  }, []);
 
   useEffect(() => {
     const refresh = () => {
@@ -116,6 +126,7 @@ export function AppShell() {
   }, []);
 
   useEffect(() => {
+    if (readVisualFixture()) return;
     void (async () => {
       let replaced = false;
       try {
@@ -313,6 +324,7 @@ export function AppShell() {
 
   return (
     <div className="shell">
+      <VisualFixtureStatus />
       <TitleBar
         documentTitle={displayName}
         modified={modified}

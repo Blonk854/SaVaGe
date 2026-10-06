@@ -9,7 +9,7 @@ const baselinePath = join(root, "docs/engineering/benchmark-baseline.json");
 
 const notes = [
   "Frame and hit-test times are CPU work in Node against a non-GPU canvas. They check the provisional 60 FPS and 16 ms targets as command time, not WebView2 present time.",
-  "startup.windowMs stays null. First usable window on a release build is still a manual observation. editorModuleEvalMs is a cold Vitest import of the editor modules and is not a regression gate.",
+  "startup.windowMs stays null inside this CPU benchmark. Packaged first-usable-window time is docs/engineering/window-timing.json. editorModuleEvalMs is a cold Vitest import of the editor modules and is not a regression gate.",
   "Save and reopen time JSON plus a temp file. They do not include the native ReplaceFileW path.",
   "Export times SVG serialization, not PNG raster export.",
   "The 10,000-path hit test is one probe. Derived matrices are not bulk-cached above 8,192 nodes, so each probe recomputes them.",

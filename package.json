@@ -30,7 +30,10 @@
     "release:withdraw": "node scripts/withdraw-release.mjs",
     "release:rollback": "node scripts/rehearse-rollback.mjs",
     "release:retain": "node scripts/retain-installer.mjs",
-    "install:inspect": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/inspect-install.ps1"
+    "install:inspect": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/inspect-install.ps1",
+    "window:measure": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-window.ps1",
+    "pixels:capture": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-pixels.ps1",
+    "webview2:missing": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/webview2-missing.ps1"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.2.5",

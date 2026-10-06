@@ -31,6 +31,8 @@ import {
   type ConvertOptions,
 } from "./convertApi";
 import { jobResultIsCurrent } from "../../shared/jobs/jobIdentity";
+import { converterFixturePatch } from "../../shared/release/visualFixture";
+import { markVisualFixtureReady, readVisualFixture } from "../../shared/release/visualFixtureName";
 import { recordDiagnostic } from "../../shared/diagnostics";
 import { exportSvgMarkup, openConvertedSvg } from "../editor/fileIo";
 import {
@@ -113,6 +115,23 @@ export function ConverterView() {
     useUiStore.getState().setPendingConvertPath(null);
     void onFile(pendingSource);
   }, [pendingConvertPath, onFile]);
+
+  useEffect(() => {
+    const name = readVisualFixture();
+    if (!name?.startsWith("converter-")) return;
+    const patch = converterFixturePatch(name);
+    if (patch) {
+      setSource(patch.source);
+      setPreview(patch.preview);
+      setSvgMarkup(patch.svgMarkup);
+      setOptions(patch.options);
+      setConvertedOptions(patch.convertedOptions);
+      setSummary(patch.summary);
+      setError(patch.error);
+      if (patch.converting) setConverting(true, "Tracing…");
+    }
+    markVisualFixtureReady(name);
+  }, [setConverting]);
 
   const runConvert = async () => {
     if (!source) return;

@@ -1,0 +1,85 @@
+{
+    "definition":  "usableMs is process start until the Open Image control is in the WebView2 accessibility tree. visibleMs is the main window becoming visible. Neither is WebView2 present time.",
+    "targetMs":  2000,
+    "versusPlan":  "within-provisional-target",
+    "cold":  {
+                 "label":  "cold",
+                 "visibleMs":  352.915,
+                 "dpi":  96,
+                 "usableMs":  1867.196
+             },
+    "warm":  {
+                 "samples":  5,
+                 "visible":  {
+                                 "p50":  45.621,
+                                 "p95":  47.923
+                             },
+                 "usable":  {
+                                "p50":  305.52,
+                                "p95":  312.343
+                            }
+             },
+    "launches":  [
+                     {
+                         "label":  "cold",
+                         "visibleMs":  352.915,
+                         "dpi":  96,
+                         "usableMs":  1867.196
+                     },
+                     {
+                         "label":  "warm",
+                         "visibleMs":  45.621,
+                         "dpi":  96,
+                         "usableMs":  264.432
+                     },
+                     {
+                         "label":  "warm",
+                         "visibleMs":  47.923,
+                         "dpi":  96,
+                         "usableMs":  264.545
+                     },
+                     {
+                         "label":  "warm",
+                         "visibleMs":  46.832,
+                         "dpi":  96,
+                         "usableMs":  305.52
+                     },
+                     {
+                         "label":  "warm",
+                         "visibleMs":  31.738,
+                         "dpi":  96,
+                         "usableMs":  312.343
+                     },
+                     {
+                         "label":  "warm",
+                         "visibleMs":  31.552,
+                         "dpi":  96,
+                         "usableMs":  310.608
+                     }
+                 ],
+    "machine":  {
+                    "name":  "DESKTOP-SCI395N",
+                    "os":  "Microsoft Windows 10 Home 10.0.19045",
+                    "cpu":  "AMD Ryzen 7 3700X 8-Core Processor",
+                    "logicalProcessors":  16,
+                    "memoryBytes":  17103769600,
+                    "gpu":  "NVIDIA GeForce RTX 3060 Ti",
+                    "webView2":  "154.0.4258.53",
+                    "dpi":  96
+                },
+    "executable":  {
+                       "path":  "C:\\Users\\s_sme\\Documents\\Projects\\SaVaGe\\src-tauri\\target\\release\\savage.exe",
+                       "sha256":  "1ce6ee159a2f1447a14a10b38aa05c2c77a89d37f15d922eba72092152a69912"
+                   },
+    "commit":  "a22474743a836a3450ec20f67652ed6228fb8ac5",
+    "workingTreeDirty":  true,
+    "profile":  "Isolated APPDATA and LOCALAPPDATA. The signed-in user\u0027s recovery files were not used.",
+    "otherInstances":  [
+                           {
+                               "id":  10748,
+                               "path":  "C:\\Users\\s_sme\\Documents\\Projects\\SaVaGe\\src-tauri\\target\\debug\\savage.exe",
+                               "started":  "2026-10-06T09:28:14.2116843Z"
+                           }
+                       ],
+    "recordedAt":  "2026-10-06T09:53:11.7853170Z"
+}

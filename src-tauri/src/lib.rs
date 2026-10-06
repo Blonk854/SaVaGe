@@ -1,4 +1,5 @@
 mod commands;
+mod evidence;
 mod raster;
 mod vectorize;
 
@@ -28,7 +29,11 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    if let Some(script) = evidence::visual_initialization_script() {
+        builder = builder.append_invoke_initialization_script(script);
+    }
+    builder
         .manage(ConvertJobManager::default())
         .manage(ExportJobManager::default())
         .manage(SourceGrantManager::default())

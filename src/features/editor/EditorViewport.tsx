@@ -10,6 +10,7 @@ import { activateEditorTool } from "../tools/activateTool";
 import { finishEditorTool, FREEHAND_TOOLS, getEditorTool } from "../tools/registry";
 import type { ToolEvent } from "../tools/types";
 import { nanoid } from "nanoid";
+import { readVisualFixture } from "../../shared/release/visualFixtureName";
 import {
   defaultStroke,
   defaultTransform,
@@ -96,7 +97,7 @@ export function EditorViewport() {
         ui.activeTool === "directSelect",
       );
       setSelectHandles(handlesRef.current);
-      ui.setFrameMs(performance.now() - t0);
+      if (!readVisualFixture()) ui.setFrameMs(performance.now() - t0);
       if (useUiStore.getState().dirty) scheduler.request();
     };
 

@@ -367,5 +367,16 @@ button {
     background: Highlight;
     color: HighlightText;
   }
-}
-
+}
+
+html[data-savage-visual] *,
+html[data-savage-visual] *::before,
+html[data-savage-visual] *::after {
+  animation: none !important;
+  transition: none !important;
+  caret-color: transparent !important;
+}
+
+html[data-savage-visual] .app-noise {
+  display: none;
+}

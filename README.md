@@ -45,6 +45,9 @@ pnpm tauri:dev
 | `pnpm release:rollback` | Copy compatibility fixtures and print a rollback rehearsal plan |
 | `pnpm release:retain` | List or append-only-record a tagged NSIS in the verified installer catalog |
 | `pnpm install:inspect` | Record a current-user NSIS install (WebView2, Help, no file association) |
+| `pnpm window:measure` | Time a release build until the converter is usable, into `docs/engineering/window-timing.json` |
+| `pnpm pixels:capture` | Capture packaged WebView2 pixels of the primary states |
+| `pnpm webview2:missing` | Exercise the installer only when the WebView2 runtime is absent |
 
 Tagged installers are unsigned until an Authenticode certificate is provisioned. Verify
 `SHA256SUMS.txt` before running `SaVaGe_<version>_x64-setup.exe`. GitHub Releases are

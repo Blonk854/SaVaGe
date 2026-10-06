@@ -103,8 +103,29 @@
       "plan": "beta",
       "enforcement": "fail",
       "workflowCommand": "pnpm check:ci",
-      "note": "Vitest mounts the shell on an in-memory native adapter. That covers convert/save/reopen/export, malformed and oversized open, recovery, close prompts, keyboard file commands, menu/list/focus/live-region checks, and structural visual contracts. Pixel screenshots, Narrator, scaling, and high contrast stay on native-smoke. This is not WebView2 evidence.",
+      "note": "Vitest mounts the shell on an in-memory native adapter. That covers convert/save/reopen/export, malformed and oversized open, recovery, close prompts, keyboard file commands, menu/list/focus/live-region checks, and structural visual contracts. Packaged pixels are the separate pixel-baselines gate. Narrator, scaling, and high contrast stay on native-smoke. This is not WebView2 evidence.",
       "surfaces": ["check", "release", "release:package"]
+    },
+    {
+      "id": "window-startup",
+      "plan": "1.0",
+      "enforcement": "recorded",
+      "evidence": "docs/engineering/window-timing.json",
+      "note": "pnpm window:measure times a release executable until Open Image is in the WebView2 accessibility tree. It is not a pull-request failure and it is not WebView2 present time."
+    },
+    {
+      "id": "pixel-baselines",
+      "plan": "1.0",
+      "enforcement": "recorded",
+      "evidence": "docs/engineering/pixel-baselines/manifest.json",
+      "note": "pnpm pixels:capture writes packaged WebView2 screenshots of the primary states. Structural DOM contracts remain in the browser-adapter suite. Narrator, scaling, and high contrast stay manual."
+    },
+    {
+      "id": "webview2-missing",
+      "plan": "1.0",
+      "enforcement": "manual",
+      "evidence": "docs/engineering/webview2-missing.json",
+      "note": "pnpm webview2:missing refuses to pass on a machine that already has the Evergreen runtime."
     },
     {
       "id": "authenticode",

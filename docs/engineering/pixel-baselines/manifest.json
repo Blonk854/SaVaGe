@@ -1,0 +1,122 @@
+{
+    "definition":  "Pixels are the decorated release window on WebView2. SAVAGE_VISUAL seeds the primary states. The noise overlay and CSS animation are suppressed, and the frame meter stays at 0.0 ms, so the capture can be compared. This is not Narrator, high contrast, or display-scaling evidence.",
+    "differenceRule":  "A fixture is stable when two captures about 250 ms apart differ in at most 0.5 percent of pixels, ignoring per-channel RGB changes of 8 or less.",
+    "windowOuter":  "Up to 1440x900 device pixels, placed at 8,8 and kept topmost during the capture.",
+    "captures":  [
+                     {
+                         "fixture":  "converter-empty",
+                         "file":  "docs/engineering/pixel-baselines/converter-empty.png",
+                         "width":  1440,
+                         "height":  900,
+                         "sha256":  "c6aa903796717e21dc1d213b8edb900db052d0ec6df7bac42c408e5bc4372276",
+                         "consecutiveDifference":  0,
+                         "stable":  true
+                     },
+                     {
+                         "fixture":  "converter-loaded",
+                         "file":  "docs/engineering/pixel-baselines/converter-loaded.png",
+                         "width":  1440,
+                         "height":  900,
+                         "sha256":  "34a163b9792bf8233e1474d8cf23c701a276e3a8a3d4187e6dfb061264b568c5",
+                         "consecutiveDifference":  0,
+                         "stable":  true
+                     },
+                     {
+                         "fixture":  "converter-tracing",
+                         "file":  "docs/engineering/pixel-baselines/converter-tracing.png",
+                         "width":  1440,
+                         "height":  900,
+                         "sha256":  "d0ce2f414edd095dac384613c96f93cd75d18d01cb819103cd42c0c1e5c678fe",
+                         "consecutiveDifference":  0,
+                         "stable":  true
+                     },
+                     {
+                         "fixture":  "converter-completed",
+                         "file":  "docs/engineering/pixel-baselines/converter-completed.png",
+                         "width":  1440,
+                         "height":  900,
+                         "sha256":  "8acc056272e6d992993c8a28c5c4e3ca8185410409c1e504843ca7d3b2bf7b15",
+                         "consecutiveDifference":  0,
+                         "stable":  true
+                     },
+                     {
+                         "fixture":  "converter-stale",
+                         "file":  "docs/engineering/pixel-baselines/converter-stale.png",
+                         "width":  1440,
+                         "height":  900,
+                         "sha256":  "929a7933c0a585438bbe91c97f009a2f1ebe1a2d9d8110b7b8c365956dd7c78f",
+                         "consecutiveDifference":  0,
+                         "stable":  true
+                     },
+                     {
+                         "fixture":  "converter-error",
+                         "file":  "docs/engineering/pixel-baselines/converter-error.png",
+                         "width":  1440,
+                         "height":  900,
+                         "sha256":  "09929f6d8c85dafb76832970ac529a2ce9bc152cd250faa319096b6fcea5757b",
+                         "consecutiveDifference":  0,
+                         "stable":  true
+                     },
+                     {
+                         "fixture":  "editor-empty",
+                         "file":  "docs/engineering/pixel-baselines/editor-empty.png",
+                         "width":  1440,
+                         "height":  900,
+                         "sha256":  "f93c38cf524972bb34322c8b7919f2528e0f80ba7c7c84570671623cf80e2f8a",
+                         "consecutiveDifference":  0,
+                         "stable":  true
+                     },
+                     {
+                         "fixture":  "editor-populated",
+                         "file":  "docs/engineering/pixel-baselines/editor-populated.png",
+                         "width":  1440,
+                         "height":  900,
+                         "sha256":  "6e294bdfa7eab458c863f6bbf3aaec64cd0fe9ec3eecce0cb9d81ef9f013eff3",
+                         "consecutiveDifference":  0,
+                         "stable":  true
+                     },
+                     {
+                         "fixture":  "menu-file",
+                         "file":  "docs/engineering/pixel-baselines/menu-file.png",
+                         "width":  1440,
+                         "height":  900,
+                         "sha256":  "c9d95ea1258a8b26ad837c07dbf12ae4f173b031ef02b3b67379a08bd15285df",
+                         "consecutiveDifference":  0,
+                         "stable":  true
+                     },
+                     {
+                         "fixture":  "dialog-unsaved",
+                         "file":  "docs/engineering/pixel-baselines/dialog-unsaved.png",
+                         "width":  1440,
+                         "height":  900,
+                         "sha256":  "1da982c86d24532e8b75cc5b3b10e68769d15aedf4e60c1a10c278f5d8af5049",
+                         "consecutiveDifference":  0,
+                         "stable":  true
+                     },
+                     {
+                         "fixture":  "dialog-conflict",
+                         "file":  "docs/engineering/pixel-baselines/dialog-conflict.png",
+                         "width":  1440,
+                         "height":  900,
+                         "sha256":  "9d3d8a07f5f9eec57a61f7161ba5034e7bbb29dd5162c9c281df5bf7e94f48b3",
+                         "consecutiveDifference":  0,
+                         "stable":  true
+                     }
+                 ],
+    "executable":  {
+                       "path":  "C:\\Users\\s_sme\\Documents\\Projects\\SaVaGe\\src-tauri\\target\\release\\savage.exe",
+                       "sha256":  "1ce6ee159a2f1447a14a10b38aa05c2c77a89d37f15d922eba72092152a69912"
+                   },
+    "commit":  "a22474743a836a3450ec20f67652ed6228fb8ac5",
+    "workingTreeDirty":  true,
+    "webView2":  "154.0.4258.53",
+    "machine":  "DESKTOP-SCI395N",
+    "otherInstances":  [
+                           {
+                               "id":  10748,
+                               "path":  "C:\\Users\\s_sme\\Documents\\Projects\\SaVaGe\\src-tauri\\target\\debug\\savage.exe",
+                               "started":  "2026-10-06T09:28:14.2116843Z"
+                           }
+                       ],
+    "recordedAt":  "2026-10-06T09:53:38.2951260Z"
+}
