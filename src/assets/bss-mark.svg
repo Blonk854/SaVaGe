@@ -1,63 +1,101 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="107 0 320 105">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 465 140" role="img" aria-label="BigSoy Studios">
+  <title>BigSoy Studios</title>
   <defs>
-  <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-    <stop offset="0%" stop-color="#BBF7D0"/>
-    <stop offset="35%" stop-color="#4ADE80"/>
-    <stop offset="70%" stop-color="#22C55E"/>
-    <stop offset="100%" stop-color="#15803D"/>
-</linearGradient>
+    <radialGradient id="bsBadge" cx="50%" cy="38%" r="75%">
+      <stop offset="0%" stop-color="#173B26"/>
+      <stop offset="55%" stop-color="#0B2216"/>
+      <stop offset="100%" stop-color="#04100A"/>
+    </radialGradient>
+    <radialGradient id="bsGlow" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#4ADE80" stop-opacity=".35"/>
+      <stop offset="100%" stop-color="#4ADE80" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bsLeaf" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#16A34A"/>
+      <stop offset="45%" stop-color="#22C55E"/>
+      <stop offset="80%" stop-color="#4ADE80"/>
+      <stop offset="100%" stop-color="#A3E635"/>
+    </linearGradient>
+    <linearGradient id="bsLeafShade" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#15803D"/>
+      <stop offset="100%" stop-color="#22C55E"/>
+    </linearGradient>
+    <linearGradient id="bsStem" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#15803D"/>
+      <stop offset="100%" stop-color="#4ADE80"/>
+    </linearGradient>
+    <linearGradient id="bsGloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".10"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="bsShadow" x="-25%" y="-25%" width="150%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5"/>
+      <feOffset dy="5" result="b"/>
+      <feFlood flood-color="#04100A" flood-opacity=".35"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="bsLeafDrop" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.2"/>
+      <feOffset dy="1.2" result="b"/>
+      <feFlood flood-color="#000000" flood-opacity=".45"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- Soft pale-mint glow: blends into white on light backgrounds, reads as a halo on dark ones -->
+    <filter id="bsWordGlow" x="-15%" y="-40%" width="130%" height="180%">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="1" result="d"/>
+      <feGaussianBlur in="d" stdDeviation="3" result="b"/>
+      <feFlood flood-color="#BBF7D0" flood-opacity=".55"/>
+      <feComposite in2="b" operator="in"/>
+    </filter>
   </defs>
-
-  <!-- Soybean Plant -->
-  <g transform="translate(115,18)">
-    
-   <!-- Stem  -->
-<g transform="translate(17, -10)">
-  <path d="M24.24 70.96 C35.75 50.5,26 38,23 27" fill="none" stroke="url(#grad)" stroke-width="3" stroke-linecap="round" />
-</g>
-
-
-    <!-- Left Leaf -->
-    <g transform="rotate(-30, 0, -5)">
-    <path
-      d="M20 38
-         C2 30,-2 12,16 15
-         C25 17,28 28,20 38Z"
-      fill="url(#grad)"
-      opacity="0.9"/>
+  <defs>
+    <linearGradient id="bsText" gradientUnits="userSpaceOnUse" x1="300" y1="0" x2="500" y2="0">
+      <stop offset="0%" stop-color="#16A34A"/>
+      <stop offset="100%" stop-color="#15803D"/>
+    </linearGradient>
+  </defs>
+  <!-- Icon: trifoliate soybean leaf on a dark badge -->
+  <g transform="translate(20 20) scale(1)" filter="url(#bsShadow)">
+    <rect width="100" height="100" rx="26" fill="url(#bsBadge)"/>
+    <rect width="100" height="100" rx="26" fill="url(#bsGlow)"/>
+    <rect width="100" height="50" rx="26" fill="url(#bsGloss)"/>
+    <rect x=".75" y=".75" width="98.5" height="98.5" rx="25.5" fill="none" stroke="#4ADE80" stroke-opacity=".18" stroke-width="1.5"/>
+    <path d="M50 58 C52 70 50 79 45 88" stroke="url(#bsStem)" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <g transform="translate(50 60)">
+      <g transform="rotate(-62)">
+        <path d="M0 0 L0 -6" stroke="url(#bsStem)" stroke-width="2.2" stroke-linecap="round"/>
+        <g transform="translate(0 -5) scale(0.74)" filter="url(#bsLeafDrop)">
+          <path d="M0 0 C-11 -3 -17 -15 -15 -26 C-13 -36 -6 -43 0 -50 C6 -43 13 -36 15 -26 C17 -15 11 -3 0 0Z" fill="url(#bsLeaf)"/>
+          <path d="M0 0 C-11 -3 -17 -15 -15 -26 C-13 -36 -6 -43 0 -50 C-1 -33 -1 -16 0 0Z" fill="url(#bsLeafShade)" opacity=".75"/>
+          <path d="M0 -9 Q-6 -11 -10 -17 M0 -17 Q-7 -20 -12 -27 M0 -26 Q-6 -29 -9 -36 M0 -35 Q-3 -38 -5 -43 M0 -9 Q6 -11 10 -17 M0 -17 Q7 -20 12 -27 M0 -26 Q6 -29 9 -36 M0 -35 Q3 -38 5 -43" stroke="#BBF7D0" stroke-opacity=".45" stroke-width=".9" stroke-linecap="round" fill="none"/>
+          <path d="M0 -1 Q-.6 -25 0 -47" stroke="#DCFCE7" stroke-opacity=".75" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+        </g>
       </g>
-
-    <!-- Right Leaf -->
-     <g transform="translate(17, -10)">
-    <path
-      d="M24 28
-         C42 18,56 22,52 40
-         C48 48,36 44,24 28Z"
-      fill="url(#grad)"
-      opacity="0.9"/>
+      <g transform="rotate(62)">
+        <path d="M0 0 L0 -6" stroke="url(#bsStem)" stroke-width="2.2" stroke-linecap="round"/>
+        <g transform="translate(0 -5) scale(0.74)" filter="url(#bsLeafDrop)">
+          <path d="M0 0 C-11 -3 -17 -15 -15 -26 C-13 -36 -6 -43 0 -50 C6 -43 13 -36 15 -26 C17 -15 11 -3 0 0Z" fill="url(#bsLeaf)"/>
+          <path d="M0 0 C-11 -3 -17 -15 -15 -26 C-13 -36 -6 -43 0 -50 C-1 -33 -1 -16 0 0Z" fill="url(#bsLeafShade)" opacity=".75"/>
+          <path d="M0 -9 Q-6 -11 -10 -17 M0 -17 Q-7 -20 -12 -27 M0 -26 Q-6 -29 -9 -36 M0 -35 Q-3 -38 -5 -43 M0 -9 Q6 -11 10 -17 M0 -17 Q7 -20 12 -27 M0 -26 Q6 -29 9 -36 M0 -35 Q3 -38 5 -43" stroke="#BBF7D0" stroke-opacity=".45" stroke-width=".9" stroke-linecap="round" fill="none"/>
+          <path d="M0 -1 Q-.6 -25 0 -47" stroke="#DCFCE7" stroke-opacity=".75" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+        </g>
+      </g>
+      <g transform="rotate(0)">
+        <path d="M0 0 L0 -7" stroke="url(#bsStem)" stroke-width="2.2" stroke-linecap="round"/>
+        <g transform="translate(0 -6) scale(0.86)" filter="url(#bsLeafDrop)">
+          <path d="M0 0 C-11 -3 -17 -15 -15 -26 C-13 -36 -6 -43 0 -50 C6 -43 13 -36 15 -26 C17 -15 11 -3 0 0Z" fill="url(#bsLeaf)"/>
+          <path d="M0 0 C-11 -3 -17 -15 -15 -26 C-13 -36 -6 -43 0 -50 C-1 -33 -1 -16 0 0Z" fill="url(#bsLeafShade)" opacity=".75"/>
+          <path d="M0 -9 Q-6 -11 -10 -17 M0 -17 Q-7 -20 -12 -27 M0 -26 Q-6 -29 -9 -36 M0 -35 Q-3 -38 -5 -43 M0 -9 Q6 -11 10 -17 M0 -17 Q7 -20 12 -27 M0 -26 Q6 -29 9 -36 M0 -35 Q3 -38 5 -43" stroke="#BBF7D0" stroke-opacity=".45" stroke-width=".9" stroke-linecap="round" fill="none"/>
+          <path d="M0 -1 Q-.6 -25 0 -47" stroke="#DCFCE7" stroke-opacity=".75" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+        </g>
+      </g>
     </g>
-
- 
   </g>
-
-  <!-- Text -->
-  <text
-    x="195"
-    y="47"
-    font-family="Segoe UI, Inter, Arial, sans-serif"
-    font-size="30"
-    font-weight="400"
-    fill="#64748B">
-    Powered by
-  </text>
-
-  <text
-    x="195"
-    y="80"
-    font-family="Segoe UI, Inter, Arial, sans-serif"
-    font-size="30"
-    font-weight="700"
-    fill="url(#grad)">
-    BigSoy Studios
-  </text>
+  <text x="140" y="54" text-anchor="start" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="3.5" fill="#64748B">POWERED BY</text>
+  <!-- Glow layer: same layout as the wordmark, but only "BigSoy" is visible so the glow stays on that word -->
+  <text x="140" y="100" text-anchor="start" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="46" font-weight="800" letter-spacing="-1.2" fill="#000" filter="url(#bsWordGlow)" aria-hidden="true">BigSoy<tspan dx="10" font-weight="500" fill-opacity="0">Studios</tspan></text>
+  <!-- Wordmark: thin bright outline on "BigSoy" (painted behind the fill so the letters keep their weight) -->
+  <text x="140" y="100" text-anchor="start" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="46" font-weight="800" letter-spacing="-1.2" fill="#17251D" stroke="#F0FDF4" stroke-width="2" stroke-linejoin="round" paint-order="stroke fill">BigSoy<tspan dx="10" font-weight="500" fill="url(#bsText)" stroke="none">Studios</tspan></text>
 </svg>

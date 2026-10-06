@@ -320,12 +320,11 @@ export function ConverterView() {
           display: flex;
           justify-content: flex-end;
           align-items: center;
-          opacity: 0.42;
         }
         .converter__bss {
-          height: 22px;
+          height: 84px;
           width: auto;
-          max-width: min(180px, 100%);
+          max-width: min(320px, 100%);
           display: block;
         }
         .converter .sv-status--loading .progress-shimmer { margin-bottom: 0.4rem; }
