@@ -28,7 +28,7 @@ the committed p95. It does not run in pull-request CI.
 | Capabilities reduced and CSP enabled | Met in source | Production CSP tests. Packaged WebView2 enforcement of that policy is still a native observation. |
 | Core workflow and accessibility checks | Met for the browser adapter | Convert/save/reopen/export, close prompts, keyboard file commands, menu/list/focus/live region, and structural visual contracts. This is not WebView2, Narrator, or pixel evidence. |
 | No known critical or high-severity data-loss defects | Open | This repository has withdrawal records, not a defect tracker. A green check is not that review. |
-| Recovery verified in a packaged build | Open | Killed-process restart of the installed app is still manual. |
+| Recovery verified in a packaged build | Met for the release executable | `scripts/verify-packaged-recovery.ps1` killed `src-tauri/target/release/savage.exe` after a 512 artboard checkpoint. Restart showed the native prompt, Recover opened an unsaved copy, and the killed session's checkpoint was removed. The window capture shows Recovered Untitled. This is not an NSIS install. The known-folder recovery directory has to start empty because the packaged app does not follow an overridden APPDATA. |
 
 ## 1.0 Quality Gate
 

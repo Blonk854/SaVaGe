@@ -33,6 +33,7 @@
     "install:inspect": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/inspect-install.ps1",
     "window:measure": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-window.ps1",
     "pixels:capture": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-pixels.ps1",
+    "recovery:packaged": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-packaged-recovery.ps1",
     "webview2:missing": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/webview2-missing.ps1"
   },
   "dependencies": {

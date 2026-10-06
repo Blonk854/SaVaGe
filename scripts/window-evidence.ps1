@@ -119,6 +119,30 @@ function Wait-SavageWindowVisible($Process, [int]$TimeoutMs) {
   throw "Timed out waiting for a visible SaVaGe window"
 }
 
+function Get-SavageMainElements($Process) {
+  $Process.Refresh()
+  if ($Process.HasExited) { return @() }
+  $nameCondition = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::NameProperty,
+    "SaVaGe"
+  )
+  $processCondition = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ProcessIdProperty,
+    $Process.Id
+  )
+  $windowCondition = New-Object System.Windows.Automation.AndCondition($nameCondition, $processCondition)
+  $window = [System.Windows.Automation.AutomationElement]::RootElement.FindFirst(
+    [System.Windows.Automation.TreeScope]::Children,
+    $windowCondition
+  )
+  if (-not $window) { return @() }
+  $trueCondition = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::IsControlElementProperty,
+    $true
+  )
+  return @($window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $trueCondition))
+}
+
 function Wait-SavageAccessibleName {
   param(
     [Parameter(Mandatory = $true)]$Process,
@@ -126,26 +150,16 @@ function Wait-SavageAccessibleName {
     [int]$TimeoutMs = 20000
   )
   $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMs)
-  $trueCondition = New-Object System.Windows.Automation.PropertyCondition(
-    [System.Windows.Automation.AutomationElement]::IsControlElementProperty,
-    $true
-  )
   while ([DateTime]::UtcNow -lt $deadline) {
-    $Process.Refresh()
     if ($Process.HasExited) { throw "SaVaGe exited before '$Prefix' was available" }
-    $handle = $Process.MainWindowHandle
-    if ($handle -ne [IntPtr]::Zero) {
-      try {
-        $window = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
-        $elements = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $trueCondition)
-        foreach ($element in $elements) {
-          $name = $element.Current.Name
-          if ($name -and $name.StartsWith($Prefix)) { return }
-        }
-      } catch {
+    try {
+      foreach ($element in (Get-SavageMainElements $Process)) {
+        $name = $element.Current.Name
+        if ($name -and $name.StartsWith($Prefix)) { return }
       }
+    } catch {
     }
-    Start-Sleep -Milliseconds 40
+    Start-Sleep -Milliseconds 80
   }
   throw "Timed out waiting for accessible name '$Prefix'"
 }

@@ -128,6 +128,13 @@
       "note": "pnpm webview2:missing refuses to pass on a machine that already has the Evergreen runtime."
     },
     {
+      "id": "packaged-recovery",
+      "plan": "beta",
+      "enforcement": "recorded",
+      "evidence": "docs/engineering/packaged-recovery.json",
+      "note": "pnpm recovery:packaged kills a release executable after a checkpoint and records the restart prompt. It is not a pull-request failure. The recovery directory must start empty because the packaged app does not follow an overridden APPDATA."
+    },
+    {
       "id": "authenticode",
       "plan": "1.0",
       "enforcement": "not-provisioned"

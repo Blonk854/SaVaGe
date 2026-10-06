@@ -47,6 +47,7 @@ pnpm tauri:dev
 | `pnpm install:inspect` | Record a current-user NSIS install (WebView2, Help, no file association) |
 | `pnpm window:measure` | Time a release build until the converter is usable, into `docs/engineering/window-timing.json` |
 | `pnpm pixels:capture` | Capture packaged WebView2 pixels of the primary states |
+| `pnpm recovery:packaged` | Kill a release build after a checkpoint and record the recovery prompt |
 | `pnpm webview2:missing` | Exercise the installer only when the WebView2 runtime is absent |
 
 Tagged installers are unsigned until an Authenticode certificate is provisioned. Verify
