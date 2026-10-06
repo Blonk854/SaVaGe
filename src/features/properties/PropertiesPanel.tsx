@@ -15,6 +15,7 @@ import { nodeWorldBounds, transformForWorldSize } from "../../shared/geometry/bo
 import { PaintEditor, setNodePaint } from "./PaintEditor";
 import { convertTextToOutlines } from "../tools/textToOutlines";
 import { useUiStore } from "../../shared/stores/uiStore";
+import { confirmAction } from "../../shared/ui/confirmAction";
 
 const emptyNodes: Array<SceneNode | undefined> = [];
 
@@ -321,9 +322,16 @@ export function PropertiesPanel() {
             </p>
             <Button
               variant="subtle"
+              title="Detach this instance into editable shapes"
               onClick={() => {
-                useDocumentStore.getState().detachSymbol(id);
-                useUiStore.getState().markDirty();
+                void confirmAction(
+                  "Detach symbol",
+                  "This instance becomes editable shapes and stops following the symbol.",
+                ).then((accepted) => {
+                  if (!accepted) return;
+                  useDocumentStore.getState().detachSymbol(id);
+                  useUiStore.getState().markDirty();
+                });
               }}
             >
               Detach to editable shapes

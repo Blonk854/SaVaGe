@@ -273,9 +273,9 @@ This is the practical remaining-work list for the current repo state, based on t
 - Evidence: [savage_upgrade.md](savage_upgrade.md#L27-L60), [docs/engineering/m0-baseline.md](docs/engineering/m0-baseline.md#L5-L50), [docs/engineering/benchmark-baseline.json](docs/engineering/benchmark-baseline.json), [docs/engineering/release-gates.md](docs/engineering/release-gates.md)
 
 ### 6.9 UX and workflow polish
-- Finish the converter workflow: warning states, custom preset tracking, visible progress, compare modes, and open/export actions.
-- Improve the empty editor, controls, contextual help, and command palette as described in the plan.
-- Evidence: [src/features/converter/ConverterView.tsx](src/features/converter/ConverterView.tsx), [src/features/converter/ConvertPreview.tsx](src/features/converter/ConvertPreview.tsx#L35), [src/app/layout/TitleBar.tsx](src/app/layout/TitleBar.tsx), [src/app/layout/AppShell.tsx](src/app/layout/AppShell.tsx)
+- Finish the converter workflow: warning states, custom preset tracking, visible progress, compare modes, and open/export actions. **Done:** rejected drops and large-source cautions stay visible, Custom tracks slider edits, progress is a polite live region, and the last successful options are restored. Split, overlay, and before/after share one pan/zoom. A finished trace shows shape count, size, and duration, warns past the complexity thresholds, and can open in the editor or export that markup directly.
+- Improve the empty editor, controls, contextual help, and command palette as described in the plan. **Done:** an empty artboard offers convert, draw, open, import, paste, new, and size presets, and the viewport fits the artboard when it has a size. Ctrl+K searches commands. Help opens the shortcut list and welcome tips. Symbol delete and detach ask before expanding instances. Alignment controls keep named icons, and panel metadata uses the readable text size.
+- Evidence: [src/features/converter/ConverterView.tsx](src/features/converter/ConverterView.tsx), [src/features/converter/ConvertPreview.tsx](src/features/converter/ConvertPreview.tsx), [src/features/editor/EditorEmptyState.tsx](src/features/editor/EditorEmptyState.tsx), [src/shared/ui/CommandPalette.tsx](src/shared/ui/CommandPalette.tsx), [src/app/layout/AppShell.tsx](src/app/layout/AppShell.tsx)
 
 ### 6.10 Deferred expansion work
 - Export presets, batch conversion, comparison tooling, file associations, and plugin maturity remain future work and should stay deferred until the safety and correctness milestones are closed.

@@ -17,7 +17,14 @@ import {
   setPluginNotifier,
 } from "../../shared/plugins/api";
 import { fitAllArtboards } from "../../features/editor/camera";
-import { useUiStore } from "../../shared/stores/uiStore";
+import { useUiStore, type ToolId } from "../../shared/stores/uiStore";
+import { activateEditorTool } from "../../features/tools/activateTool";
+import { CommandPalette } from "../../shared/ui/CommandPalette";
+import { ShortcutReference } from "../../shared/ui/ShortcutReference";
+import { ConfirmActionDialog } from "../../shared/ui/ConfirmActionDialog";
+import { confirmAction } from "../../shared/ui/confirmAction";
+import { APP_COMMANDS } from "../../shared/ui/commands";
+import { reopenWelcome } from "../../shared/ui/firstRun";
 import { useDocumentStore } from "../../shared/stores/documentStore";
 import {
   exportPng,
@@ -83,6 +90,8 @@ export function AppShell() {
   const saveLabel = useProjectSaveLabel();
   const modified = saveLabel !== "Saved";
   const [toast, setToast] = useState<{ message: string; kind: NoticeKind } | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const flash = (message: string, kind: NoticeKind = "info") => {
     setToast({ message, kind });
@@ -175,10 +184,16 @@ export function AppShell() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return;
-      if (isTypingTarget(event.target)) return;
       const key = event.key.toLowerCase();
-      if (key !== "s" && key !== "n" && key !== "o" && key !== "z" && key !== "y") return;
+      const searchingCommands =
+        event.target instanceof HTMLElement && event.target.getAttribute("aria-label") === "Search commands";
+      if (isTypingTarget(event.target) && !(key === "k" && searchingCommands)) return;
+      if (key !== "s" && key !== "n" && key !== "o" && key !== "z" && key !== "y" && key !== "k") return;
       event.preventDefault();
+      if (key === "k") {
+        setPaletteOpen((open) => !open);
+        return;
+      }
       if (key === "s") runSave(event.shiftKey);
       else if (key === "n") void newProject();
       else if (key === "o")
@@ -194,6 +209,98 @@ export function AppShell() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   });
+
+  const runCommand = (id: string) => {
+    setPaletteOpen(false);
+    const tool = APP_COMMANDS.find((command) => command.id === id)?.tool;
+    if (tool) {
+      useUiStore.getState().setMode("edit");
+      activateEditorTool(tool as ToolId);
+      return;
+    }
+    switch (id) {
+      case "new":
+        void newProject();
+        break;
+      case "open":
+        void openFile().catch((error) => flash(error instanceof Error ? error.message : String(error), "error"));
+        break;
+      case "save":
+        runSave();
+        break;
+      case "save-as":
+        runSave(true);
+        break;
+      case "export-svg":
+        void exportSvg()
+          .then((result) => {
+            if (result === "exported") flash("SVG exported", "success");
+          })
+          .catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            flash(message, /cancelled/i.test(message) ? "warn" : "error");
+          });
+        break;
+      case "export-png":
+        void exportPng()
+          .then((result) => {
+            if (result === "exported") flash("PNG exported", "success");
+          })
+          .catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            flash(message, /cancelled/i.test(message) ? "warn" : "error");
+          });
+        break;
+      case "convert":
+        useUiStore.getState().setMode("convert");
+        break;
+      case "undo":
+        temporal.getState().undo();
+        useUiStore.getState().markDirty();
+        break;
+      case "redo":
+        temporal.getState().redo();
+        useUiStore.getState().markDirty();
+        break;
+      case "copy":
+        void copySelection();
+        break;
+      case "paste":
+        void pasteClipboard();
+        break;
+      case "fit-artboard": {
+        const { w, h } = viewportSize();
+        fitToArtboard(w, h);
+        break;
+      }
+      case "fit-selection": {
+        const { w, h } = viewportSize();
+        fitToSelection(w, h);
+        break;
+      }
+      case "zoom-100": {
+        const { w, h } = viewportSize();
+        setZoomCentered(1, w, h);
+        break;
+      }
+      case "shortcuts":
+        setShortcutsOpen(true);
+        break;
+      case "manual":
+        void openUserManual()
+          .then(() => flash("Opened user manual", "success"))
+          .catch((error) =>
+            flash(error instanceof Error ? error.message : "Could not open user manual", "error"),
+          );
+        break;
+      case "welcome":
+        reopenWelcome();
+        useUiStore.getState().setMode("edit");
+        break;
+      default:
+        break;
+    }
+  };
 
   const onBoolean = async (op: BooleanOp) => {
     try {
@@ -339,20 +446,23 @@ export function AppShell() {
             flash("Select a symbol instance to detach", "warn");
             return;
           }
-          useDocumentStore.getState().detachSymbol(id);
-          useUiStore.getState().markDirty();
-          flash("Symbol detached", "success");
+          void confirmAction(
+            "Detach symbol",
+            "This instance becomes editable shapes and stops following the symbol.",
+          ).then((accepted) => {
+            if (!accepted) return;
+            useDocumentStore.getState().detachSymbol(id);
+            useUiStore.getState().markDirty();
+            flash("Symbol detached", "success");
+          });
         }}
         onCommitShapeBuilder={() => {
           void commitShapeBuilder().then(() => flash("Shape builder committed", "success"));
         }}
-        onOpenManual={() => {
-          void openUserManual()
-            .then(() => flash("Opened user manual", "success"))
-            .catch((e) =>
-              flash(e instanceof Error ? e.message : "Could not open user manual", "error"),
-            );
-        }}
+        onOpenManual={() => runCommand("manual")}
+        onOpenCommandPalette={() => setPaletteOpen(true)}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
+        onShowWelcome={() => runCommand("welcome")}
         onExportDiagnostics={() => {
           void exportDiagnostics()
             .then((path) => {
@@ -486,7 +596,7 @@ export function AppShell() {
           color: var(--fg-1);
           border-radius: 6px;
           padding: 0.35rem 0.4rem;
-          font-size: 0.72rem;
+          font-size: var(--text-xs);
           font-weight: 600;
           white-space: nowrap;
         }
@@ -499,6 +609,9 @@ export function AppShell() {
       `}</style>
       <UnsavedChangesDialog />
       <SaveConflictDialog />
+      <ConfirmActionDialog />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onRun={runCommand} />
+      <ShortcutReference open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 }

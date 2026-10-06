@@ -19,6 +19,7 @@ import {
 import { copySelection, pasteClipboard } from "./clipboard";
 import { TextEditOverlay } from "./TextEditOverlay";
 import { EditorEmptyState } from "./EditorEmptyState";
+import { useWelcomeVisible, WelcomeNote } from "../../shared/ui/WelcomeNote";
 import { fitToArtboard, fitToSelection, setZoomCentered } from "./camera";
 import { hitTestTopNode } from "../../shared/geometry/hitTest";
 import { snapWorldPoint } from "../../shared/geometry/snap";
@@ -38,6 +39,7 @@ export function EditorViewport() {
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const sessionId = useProjectSessionStore((s) => s.sessionId);
   const emptyArtboard = useDocumentStore((s) => s.doc.rootChildIds.length === 0);
+  const welcome = useWelcomeVisible();
 
   useEffect(() => {
     const parent = canvasRef.current?.parentElement;
@@ -352,6 +354,11 @@ export function EditorViewport() {
       {editingTextId ? (
         <TextEditOverlay nodeId={editingTextId} onClose={() => setEditingTextId(null)} />
       ) : null}
+      {welcome && !emptyArtboard && (
+        <div className="viewport__welcome">
+          <WelcomeNote />
+        </div>
+      )}
       {emptyArtboard && <EditorEmptyState />}
       <style>{`
         .viewport {
@@ -375,6 +382,19 @@ export function EditorViewport() {
         .viewport canvas:focus-visible {
           outline: 2px solid var(--accent);
           outline-offset: -2px;
+        }
+        .viewport__welcome {
+          position: absolute;
+          top: 0.6rem;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 3;
+          max-width: min(36rem, calc(100% - 1.5rem));
+          padding: 0.45rem 0.7rem;
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          background: rgba(18, 21, 26, 0.88);
+          pointer-events: auto;
         }
         .text-edit {
           position: absolute;

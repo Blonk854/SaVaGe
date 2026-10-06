@@ -32,14 +32,24 @@ import {
 } from "./convertApi";
 import { jobResultIsCurrent } from "../../shared/jobs/jobIdentity";
 import { recordDiagnostic } from "../../shared/diagnostics";
-import { openConvertedSvg } from "../editor/fileIo";
+import { exportSvgMarkup, openConvertedSvg } from "../editor/fileIo";
+import {
+  complexityWarning,
+  formatTraceSummary,
+  readLastConvertOptions,
+  sourceCaution,
+  summarizeTrace,
+  writeLastConvertOptions,
+  type TraceSummary,
+} from "./traceSummary";
 
 export function ConverterView() {
   const [source, setSource] = useState<GrantedImageSource | null>(null);
   const [preview, setPreview] = useState<ImagePreview | null>(null);
   const [svgMarkup, setSvgMarkup] = useState<string | null>(null);
-  const [options, setOptions] = useState<ConvertOptions>(PRESETS.logo);
+  const [options, setOptions] = useState<ConvertOptions>(() => readLastConvertOptions() ?? PRESETS.logo);
   const [convertedOptions, setConvertedOptions] = useState<ConvertOptions | null>(null);
+  const [summary, setSummary] = useState<TraceSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const sourceRevision = useRef(0);
   const resultGeneration = useRef(0);
@@ -75,6 +85,7 @@ export function ConverterView() {
     setError(null);
     setSvgMarkup(null);
     setConvertedOptions(null);
+    setSummary(null);
     setPreview(null);
     try {
       const nextPreview = parseImagePreview(
@@ -111,6 +122,7 @@ export function ConverterView() {
     setConverting(true, "Tracing…");
     const sessionId = useProjectSessionStore.getState().sessionId;
     const revision = sourceRevision.current;
+    const started = performance.now();
     try {
       const result = await convertImageToSvg(
         source.grantId,
@@ -146,6 +158,8 @@ export function ConverterView() {
       resultGeneration.current += 1;
       setSvgMarkup(result.svg);
       setConvertedOptions(options);
+      setSummary(summarizeTrace(result.svg, performance.now() - started));
+      writeLastConvertOptions(options);
     } catch (e) {
       if (isCancelledConversion(e)) {
         setError("Conversion cancelled. Tracing stops after the current stage finishes.");
@@ -172,6 +186,8 @@ export function ConverterView() {
   const sourceMeta =
     source && preview ? formatSourceMetadata(fileName || "Image", preview) : null;
   const stale = Boolean(svgMarkup && convertedOptions && !sameConvertOptions(convertedOptions, options));
+  const caution = preview ? sourceCaution(preview) : null;
+  const complex = summary && !converting ? complexityWarning(summary) : null;
   const convertDisabledReason = converting
     ? "Wait for the current conversion to finish"
     : source
@@ -195,6 +211,7 @@ export function ConverterView() {
           attachedPath={source?.path}
         />
         {sourceMeta && <p className="converter__meta">{sourceMeta}</p>}
+        {caution && !converting && <StatusBanner kind="warn">{caution}</StatusBanner>}
         {converting && (
           <StatusBanner kind="loading">
             <div className="progress-shimmer" aria-hidden="true" />
@@ -203,6 +220,12 @@ export function ConverterView() {
         )}
         {stale && !converting && (
           <StatusBanner kind="warn">Trace options changed. Convert again to update the SVG.</StatusBanner>
+        )}
+        {complex && !stale && <StatusBanner kind="warn">{complex}</StatusBanner>}
+        {summary && svgMarkup && !converting && (
+          <p className="converter__result" role="status">
+            {formatTraceSummary(summary)}
+          </p>
         )}
         {error && (
           <StatusBanner
@@ -253,6 +276,21 @@ export function ConverterView() {
               }}
             >
               Open in Editor
+            </Button>
+          )}
+          {svgMarkup && !converting && (
+            <Button
+              variant="ghost"
+              title="Save the traced SVG without opening it"
+              onClick={() => {
+                const markup = svgMarkup;
+                const stem = (fileName || "traced").replace(/\.[^.]+$/, "") || "traced";
+                void exportSvgMarkup(markup, stem).catch((exportError) =>
+                  setError(exportError instanceof Error ? exportError.message : String(exportError)),
+                );
+              }}
+            >
+              Export SVG
             </Button>
           )}
         </div>
@@ -309,7 +347,7 @@ export function ConverterView() {
         }
         .converter__tag { margin: 0.15rem 0 0; font-size: var(--text-sm); }
         .converter__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .converter__meta {
+        .converter__meta, .converter__result {
           margin: 0;
           font-size: var(--text-sm);
           color: var(--fg-1);

@@ -37,6 +37,9 @@ interface Props {
   onDetachSymbol: () => void;
   onCommitShapeBuilder: () => void;
   onOpenManual: () => void;
+  onOpenCommandPalette: () => void;
+  onOpenShortcuts: () => void;
+  onShowWelcome: () => void;
   onExportDiagnostics: () => void;
   onAbout: () => void;
 }
@@ -166,6 +169,9 @@ export function TitleBar({
   onDetachSymbol,
   onCommitShapeBuilder,
   onOpenManual,
+  onOpenCommandPalette,
+  onOpenShortcuts,
+  onShowWelcome,
   onExportDiagnostics,
   onAbout,
 }: Props) {
@@ -356,6 +362,9 @@ export function TitleBar({
           <MenuItem onClick={run(() => onZoom(2))}>Zoom 200%</MenuItem>
         </Menu>
         <Menu id="help" label="Help" open={open} onOpen={setOpen}>
+          <MenuItem onClick={run(onOpenCommandPalette)}>Command Palette…</MenuItem>
+          <MenuItem onClick={run(onOpenShortcuts)}>Keyboard Shortcuts…</MenuItem>
+          <MenuItem onClick={run(onShowWelcome)}>Show welcome tips</MenuItem>
           <MenuItem onClick={run(onOpenManual)}>User Manual (PDF)…</MenuItem>
           <MenuItem onClick={run(onExportDiagnostics)}>Export Diagnostics…</MenuItem>
           <MenuItem onClick={run(onAbout)}>About SaVaGe</MenuItem>
@@ -422,7 +431,7 @@ export function TitleBar({
         }
         .titlebar__save {
           flex-shrink: 0;
-          font-size: 0.7rem;
+          font-size: var(--text-xs);
           letter-spacing: 0.04em;
           text-transform: uppercase;
         }

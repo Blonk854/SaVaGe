@@ -14,6 +14,7 @@ export function PluginsPanel({ onNotify }: Props) {
   return (
     <Panel title="Plugins">
       <div className="plugs">
+        <p className="muted plugs__help">Built-in plugins edit the open document. Help lists the shortcuts for the rest of the editor.</p>
         {!plugins.length && <p className="sv-empty">No plugins registered</p>}
         {plugins.map((p) => (
           <div key={p.id} className="plugs__card">
@@ -48,6 +49,7 @@ export function PluginsPanel({ onNotify }: Props) {
           border: 1px solid var(--border);
         }
         .plugs__card strong { font-size: 0.82rem; }
+        .plugs__help { margin: 0 0 0.35rem; font-size: var(--text-xs); }
         .plugs__card p { margin: 0; font-size: var(--text-xs); }
       `}</style>
     </Panel>

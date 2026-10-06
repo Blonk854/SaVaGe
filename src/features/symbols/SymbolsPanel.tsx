@@ -1,5 +1,6 @@
 import { Panel } from "../../shared/ui/Panel";
 import { Button } from "../../shared/ui/Button";
+import { confirmAction } from "../../shared/ui/confirmAction";
 import { focusListSibling } from "../../shared/ui/keyboard";
 import { useDocumentStore } from "../../shared/stores/documentStore";
 import { useUiStore } from "../../shared/stores/uiStore";
@@ -50,16 +51,24 @@ export function SymbolsPanel() {
           <Button
             variant="subtle"
             disabled={!selectedIsInstance}
-            title={selectedIsInstance ? "Detach the selected instance" : "Select a symbol instance to detach"}
+            title={selectedIsInstance ? "Detach the selected instance into editable shapes" : "Select a symbol instance to detach"}
             onClick={() => {
-              detachSymbol();
-              useUiStore.getState().markDirty();
+              void confirmAction(
+                "Detach symbol",
+                "This instance becomes editable shapes and stops following the symbol.",
+              ).then((accepted) => {
+                if (!accepted) return;
+                detachSymbol();
+                useUiStore.getState().markDirty();
+              });
             }}
           >
             Detach instance
           </Button>
         </div>
-        {!list.length && <p className="sv-empty">No symbols yet</p>}
+        {!list.length && (
+          <p className="sv-empty">No symbols yet. Select artwork, then create a symbol to reuse it.</p>
+        )}
         {list.map((sym) => (
           <div key={sym.id} className="syms__row">
             <button
@@ -87,10 +96,17 @@ export function SymbolsPanel() {
             <button
               type="button"
               className="syms__del"
-              title="Delete symbol definition"
+              aria-label={`Delete ${sym.name}`}
+              title={`Delete ${sym.name}. Instances become editable shapes.`}
               onClick={() => {
-                deleteSymbol(sym.id);
-                useUiStore.getState().markDirty();
+                void confirmAction(
+                  "Delete symbol",
+                  `Delete ${sym.name}? Instances on the canvas become editable shapes.`,
+                ).then((accepted) => {
+                  if (!accepted) return;
+                  deleteSymbol(sym.id);
+                  useUiStore.getState().markDirty();
+                });
               }}
             >
               ×
@@ -125,7 +141,7 @@ export function SymbolsPanel() {
         .syms__name em {
           font-style: normal;
           color: var(--fg-1);
-          font-size: 0.68rem;
+          font-size: var(--text-xs);
         }
         .syms__del {
           border: 0;

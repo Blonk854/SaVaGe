@@ -42,6 +42,10 @@ export function ConvertOptionsForm({ options, disabled, onChange }: Props) {
           </button>
         )}
       </div>
+      <p className="opts__help">
+        Logo keeps flat color. Photo keeps more detail. Line art is black and white. Pixel traces blocks.
+        Moving a slider marks the preset Custom.
+      </p>
       {preset === "custom" && (
         <p className="opts__custom">Options no longer match a named preset.</p>
       )}
@@ -114,11 +118,12 @@ export function ConvertOptionsForm({ options, disabled, onChange }: Props) {
           background: var(--selection-fill);
           color: var(--selection-fg);
         }
-        .opts__custom {
+        .opts__help, .opts__custom {
           margin: 0;
           font-size: var(--text-xs);
-          color: var(--warn);
         }
+        .opts__help { color: var(--fg-1); }
+        .opts__custom { color: var(--warn); }
         .field {
           display: grid;
           gap: 0.3rem;

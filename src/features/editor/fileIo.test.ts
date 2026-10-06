@@ -11,6 +11,7 @@ import {
   confirmDocumentReplacement,
   exportPng,
   exportSvg,
+  exportSvgMarkup,
   newProject,
   openConvertedSvg,
   openFile,
@@ -673,6 +674,40 @@ describe("export jobs", () => {
         return { jobId: "other", sessionId: "other", sourceRevision: 0 };
       }, "job_export"),
     ).rejects.toThrow("stale or invalid");
+    expect(useUiStore.getState().exporting).toBe(false);
+  });
+
+  it("writes the traced markup instead of the open document", async () => {
+    const markup = "<svg xmlns='http://www.w3.org/2000/svg'><path d='M0 0'/></svg>";
+    let suggested = "";
+    let written = "";
+    await expect(
+      exportSvgMarkup(
+        markup,
+        "traced-mark.png",
+        async (command, args) => {
+          if (command === "pick_svg_destination") {
+            suggested = String(args?.defaultFileName ?? "");
+            return { path: "C:\\out\\traced-mark.svg", grantId: "grant_svg" };
+          }
+          const request = args?.request as {
+            jobId: string;
+            sessionId: string;
+            sourceRevision: number;
+            contents: string;
+          };
+          written = request.contents;
+          return {
+            jobId: request.jobId,
+            sessionId: request.sessionId,
+            sourceRevision: request.sourceRevision,
+          };
+        },
+        "job_markup",
+      ),
+    ).resolves.toBe("exported");
+    expect(suggested).toBe("traced-mark.svg");
+    expect(written).toBe(markup);
     expect(useUiStore.getState().exporting).toBe(false);
   });
 

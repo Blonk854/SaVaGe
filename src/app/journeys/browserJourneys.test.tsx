@@ -56,6 +56,7 @@ import { useRecentProjectsStore } from "../../features/editor/recentProjects";
 import { useUiStore } from "../../shared/stores/uiStore";
 import { getSaveConflictPrompt, resolveSaveConflictPrompt } from "../../shared/ui/saveConflictPrompt";
 import { getUnsavedChangesPrompt, resolveUnsavedChangesPrompt } from "../../shared/ui/unsavedChangesPrompt";
+import { getConfirmAction, resolveConfirmAction } from "../../shared/ui/confirmAction";
 import { COMPACT_LAYOUT_MAX_WIDTH, WINDOW_MIN } from "../../shared/ui/windowLayout";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -123,6 +124,7 @@ beforeEach(() => {
 afterEach(async () => {
   if (getUnsavedChangesPrompt()) resolveUnsavedChangesPrompt("cancel");
   if (getSaveConflictPrompt()) resolveSaveConflictPrompt("cancel");
+  if (getConfirmAction()) resolveConfirmAction(false);
   browserNative.releaseAll();
   await flush();
   await act(async () => {
@@ -135,6 +137,8 @@ afterEach(async () => {
 });
 
 function resetWorld() {
+  localStorage.removeItem("savage.convert.lastOptions");
+  localStorage.removeItem("savage.welcome.dismissed");
   browserNative.reset();
   resetActiveConvertJobForTests();
   const doc = createEmptyDocument();
@@ -608,6 +612,62 @@ describe("browser-adapter journeys", () => {
     await activateMenuItem("Export SVG…");
     await waitFor(() => browserNative.exports.length === 1, "keyboard export");
     expect(browserNative.exports[0]?.contents).toContain("Traced mark");
+  });
+
+  it("compares a trace, exports that markup, and runs a command from the palette", async () => {
+    await mount();
+    await activateButton("Open Image…");
+    await activateButton("Convert to SVG");
+    await waitFor(() => buttonNamedOrNull("Export SVG") !== null, "export action");
+    expect(document.body.textContent).toMatch(/1 shape/);
+    expect(document.querySelector(".opts__help")?.textContent).toMatch(/Custom/);
+
+    await activateButton("Overlay");
+    expect(document.querySelector(".preview__pane > span")?.textContent).toBe("Overlay");
+    await activateButton("Before / after");
+    expect(document.querySelector("[aria-label='Before and after split']")).toBeTruthy();
+    await activateButton("Split view");
+    expect(document.querySelectorAll(".preview__pane")).toHaveLength(2);
+
+    await activateButton("Export SVG");
+    await waitFor(() => browserNative.exports.length === 1, "traced export");
+    expect(browserNative.exports[0]?.contents).toContain("Traced mark");
+    expect(browserNative.exports[0]?.contents).not.toContain("Untitled");
+
+    await press("k", { ctrl: true });
+    await waitFor(
+      () => document.querySelector("[aria-label='Search commands']") !== null,
+      "command palette",
+    );
+    const search = document.querySelector<HTMLInputElement>("[aria-label='Search commands']");
+    if (!search) throw new Error("command search is missing");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(search, "rectangle");
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await flush();
+    const options = [...document.querySelectorAll("[role='option']")].map((option) => option.textContent ?? "");
+    expect(options.some((label) => label.includes("Rectangle"))).toBe(true);
+    expect(options.some((label) => label.includes("Export PNG"))).toBe(false);
+    const rectangle = [...document.querySelectorAll<HTMLButtonElement>("[role='option']")].find((option) =>
+      option.textContent?.includes("Rectangle"),
+    );
+    await act(async () => {
+      rectangle?.click();
+    });
+    await flush();
+    expect(useUiStore.getState().mode).toBe("edit");
+    expect(useUiStore.getState().activeTool).toBe("rect");
+
+    await openMenu("file");
+    await activateMenuItem("New");
+    await waitFor(() => document.querySelector(".empty-artboard__title") !== null, "empty artboard");
+    await activateButton("512×512");
+    await flush();
+    expect(useDocumentStore.getState().doc.artboards[0]?.width).toBe(512);
+    expect(useDocumentStore.getState().doc.artboards[0]?.height).toBe(512);
+    expect(document.body.textContent).toContain("Ctrl+K searches commands");
   });
 });
 

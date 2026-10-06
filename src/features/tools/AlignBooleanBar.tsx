@@ -114,7 +114,7 @@ export function AlignBooleanBar({ onNotify }: Props) {
       <style>{`
         .ops-bar { display: grid; gap: 0.35rem; }
         .ops-label {
-          font-size: 0.68rem;
+          font-size: var(--text-xs);
           letter-spacing: 0.08em;
           text-transform: uppercase;
           color: var(--fg-1);
@@ -140,7 +140,7 @@ export function AlignBooleanBar({ onNotify }: Props) {
         .ops-icon svg { width: 16px; height: 16px; }
         .ops-text {
           padding: 0.35rem 0.2rem;
-          font-size: 0.72rem;
+          font-size: var(--text-xs);
         }
         .ops-text--wide { width: 100%; }
         .ops-icon:hover:not(:disabled), .ops-text:hover:not(:disabled) {

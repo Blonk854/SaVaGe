@@ -541,24 +541,24 @@ async function runExportJob(
   ) => Promise<unknown>,
   jobId: string,
   extra: Record<string, unknown> = {},
+  contentsOverride?: string,
+  defaultBaseName?: string,
 ): Promise<"exported" | "cancelled"> {
   if (activeExportJobId) {
     throw new Error("Wait for the current export to finish");
   }
   activeExportJobId = jobId;
   try {
+    const baseName = defaultBaseName || useDocumentStore.getState().doc.name || "export";
     const destination = await invokeCommand(pickCommand, {
-      defaultFileName: fileNameOnly(
-        `${useDocumentStore.getState().doc.name || "export"}.${extension}`,
-        `export.${extension}`,
-      ),
+      defaultFileName: fileNameOnly(`${baseName}.${extension}`, `export.${extension}`),
     });
     if (!destination) return "cancelled";
     if (activeExportJobId !== jobId) {
       throw new Error("Export result was discarded because a newer export started");
     }
     const granted = parseGrantedDestination(destination);
-    const contents = documentToSvgString(useDocumentStore.getState().doc);
+    const contents = contentsOverride ?? documentToSvgString(useDocumentStore.getState().doc);
     const sessionId = useProjectSessionStore.getState().sessionId;
     const sourceRevision = nextExportRevision++;
     useUiStore.getState().setExporting(true, label);
@@ -598,6 +598,29 @@ async function runExportJob(
       useUiStore.getState().setExporting(false);
     }
   }
+}
+
+export async function exportSvgMarkup(
+  contents: string,
+  defaultBaseName: string,
+  invokeCommand: (
+    command: string,
+    args?: Record<string, unknown>,
+  ) => Promise<unknown> = invoke,
+  jobId = nanoid(),
+) {
+  const stem = defaultBaseName.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") || "traced";
+  return runExportJob(
+    "write_svg_export",
+    "pick_svg_destination",
+    "svg",
+    "Exporting SVG…",
+    invokeCommand,
+    jobId,
+    {},
+    contents,
+    stem,
+  );
 }
 
 export async function exportSvg(
