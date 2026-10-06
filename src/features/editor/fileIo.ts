@@ -9,6 +9,7 @@ import { svgStringToDocument } from "../../shared/document/deserialize";
 import { parseSavageDocument } from "../../shared/document/parseSavage";
 import { createEmptyDocument } from "../../shared/document/emptyDocument";
 import { recordDiagnostic } from "../../shared/diagnostics";
+import { jobResultIsCurrent } from "../../shared/jobs/jobIdentity";
 import {
   fileDisplayName,
   type FileFingerprint,
@@ -250,9 +251,19 @@ export async function openConvertedSvg(
   svg: string,
   name: string,
   decide: ReplacementDecisionProvider = promptReplacementDecision,
+  stillCurrent: () => boolean = () => true,
 ): Promise<boolean> {
   const document = svgStringToDocument(svg, name);
-  if (!(await confirmDocumentReplacement(decide))) return false;
+  if (!stillCurrent()) return false;
+  if (
+    !(await confirmDocumentReplacement(async () => {
+      if (!stillCurrent()) return "cancel";
+      return decide();
+    }))
+  ) {
+    return false;
+  }
+  if (!stillCurrent()) return false;
   useProjectSessionStore.getState().startSession({ displayName: name });
   useDocumentStore.getState().loadDocument(document);
   useUiStore.getState().setMode("edit");
@@ -455,23 +466,26 @@ async function runExportJob(
   jobId: string,
   extra: Record<string, unknown> = {},
 ): Promise<"exported" | "cancelled"> {
-  if (useUiStore.getState().exporting) {
+  if (activeExportJobId) {
     throw new Error("Wait for the current export to finish");
   }
-  const destination = await invokeCommand(pickCommand, {
-    defaultFileName: fileNameOnly(
-      `${useDocumentStore.getState().doc.name || "export"}.${extension}`,
-      `export.${extension}`,
-    ),
-  });
-  if (!destination) return "cancelled";
-  const granted = parseGrantedDestination(destination);
-  const contents = documentToSvgString(useDocumentStore.getState().doc);
-  const sessionId = useProjectSessionStore.getState().sessionId;
-  const sourceRevision = nextExportRevision++;
   activeExportJobId = jobId;
-  useUiStore.getState().setExporting(true, label);
   try {
+    const destination = await invokeCommand(pickCommand, {
+      defaultFileName: fileNameOnly(
+        `${useDocumentStore.getState().doc.name || "export"}.${extension}`,
+        `export.${extension}`,
+      ),
+    });
+    if (!destination) return "cancelled";
+    if (activeExportJobId !== jobId) {
+      throw new Error("Export result was discarded because a newer export started");
+    }
+    const granted = parseGrantedDestination(destination);
+    const contents = documentToSvgString(useDocumentStore.getState().doc);
+    const sessionId = useProjectSessionStore.getState().sessionId;
+    const sourceRevision = nextExportRevision++;
+    useUiStore.getState().setExporting(true, label);
     const value = await invokeCommand(command, {
       request: {
         jobId,
@@ -482,10 +496,20 @@ async function runExportJob(
         ...extra,
       },
     });
-    if (sessionId !== useProjectSessionStore.getState().sessionId) {
+    assertExportResult(value, jobId, sessionId, sourceRevision);
+    if (
+      !jobResultIsCurrent(
+        { jobId, sessionId, sourceRevision },
+        value as { jobId: string; sessionId: string; sourceRevision: number },
+        {
+          jobId: activeExportJobId,
+          sessionId: useProjectSessionStore.getState().sessionId,
+          sourceRevision,
+        },
+      )
+    ) {
       throw new Error("Export result was discarded because the project changed");
     }
-    assertExportResult(value, jobId, sessionId, sourceRevision);
     return "exported";
   } catch (error) {
     if (isCancelledConversion(error)) {
@@ -493,8 +517,10 @@ async function runExportJob(
     }
     throw error;
   } finally {
-    if (activeExportJobId === jobId) activeExportJobId = null;
-    useUiStore.getState().setExporting(false);
+    if (activeExportJobId === jobId) {
+      activeExportJobId = null;
+      useUiStore.getState().setExporting(false);
+    }
   }
 }
 

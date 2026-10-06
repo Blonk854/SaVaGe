@@ -21,11 +21,16 @@ import {
 import {
   cancelConvertJob,
   convertImageToSvg,
+  claimConvertJob,
+  activeConvertJob,
+  releaseConvertJob,
+  retireConvertSource,
   isCancelledConversion,
   PRESETS,
   sameConvertOptions,
   type ConvertOptions,
 } from "./convertApi";
+import { jobResultIsCurrent } from "../../shared/jobs/jobIdentity";
 import { recordDiagnostic } from "../../shared/diagnostics";
 import { openConvertedSvg } from "../editor/fileIo";
 
@@ -37,12 +42,12 @@ export function ConverterView() {
   const [convertedOptions, setConvertedOptions] = useState<ConvertOptions | null>(null);
   const [error, setError] = useState<string | null>(null);
   const sourceRevision = useRef(0);
+  const resultGeneration = useRef(0);
 
   const converting = useUiStore((s) => s.converting);
   const convertProgressLabel = useUiStore((s) => s.convertProgressLabel);
   const pendingConvertPath = useUiStore((s) => s.pendingConvertPath);
   const setConverting = useUiStore((s) => s.setConverting);
-  const activeJobId = useRef<string | null>(null);
 
   const onReject = useCallback((message: string, kind: "drop" | "native") => {
     setError(message);
@@ -59,6 +64,13 @@ export function ConverterView() {
 
   const onFile = useCallback(async (nextSource: GrantedImageSource) => {
     sourceRevision.current += 1;
+    resultGeneration.current += 1;
+    if (activeConvertJob()) {
+      void retireConvertSource(
+        useProjectSessionStore.getState().sessionId,
+        sourceRevision.current,
+      ).catch(() => undefined);
+    }
     setSource(nextSource);
     setError(null);
     setSvgMarkup(null);
@@ -94,12 +106,12 @@ export function ConverterView() {
   const runConvert = async () => {
     if (!source) return;
     const jobId = nanoid();
-    activeJobId.current = jobId;
+    if (!claimConvertJob(jobId)) return;
     setError(null);
     setConverting(true, "Tracing…");
+    const sessionId = useProjectSessionStore.getState().sessionId;
+    const revision = sourceRevision.current;
     try {
-      const sessionId = useProjectSessionStore.getState().sessionId;
-      const revision = sourceRevision.current;
       const result = await convertImageToSvg(
         source.grantId,
         options,
@@ -109,8 +121,15 @@ export function ConverterView() {
         jobId,
       );
       if (
-        result.sessionId !== useProjectSessionStore.getState().sessionId ||
-        result.sourceRevision !== sourceRevision.current
+        !jobResultIsCurrent(
+          { jobId, sessionId, sourceRevision: revision },
+          result,
+          {
+            jobId: activeConvertJob(),
+            sessionId: useProjectSessionStore.getState().sessionId,
+            sourceRevision: sourceRevision.current,
+          },
+        )
       ) {
         recordDiagnostic({
           level: "warn",
@@ -124,6 +143,7 @@ export function ConverterView() {
         setError("Conversion result was discarded because the project or source changed");
         return;
       }
+      resultGeneration.current += 1;
       setSvgMarkup(result.svg);
       setConvertedOptions(options);
     } catch (e) {
@@ -133,13 +153,12 @@ export function ConverterView() {
         setError(e instanceof Error ? e.message : String(e));
       }
     } finally {
-      activeJobId.current = null;
-      setConverting(false);
+      if (releaseConvertJob(jobId)) setConverting(false);
     }
   };
 
   const requestCancel = () => {
-    const jobId = activeJobId.current;
+    const jobId = activeConvertJob();
     if (!jobId) return;
     setConverting(true, "Stopping after the current stage…");
     void cancelConvertJob(jobId).catch((e) => {
@@ -216,10 +235,18 @@ export function ConverterView() {
               variant="ghost"
               onClick={() => {
                 const markup = svgMarkup;
+                const generation = resultGeneration.current;
+                const revision = sourceRevision.current;
+                const sessionId = useProjectSessionStore.getState().sessionId;
                 if (!markup) return;
                 void openConvertedSvg(
                   markup,
                   source ? displayName(source.path) || "Converted" : "Converted",
+                  undefined,
+                  () =>
+                    resultGeneration.current === generation &&
+                    sourceRevision.current === revision &&
+                    useProjectSessionStore.getState().sessionId === sessionId,
                 ).catch((error) =>
                   setError(error instanceof Error ? error.message : String(error)),
                 );

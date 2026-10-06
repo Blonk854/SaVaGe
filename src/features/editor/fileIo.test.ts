@@ -567,6 +567,46 @@ describe("openConvertedSvg", () => {
     expect(useProjectSessionStore.getState().sessionId).toBe(sessionId);
     expect(useProjectSessionStore.getState().projectPath).toBe("C:\\projects\\original.savage");
   });
+
+  it("does not ask to replace the project when the conversion is no longer current", async () => {
+    useDocumentStore.getState().updateArtboard(
+      useDocumentStore.getState().doc.activeArtboardId,
+      { width: 640 },
+    );
+    const before = projectContents(useDocumentStore.getState().doc);
+    const opened = await openConvertedSvg(
+      "<svg xmlns='http://www.w3.org/2000/svg'></svg>",
+      "logo",
+      async () => {
+        throw new Error("must not ask to replace the document");
+      },
+      () => false,
+    );
+    expect(opened).toBe(false);
+    expect(projectContents(useDocumentStore.getState().doc)).toBe(before);
+    expect(useProjectSessionStore.getState().projectPath).toBe("C:\\projects\\original.savage");
+  });
+
+  it("does not load a conversion that goes stale after the user confirms", async () => {
+    useDocumentStore.getState().updateArtboard(
+      useDocumentStore.getState().doc.activeArtboardId,
+      { width: 640 },
+    );
+    const before = projectContents(useDocumentStore.getState().doc);
+    let current = true;
+    const opened = await openConvertedSvg(
+      "<svg xmlns='http://www.w3.org/2000/svg'><rect width='1' height='1'/></svg>",
+      "logo_flat",
+      async () => {
+        current = false;
+        return "discard";
+      },
+      () => current,
+    );
+    expect(opened).toBe(false);
+    expect(projectContents(useDocumentStore.getState().doc)).toBe(before);
+    expect(useProjectSessionStore.getState().projectPath).toBe("C:\\projects\\original.savage");
+  });
 });
 
 describe("export jobs", () => {
@@ -585,6 +625,26 @@ describe("export jobs", () => {
         return { jobId: "other", sessionId: "other", sourceRevision: 0 };
       }, "job_export"),
     ).rejects.toThrow("stale or invalid");
+    expect(useUiStore.getState().exporting).toBe(false);
+  });
+
+  it("rejects a second export while the first is still choosing a destination", async () => {
+    let release: (value: unknown) => void = () => undefined;
+    const first = exportSvg(async (command) => {
+      if (command === "pick_svg_destination") {
+        return new Promise((resolve) => {
+          release = resolve;
+        });
+      }
+      throw new Error("must not export");
+    }, "job_first");
+    await expect(
+      exportSvg(async () => {
+        throw new Error("must not start");
+      }, "job_second"),
+    ).rejects.toThrow(/current export/);
+    release(null);
+    await expect(first).resolves.toBe("cancelled");
     expect(useUiStore.getState().exporting).toBe(false);
   });
 

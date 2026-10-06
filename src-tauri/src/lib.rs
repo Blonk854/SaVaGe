@@ -1,8 +1,11 @@
 mod commands;
+mod raster;
 mod vectorize;
 
 use commands::boolean::boolean_op;
-use commands::convert::{cancel_convert_job, convert_image_to_svg, ConvertJobManager};
+use commands::convert::{
+    cancel_convert_job, convert_image_to_svg, retire_convert_source, ConvertJobManager,
+};
 use commands::destination_grants::{
     pick_png_destination, pick_project_destination, pick_svg_destination, DestinationGrantManager,
 };
@@ -40,6 +43,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             convert_image_to_svg,
             cancel_convert_job,
+            retire_convert_source,
             read_text_file,
             read_project_file,
             read_image_preview,

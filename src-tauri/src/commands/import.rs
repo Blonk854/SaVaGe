@@ -1,10 +1,10 @@
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::{Cursor, Read};
 use std::path::Path;
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use image::{GenericImageView, ImageFormat};
+use image::ImageFormat;
 use serde::Serialize;
 
 use super::destination_grants::DestinationGrantManager;
@@ -84,12 +84,10 @@ fn image_format_label(path: &Path) -> String {
 }
 
 fn preview_image_path(path: &Path) -> Result<ImagePreview, String> {
-    let byte_size = fs::metadata(path)
-        .map_err(|e| format!("Failed to inspect image: {e}"))?
-        .len();
-    let img = image::open(path).map_err(|e| format!("Failed to open image: {e}"))?;
-    let (width, height) = img.dimensions();
-    let img = img.thumbnail(1280, 1280);
+    let decoded = crate::raster::decode_image(path).map_err(|error| error.to_string())?;
+    let byte_size = decoded.byte_size;
+    let (width, height) = (decoded.width, decoded.height);
+    let img = decoded.image.thumbnail(1280, 1280);
     let mut buf = Vec::new();
     img.write_to(&mut Cursor::new(&mut buf), ImageFormat::Png)
         .map_err(|e| format!("Failed to encode preview: {e}"))?;

@@ -40,7 +40,8 @@ pub fn convert_image_path_with_checkpoints(
     mut checkpoint: impl FnMut(&'static str) -> Result<(), String>,
 ) -> Result<String, String> {
     checkpoint("decode")?;
-    let img = image::open(path).map_err(|e| format!("Failed to open image: {e}"))?;
+    let decoded = crate::raster::decode_image(path).map_err(|error| error.to_string())?;
+    let img = decoded.image;
     checkpoint("resize")?;
     let (w, h) = img.dimensions();
     let longest = w.max(h);

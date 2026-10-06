@@ -89,6 +89,28 @@ export const PRESETS: Record<ConvertPreset, ConvertOptions> = {
   },
 };
 
+let activeConvertJobId: string | null = null;
+
+export function claimConvertJob(jobId: string): boolean {
+  if (activeConvertJobId) return false;
+  activeConvertJobId = jobId;
+  return true;
+}
+
+export function releaseConvertJob(jobId: string): boolean {
+  if (activeConvertJobId !== jobId) return false;
+  activeConvertJobId = null;
+  return true;
+}
+
+export function activeConvertJob(): string | null {
+  return activeConvertJobId;
+}
+
+export function resetActiveConvertJobForTests(): void {
+  activeConvertJobId = null;
+}
+
 export async function convertImageToSvg(
   sourceGrantId: string,
   options: ConvertOptions,
@@ -138,6 +160,17 @@ export async function cancelConvertJob(
     throw new Error("Native conversion cancel did not confirm the running job");
   }
   return value as { jobId: string; state: string };
+}
+
+export async function retireConvertSource(
+  sessionId: string,
+  sourceRevision: number,
+  invokeCommand: (
+    command: string,
+    args?: Record<string, unknown>,
+  ) => Promise<unknown> = invoke,
+): Promise<void> {
+  await invokeCommand("retire_convert_source", { sessionId, sourceRevision });
 }
 
 export function isCancelledConversion(error: unknown): boolean {

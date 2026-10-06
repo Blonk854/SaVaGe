@@ -1,11 +1,38 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
+  activeConvertJob,
   cancelConvertJob,
+  claimConvertJob,
   convertImageToSvg,
   isCancelledConversion,
   matchingPreset,
   PRESETS,
+  releaseConvertJob,
+  resetActiveConvertJobForTests,
+  retireConvertSource,
 } from "./convertApi";
+
+describe("convert job identity", () => {
+  beforeEach(() => {
+    resetActiveConvertJobForTests();
+  });
+
+  it("keeps a single active conversion until that job releases", () => {
+    expect(claimConvertJob("job_1")).toBe(true);
+    expect(claimConvertJob("job_2")).toBe(false);
+    expect(activeConvertJob()).toBe("job_1");
+    expect(releaseConvertJob("job_2")).toBe(false);
+    expect(releaseConvertJob("job_1")).toBe(true);
+    expect(claimConvertJob("job_2")).toBe(true);
+  });
+
+  it("retires the running source revision with the session that owns it", async () => {
+    await retireConvertSource("session_1", 5, async (command, args) => {
+      expect(command).toBe("retire_convert_source");
+      expect(args).toEqual({ sessionId: "session_1", sourceRevision: 5 });
+    });
+  });
+});
 
 describe("convertImageToSvg", () => {
   it("requires native results to echo the job, session, and source revision", async () => {

@@ -1,20 +1,16 @@
-use std::fs;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use image::ImageReader;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use super::diagnostics::{DiagnosticLevel, DiagnosticLog};
 use super::source_grants::SourceGrantManager;
+use crate::raster::{self, RasterError};
 use crate::vectorize::pipeline::{self, ConvertOptions};
 
-const MAX_SOURCE_BYTES: u64 = 64 * 1024 * 1024;
-const MAX_SOURCE_PIXELS: u64 = 40_000_000;
-const MAX_SOURCE_DIMENSION: u32 = 16_384;
 const MAX_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
 
 #[derive(Debug, Deserialize)]
@@ -115,6 +111,8 @@ impl JobCancellation {
 struct ActiveConvertJob {
     job_id: String,
     session_id: String,
+    source_revision: u64,
+    superseded: bool,
     cancel: JobCancellation,
 }
 
@@ -140,6 +138,7 @@ impl ConvertJobManager {
         &self,
         job_id: &str,
         session_id: &str,
+        source_revision: u64,
     ) -> Result<(ConvertPermit, JobCancellation), ConvertJobError> {
         let mut slot = self.slot.lock().map_err(|_| {
             ConvertJobError::new("worker_failed", "Conversion job state failed", job_id)
@@ -155,6 +154,8 @@ impl ConvertJobManager {
         *slot = Some(ActiveConvertJob {
             job_id: job_id.into(),
             session_id: session_id.into(),
+            source_revision,
+            superseded: false,
             cancel: cancel.clone(),
         });
         Ok((
@@ -163,6 +164,44 @@ impl ConvertJobManager {
             },
             cancel,
         ))
+    }
+
+    fn retire_source(&self, session_id: &str, source_revision: u64) -> Result<(), ConvertJobError> {
+        let mut slot = self.slot.lock().map_err(|_| {
+            ConvertJobError::new("worker_failed", "Conversion job state failed", "retire")
+        })?;
+        if let Some(job) = slot.as_mut() {
+            if job.session_id != session_id || job.source_revision != source_revision {
+                job.superseded = true;
+            }
+        }
+        Ok(())
+    }
+
+    fn confirm_current(
+        &self,
+        job_id: &str,
+        session_id: &str,
+        source_revision: u64,
+    ) -> Result<(), ConvertJobError> {
+        let slot = self.slot.lock().map_err(|_| {
+            ConvertJobError::new("worker_failed", "Conversion job state failed", job_id)
+        })?;
+        let current = slot.as_ref().is_some_and(|job| {
+            job.job_id == job_id
+                && job.session_id == session_id
+                && job.source_revision == source_revision
+                && !job.superseded
+        });
+        if current {
+            Ok(())
+        } else {
+            Err(ConvertJobError::new(
+                "stale_result",
+                "Conversion result was discarded because the project or source changed",
+                job_id,
+            ))
+        }
     }
 
     fn request_cancel(&self, job_id: &str) -> Result<ConvertJobSnapshot, ConvertJobError> {
@@ -277,33 +316,20 @@ fn validated_options(
     })
 }
 
+fn map_raster_error(error: RasterError, job_id: &str) -> ConvertJobError {
+    let code = match error {
+        RasterError::TooLarge { .. } => "source_too_large",
+        RasterError::Dimensions { .. } | RasterError::Memory { .. } => "source_dimensions_exceeded",
+        RasterError::Unavailable(_) => "source_unavailable",
+        RasterError::Decode(_) => "invalid_image",
+    };
+    ConvertJobError::new(code, error.to_string(), job_id)
+}
+
 fn validate_source(path: &Path, job_id: &str) -> Result<(), ConvertJobError> {
-    let size = fs::metadata(path)
-        .map_err(|error| ConvertJobError::new("source_unavailable", error.to_string(), job_id))?
-        .len();
-    if size > MAX_SOURCE_BYTES {
-        return Err(ConvertJobError::new(
-            "source_too_large",
-            format!("Image is {size} bytes; limit is {MAX_SOURCE_BYTES}"),
-            job_id,
-        ));
-    }
-    let (width, height) = ImageReader::open(path)
-        .and_then(|reader| reader.with_guessed_format())
-        .map_err(|error| ConvertJobError::new("invalid_image", error.to_string(), job_id))?
-        .into_dimensions()
-        .map_err(|error| ConvertJobError::new("invalid_image", error.to_string(), job_id))?;
-    if width > MAX_SOURCE_DIMENSION
-        || height > MAX_SOURCE_DIMENSION
-        || u64::from(width) * u64::from(height) > MAX_SOURCE_PIXELS
-    {
-        return Err(ConvertJobError::new(
-            "source_dimensions_exceeded",
-            format!("Image dimensions {width}x{height} exceed conversion limits"),
-            job_id,
-        ));
-    }
-    Ok(())
+    raster::inspect(path)
+        .map(|_| ())
+        .map_err(|error| map_raster_error(error, job_id))
 }
 
 fn run_job(
@@ -348,6 +374,7 @@ fn convert_stage(code: &str) -> &'static str {
     match code {
         "job_busy" => "queue",
         "invalid_input" | "source_not_authorized" | "stale_job" | "job_not_running" => "authorize",
+        "stale_result" => "commit",
         "source_unavailable"
         | "invalid_image"
         | "source_too_large"
@@ -369,16 +396,30 @@ async fn convert_once(
     validate_id(&request.job_id, "job ID", &request.job_id)?;
     validate_id(&request.session_id, "session ID", &request.job_id)?;
     let job_id = request.job_id.clone();
-    let (permit, cancel) = manager.try_start(&job_id, &request.session_id)?;
+    let (permit, cancel) =
+        manager.try_start(&job_id, &request.session_id, request.source_revision)?;
+    let tracked = ConvertJobManager::clone(&manager);
     let source_path = grants
         .resolve(&request.source_grant_id)
         .map_err(|message| ConvertJobError::new("source_not_authorized", message, &job_id))?;
     tauri::async_runtime::spawn_blocking(move || {
         let _permit = permit;
-        run_job(request, &source_path, &cancel)
+        let result = run_job(request, &source_path, &cancel)?;
+        tracked.confirm_current(&result.job_id, &result.session_id, result.source_revision)?;
+        Ok(result)
     })
     .await
     .map_err(|error| ConvertJobError::new("worker_failed", error.to_string(), job_id))?
+}
+
+#[tauri::command]
+pub fn retire_convert_source(
+    manager: State<'_, ConvertJobManager>,
+    session_id: String,
+    source_revision: u64,
+) -> Result<(), ConvertJobError> {
+    validate_id(&session_id, "session ID", "retire")?;
+    manager.retire_source(&session_id, source_revision)
 }
 
 #[tauri::command]
@@ -447,22 +488,22 @@ mod tests {
     fn permits_only_one_conversion_until_the_worker_finishes() {
         let manager = ConvertJobManager::default();
         let (permit, _) = manager
-            .try_start("job_1", "session_1")
+            .try_start("job_1", "session_1", 1)
             .expect("first job starts");
-        let error = match manager.try_start("job_2", "session_1") {
+        let error = match manager.try_start("job_2", "session_1", 1) {
             Ok(_) => panic!("second job should be rejected"),
             Err(error) => error,
         };
         assert_eq!(error.code, "job_busy");
         drop(permit);
-        assert!(manager.try_start("job_3", "session_1").is_ok());
+        assert!(manager.try_start("job_3", "session_1", 1).is_ok());
     }
 
     #[test]
     fn cancel_keeps_the_slot_until_the_worker_exits() {
         let manager = ConvertJobManager::default();
         let (permit, cancel) = manager
-            .try_start("job_1", "session_1")
+            .try_start("job_1", "session_1", 1)
             .expect("first job starts");
         assert_eq!(
             manager.snapshot("job_1").expect("running snapshot").state,
@@ -471,7 +512,7 @@ mod tests {
         let snapshot = manager.request_cancel("job_1").expect("cancel requested");
         assert_eq!(snapshot.state, ConvertJobState::CancelRequested);
         assert!(cancel.is_requested());
-        let error = match manager.try_start("job_2", "session_1") {
+        let error = match manager.try_start("job_2", "session_1", 1) {
             Ok(_) => panic!("second job should still be rejected"),
             Err(error) => error,
         };
@@ -485,7 +526,33 @@ mod tests {
             manager.request_cancel("job_missing").unwrap_err().code,
             "job_not_running"
         );
-        assert!(manager.try_start("job_3", "session_1").is_ok());
+        assert!(manager.try_start("job_3", "session_1", 1).is_ok());
+    }
+
+    #[test]
+    fn superseded_source_cannot_confirm_the_original_result() {
+        let manager = ConvertJobManager::default();
+        let (_permit, _) = manager
+            .try_start("job_1", "session_1", 4)
+            .expect("job starts");
+        assert!(manager.confirm_current("job_1", "session_1", 4).is_ok());
+        assert_eq!(
+            manager
+                .confirm_current("job_2", "session_1", 4)
+                .unwrap_err()
+                .code,
+            "stale_result"
+        );
+        manager
+            .retire_source("session_1", 5)
+            .expect("newer source supersedes the running job");
+        assert_eq!(
+            manager
+                .confirm_current("job_1", "session_1", 4)
+                .unwrap_err()
+                .code,
+            "stale_result"
+        );
     }
 
     #[test]
