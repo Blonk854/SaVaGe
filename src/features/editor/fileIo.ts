@@ -437,7 +437,7 @@ export async function saveProject(
   ) {
     return "stale";
   }
-  releaseRecoveryCheckpoint(snapshot.sessionId);
+  releaseRecoveryCheckpoint(snapshot.sessionId, snapshot.recoverySequence);
   void discardCurrentRecovery(snapshot.sessionId, snapshot.recoverySequence);
   await rememberProjectGrant(destination.grantId, dependencies.invoke);
   return "saved";

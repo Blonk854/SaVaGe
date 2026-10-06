@@ -653,7 +653,7 @@ While you edit, SaVaGe checkpoints unsaved work in the background (typically wit
 2. **Open Original** — if the recovery came from a saved project, open that file instead.  
 3. **Discard Recovery** — drop the checkpoint.
 
-Invalid recovery files are kept until you choose to remove them. Recovery is a safety net, not a substitute for **Save**.
+Invalid recovery files are kept until you choose to remove them. If the original file changed, or is no longer there, **Recover** still opens an unsaved copy and does not replace or recreate that file. A failed **Save** leaves both the previous file and the checkpoint where they were. Recovery is a safety net, not a substitute for **Save**.
 
 ---
 

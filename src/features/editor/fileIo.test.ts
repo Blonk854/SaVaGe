@@ -93,6 +93,44 @@ describe("saveProject", () => {
     );
   });
 
+  it("keeps the original destination when the write fails", async () => {
+    useProjectSessionStore.getState().startSession({
+      displayName: "Original",
+      projectPath: "C:\\projects\\original.savage",
+      projectDestinationGrantId: "grant_original",
+      fileFingerprint: { size: 4, modifiedMs: 4 },
+      savedContents: projectContents(useDocumentStore.getState().doc),
+    });
+    useDocumentStore.getState().updateArtboard(
+      useDocumentStore.getState().doc.activeArtboardId,
+      { width: 640 },
+    );
+    const commands: string[] = [];
+
+    await expect(
+      saveProject(false, {
+        chooseOpen: async () => null,
+        chooseSave: async () => {
+          throw new Error("a failed Save must not ask for a new path");
+        },
+        invoke: async (command) => {
+          commands.push(command);
+          if (command === "write_project_file") throw new Error("disk full");
+          return undefined;
+        },
+      }),
+    ).rejects.toThrow(/disk full/);
+
+    expect(commands).toEqual(["write_project_file"]);
+    expect(useProjectSessionStore.getState().projectPath).toBe(
+      "C:\\projects\\original.savage",
+    );
+    expect(useProjectSessionStore.getState().projectDestinationGrantId).toBe(
+      "grant_original",
+    );
+    expect(isProjectModified(useDocumentStore.getState().doc)).toBe(true);
+  });
+
   it("ignores a completion from an old session", () => {
     const oldSession = useProjectSessionStore.getState();
     const snapshot = oldSession.beginSave(projectContents(useDocumentStore.getState().doc));

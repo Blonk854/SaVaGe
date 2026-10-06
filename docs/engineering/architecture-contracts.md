@@ -87,9 +87,11 @@ repeat-save fingerprint forwarding, and save-conflict Reload / Save As / Overwri
 
 - Recovery format 1 stores project schema 1 in a versioned envelope. Unsupported versions and
   invalid project graphs never commit to the document store.
-- Each project session has one collision-resistant recovery identity and monotonically increasing
-  sequence. Native persistence ignores an older sequence, and cleanup removes an envelope only
-  when its sequence is covered by the acknowledged save or explicit discard.
+- Each project session has one collision-resistant recovery identity and a sequence that only
+  moves forward. Native persistence ignores an older sequence. A per-session coverage record
+  remembers the highest sequence removed after a verified save or an explicit discard, so a late
+  checkpoint cannot recreate it. Cleanup deletes an envelope only when its sequence is covered by
+  that record. A newer sequence stays on disk, and the next checkpoint continues above it.
 - Recovery checkpoints after 1.5 seconds idle and at least every 10 seconds during continuous
   document changes. This is an RPO bound plus serialization, queue, and filesystem latency, not a
   zero-loss guarantee for forced termination or power loss.
@@ -98,8 +100,11 @@ repeat-save fingerprint forwarding, and save-conflict Reload / Save As / Overwri
   data and reports the failure without blocking editing.
 - Envelope identity and contents are protected by SHA-256. Invalid envelopes are quarantined;
   valid envelopes are additionally parsed by the normal project validator before recovery.
-- Recovered content opens as a new unsaved session. Opening the original does not apply recovered
-  edits, and discarding recovery is explicit.
+- Each snapshot stores the source fingerprint from when the edits diverged. Startup reports that
+  original as untitled, unchanged, changed, or missing. Recover opens an unsaved document and does
+  not write the original path. A changed or missing original is left as it is. Opening the original
+  does not apply recovered edits, and discarding recovery is explicit.
+- A failed save does not remove the recovery snapshot and does not replace the destination file.
 - Unsupported recovery format or project schema versions are reported and left in place. They are
   not migrated, quarantined, or overwritten by a later checkpoint. Corrupt JSON is quarantined
   by rename only.

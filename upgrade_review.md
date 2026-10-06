@@ -249,9 +249,9 @@ This is the practical remaining-work list for the current repo state, based on t
 - Evidence: [src/features/editor/fileIo.ts](src/features/editor/fileIo.ts), [src/shared/stores/projectSessionStore.ts](src/shared/stores/projectSessionStore.ts), [src/app/layout/TitleBar.tsx](src/app/layout/TitleBar.tsx#L263), [src-tauri/src/commands/recent_projects.rs](src-tauri/src/commands/recent_projects.rs)
 
 ### 6.5 Recovery and persistence
-- Confirm recovery snapshots are sequence-aware and newer-than-original aware.
-- Ensure recovery does not overwrite newer user work or lose the original destination on a failed save.
-- Finish cleanup rules so snapshots are removed only after verified success or explicit discard.
+- Confirm recovery snapshots are sequence-aware and newer-than-original aware. **Done:** a snapshot sequence only moves forward, and startup compares the stored source fingerprint with the current file. The original is untitled, unchanged, changed, or missing.
+- Ensure recovery does not overwrite newer user work or lose the original destination on a failed save. **Done:** a lower sequence cannot replace a higher one. Recover opens an unsaved copy and does not write the original path. A conflicting or oversized save leaves the destination bytes in place.
+- Finish cleanup rules so snapshots are removed only after verified success or explicit discard. **Done:** deletion records the covered sequence and removes the envelope only when it is covered. A newer checkpoint stays scheduled, and a late write of a covered sequence cannot recreate the file.
 - Evidence: [src/features/editor/recovery.ts](src/features/editor/recovery.ts), [src-tauri/src/commands/recovery.rs](src-tauri/src/commands/recovery.rs)
 
 ### 6.6 CI and quality gates

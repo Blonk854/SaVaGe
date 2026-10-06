@@ -18,7 +18,7 @@ failed reader cannot hide a write-back to the corpus.
 | `.savage` schema 1 | Read | Write | Native lossless. Open a **copy** of corpus files. |
 | `.savage` schema ≥2 | Reject | None | Actionable error. Original bytes unchanged. Newer SaVaGe must Save As a v1 copy if a downgrade is required. |
 | Missing/invalid JSON | Reject | — | "Unrecognized" / "not valid JSON". No file write. |
-| Recovery envelope 1 + schema 1 | Offer Recover | Checkpoint | Recover as Unsaved. Open Original does not apply recovered edits. |
+| Recovery envelope 1 + schema 1 | Offer Recover | Checkpoint | Recover as Unsaved and does not write the original path. A changed or missing original stays as it is. A covered sequence is not written again. |
 | Recovery format ≥2 or schema ≥2 | Reject | None | File left in place (not quarantined, not overwritten). |
 | Corrupt recovery JSON | Reject | — | Quarantine by renaming to `.quarantine`. Contents are not repaired. |
 

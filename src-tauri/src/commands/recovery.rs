@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,9 @@ use tauri::{AppHandle, Manager, State};
 
 use super::diagnostics::{DiagnosticLevel, DiagnosticLog};
 use super::export::write_text_file_atomic;
-use super::file_identity::FileFingerprint;
+use super::file_identity::{fingerprint, FileFingerprint};
+
+static RECOVERY_LOCK: Mutex<()> = Mutex::new(());
 
 const RECOVERY_FORMAT_VERSION: u32 = 1;
 const RECOVERY_SUBDIR: &str = "recovery";
@@ -50,11 +53,34 @@ pub struct RecoveryIssue {
     reason: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OriginalRelation {
+    Untitled,
+    Unchanged,
+    Changed,
+    Missing,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryCandidate {
+    #[serde(flatten)]
+    envelope: RecoveryEnvelope,
+    original_relation: OriginalRelation,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecoveryScan {
-    candidates: Vec<RecoveryEnvelope>,
+    candidates: Vec<RecoveryCandidate>,
     issues: Vec<RecoveryIssue>,
+}
+
+fn lock_recovery() -> MutexGuard<'static, ()> {
+    RECOVERY_LOCK
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
 }
 
 fn recovery_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -95,6 +121,51 @@ fn envelope_integrity(envelope: &RecoveryEnvelope) -> Result<String, String> {
 fn recovery_path(directory: &Path, session_id: &str) -> Result<PathBuf, String> {
     validate_session_id(session_id)?;
     Ok(directory.join(format!("{session_id}.recovery.json")))
+}
+
+fn coverage_path(directory: &Path, session_id: &str) -> Result<PathBuf, String> {
+    validate_session_id(session_id)?;
+    Ok(directory.join(format!("{session_id}.recovery.coverage")))
+}
+
+fn covered_through(directory: &Path, session_id: &str) -> Result<u64, String> {
+    let path = coverage_path(directory, session_id)?;
+    if !path.exists() {
+        return Ok(0);
+    }
+    let text = fs::read_to_string(&path)
+        .map_err(|error| format!("Could not read recovery coverage: {error}"))?;
+    text.trim().parse::<u64>().map_err(|_| {
+        "Recovery coverage record is invalid; the snapshot was left unchanged".to_string()
+    })
+}
+
+fn record_covered_through(
+    directory: &Path,
+    session_id: &str,
+    through_sequence: u64,
+) -> Result<(), String> {
+    if through_sequence <= covered_through(directory, session_id)? {
+        return Ok(());
+    }
+    let path = coverage_path(directory, session_id)?;
+    write_text_file_atomic(&path, through_sequence.to_string().as_bytes(), 32, None).map(|_| ())
+}
+
+fn original_relation(envelope: &RecoveryEnvelope) -> OriginalRelation {
+    let Some(source) = envelope.source_path.as_deref() else {
+        return OriginalRelation::Untitled;
+    };
+    let path = Path::new(source);
+    if !path.is_file() {
+        return OriginalRelation::Missing;
+    }
+    match fingerprint(path) {
+        Ok(current) if envelope.source_fingerprint.as_ref() == Some(&current) => {
+            OriginalRelation::Unchanged
+        }
+        _ => OriginalRelation::Changed,
+    }
 }
 
 fn peek_recovery_versions(path: &Path) -> Option<(u32, Option<u32>)> {
@@ -162,7 +233,10 @@ fn scan_directory(directory: &Path) -> RecoveryScan {
             continue;
         }
         match read_envelope(&path) {
-            Ok(envelope) => candidates.push(envelope),
+            Ok(envelope) => candidates.push(RecoveryCandidate {
+                original_relation: original_relation(&envelope),
+                envelope,
+            }),
             Err(reason) => {
                 let file_name = entry.file_name().to_string_lossy().into_owned();
                 if let Some((format, schema)) = peek_recovery_versions(&path) {
@@ -186,7 +260,7 @@ fn scan_directory(directory: &Path) -> RecoveryScan {
             }
         }
     }
-    candidates.sort_by_key(|candidate| std::cmp::Reverse(candidate.created_at_ms));
+    candidates.sort_by_key(|candidate| std::cmp::Reverse(candidate.envelope.created_at_ms));
     RecoveryScan { candidates, issues }
 }
 
@@ -195,6 +269,7 @@ fn write_recovery_to(directory: &Path, request: RecoveryWriteRequest) -> Result<
     if request.contents.len() > MAX_RECOVERY_BYTES {
         return Err("Recovery exceeds the per-session size limit".into());
     }
+    let _guard = lock_recovery();
     fs::create_dir_all(directory)
         .map_err(|error| format!("Could not create recovery directory: {error}"))?;
     let destination = recovery_path(directory, &request.session_id)?;
@@ -204,6 +279,9 @@ fn write_recovery_to(directory: &Path, request: RecoveryWriteRequest) -> Result<
                 return Err(reason);
             }
         }
+    }
+    if request.sequence <= covered_through(directory, &request.session_id)? {
+        return Ok(());
     }
     if let Ok(existing) = read_envelope(&destination) {
         if request.sequence <= existing.sequence {
@@ -241,7 +319,7 @@ fn write_recovery_to(directory: &Path, request: RecoveryWriteRequest) -> Result<
         .candidates
         .iter()
         .filter_map(|candidate| {
-            recovery_path(directory, &candidate.session_id)
+            recovery_path(directory, &candidate.envelope.session_id)
                 .ok()
                 .and_then(|path| fs::metadata(path).ok())
                 .map(|value| value.len())
@@ -261,16 +339,24 @@ fn delete_recovery_from(
     session_id: &str,
     through_sequence: u64,
 ) -> Result<bool, String> {
+    let _guard = lock_recovery();
     let path = recovery_path(directory, session_id)?;
-    if !path.exists() {
-        return Ok(false);
+    if path.exists() {
+        if let Some((format, schema)) = peek_recovery_versions(&path) {
+            if let Some(reason) = unsupported_recovery_reason(format, schema) {
+                return Err(reason);
+            }
+        }
+        let envelope = read_envelope(&path)?;
+        record_covered_through(directory, session_id, through_sequence)?;
+        if envelope.sequence > through_sequence {
+            return Ok(false);
+        }
+        fs::remove_file(path).map_err(|error| format!("Could not remove recovery: {error}"))?;
+        return Ok(true);
     }
-    let envelope = read_envelope(&path)?;
-    if envelope.sequence > through_sequence {
-        return Ok(false);
-    }
-    fs::remove_file(path).map_err(|error| format!("Could not remove recovery: {error}"))?;
-    Ok(true)
+    record_covered_through(directory, session_id, through_sequence)?;
+    Ok(false)
 }
 
 #[tauri::command]
@@ -304,9 +390,12 @@ pub async fn write_recovery(
 #[tauri::command]
 pub async fn list_recoveries(app: AppHandle) -> Result<RecoveryScan, String> {
     let directory = recovery_dir(&app)?;
-    tauri::async_runtime::spawn_blocking(move || scan_directory(&directory))
-        .await
-        .map_err(|error| format!("Recovery worker failed: {error}"))
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = lock_recovery();
+        scan_directory(&directory)
+    })
+    .await
+    .map_err(|error| format!("Recovery worker failed: {error}"))
 }
 
 #[tauri::command]
@@ -325,9 +414,11 @@ pub async fn delete_recovery(
 
 #[cfg(test)]
 mod tests {
+    use super::super::export::write_text_file_atomic;
+    use super::super::file_identity::fingerprint;
     use super::{
-        delete_recovery_from, read_envelope, scan_directory, write_recovery_to,
-        RecoveryWriteRequest, RECOVERY_SUBDIR,
+        delete_recovery_from, read_envelope, recovery_path, scan_directory, write_recovery_to,
+        OriginalRelation, RecoveryWriteRequest, RECOVERY_SUBDIR,
     };
     use std::fs;
 
@@ -356,6 +447,10 @@ mod tests {
         assert_eq!(
             read_envelope(&path).expect("valid envelope").contents,
             "newer"
+        );
+        assert_eq!(
+            scan_directory(&directory).candidates[0].original_relation,
+            OriginalRelation::Untitled
         );
         assert!(!delete_recovery_from(&directory, "session_1", 1).expect("preserve newer"));
 
@@ -414,5 +509,79 @@ mod tests {
             original
         );
         fs::remove_dir_all(directory).expect("cleanup future recovery test");
+    }
+
+    #[test]
+    fn coverage_keeps_newer_work_and_a_failed_save_keeps_the_original() {
+        let directory = std::env::temp_dir().join(format!(
+            "savage-recovery-coverage-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let project = directory.join("Poster.savage");
+        fs::create_dir_all(&directory).expect("create fixture directory");
+        fs::write(&project, b"original-bytes").expect("seed project");
+        let recorded = fingerprint(&project).expect("fingerprint original");
+        let request = |sequence, contents: &str| RecoveryWriteRequest {
+            session_id: "session_1".into(),
+            source_path: Some(project.display().to_string()),
+            source_fingerprint: Some(recorded.clone()),
+            schema_version: 1,
+            sequence,
+            contents: contents.into(),
+        };
+
+        write_recovery_to(&directory, request(2, "edited")).expect("write recovery");
+        let path = recovery_path(&directory, "session_1").expect("recovery path");
+        assert_eq!(
+            scan_directory(&directory).candidates[0].original_relation,
+            OriginalRelation::Unchanged
+        );
+
+        fs::write(&project, b"external-newer").expect("change original");
+        assert_eq!(
+            scan_directory(&directory).candidates[0].original_relation,
+            OriginalRelation::Changed
+        );
+        let conflict = write_text_file_atomic(&project, b"save-me", 64, Some(&recorded))
+            .expect_err("stale fingerprint must not replace the original");
+        assert!(conflict.contains("conflict"));
+        let too_large = write_text_file_atomic(&project, b"too-big", 3, None)
+            .expect_err("oversized write must not replace the original");
+        assert!(too_large.contains("too large"));
+        assert_eq!(
+            fs::read(&project).expect("original bytes"),
+            b"external-newer"
+        );
+        assert_eq!(
+            read_envelope(&path).expect("recovery remains").contents,
+            "edited"
+        );
+
+        fs::remove_file(&project).expect("remove original");
+        assert_eq!(
+            scan_directory(&directory).candidates[0].original_relation,
+            OriginalRelation::Missing
+        );
+        assert!(!delete_recovery_from(&directory, "session_1", 1).expect("keep newer"));
+        write_recovery_to(&directory, request(1, "stale")).expect("ignore covered sequence");
+        assert_eq!(
+            read_envelope(&path).expect("newer remains").contents,
+            "edited"
+        );
+
+        assert!(delete_recovery_from(&directory, "session_1", 2).expect("cover sequence 2"));
+        assert!(!path.exists());
+        write_recovery_to(&directory, request(2, "resurrect")).expect("ignore covered rewrite");
+        assert!(!path.exists());
+        write_recovery_to(&directory, request(3, "after-save")).expect("write the next sequence");
+        assert_eq!(
+            read_envelope(&path).expect("later recovery").contents,
+            "after-save"
+        );
+        fs::remove_dir_all(directory).expect("cleanup coverage test");
     }
 }

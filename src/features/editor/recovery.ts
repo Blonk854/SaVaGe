@@ -42,6 +42,7 @@ export class RecoveryCoordinator {
   private sessionId: string | null = null;
   private epoch = 0;
   private sequence = 0;
+  private coveredThrough = 0;
   private latest: RecoverySnapshot | null = null;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private maximumTimer: ReturnType<typeof setTimeout> | null = null;
@@ -60,10 +61,11 @@ export class RecoveryCoordinator {
     this.align(session.sessionId, session.recoveryEpoch);
     const contents = projectContents(doc);
     if (!isProjectModified(doc)) {
-      const throughSequence = this.sequence;
+      const throughSequence = Math.max(this.sequence, this.coveredThrough);
       this.cancelTimers();
       this.latest = null;
-      this.sequence = 0;
+      this.coveredThrough = throughSequence;
+      this.sequence = throughSequence;
       useProjectSessionStore
         .getState()
         .setRecoveryState(session.sessionId, this.epoch, "none", 0);
@@ -76,6 +78,7 @@ export class RecoveryCoordinator {
     }
 
     this.sequence += 1;
+    if (this.sequence <= this.coveredThrough) this.sequence = this.coveredThrough + 1;
     this.latest = {
       sessionId: session.sessionId,
       sourcePath: session.projectPath,
@@ -95,12 +98,18 @@ export class RecoveryCoordinator {
     );
   }
 
-  /** Drop a pending checkpoint when the session has been saved or replaced. */
-  release(sessionId: string): void {
-    if (this.sessionId !== sessionId) return;
+  /**
+   * Mark sequences through `throughSequence` as covered by a verified save.
+   * A newer pending snapshot stays scheduled.
+   */
+  cover(sessionId: string, throughSequence: number): "kept-newer" | "covered" | "ignored" {
+    if (!this.sessionId || this.sessionId !== sessionId) return "ignored";
+    if (throughSequence > this.coveredThrough) this.coveredThrough = throughSequence;
+    if (this.sequence < this.coveredThrough) this.sequence = this.coveredThrough;
+    if (this.latest && this.latest.sequence > this.coveredThrough) return "kept-newer";
     this.cancelTimers();
     this.latest = null;
-    this.sequence = 0;
+    return "covered";
   }
 
   sequenceFor(sessionId: string, contents: string): number {
@@ -121,11 +130,15 @@ export class RecoveryCoordinator {
 
   private align(sessionId: string, epoch: number): void {
     if (this.sessionId === sessionId && this.epoch === epoch) return;
+    const sameSession = this.sessionId === sessionId;
     this.cancelTimers();
+    this.latest = null;
     this.sessionId = sessionId;
     this.epoch = epoch;
-    this.sequence = 0;
-    this.latest = null;
+    if (!sameSession) {
+      this.sequence = 0;
+      this.coveredThrough = 0;
+    }
   }
 
   private flush(): void {
@@ -137,12 +150,17 @@ export class RecoveryCoordinator {
     void Promise.resolve().then(async () => {
       const current = useProjectSessionStore.getState();
       if (current.sessionId !== sessionId || current.recoveryEpoch !== epoch) return;
+      const superseded = () =>
+        snapshot.sequence <= this.coveredThrough ||
+        (this.latest !== null && this.latest.sequence !== snapshot.sequence);
       try {
         await this.dependencies.write(snapshot);
+        if (superseded()) return;
         useProjectSessionStore
           .getState()
           .setRecoveryState(sessionId, epoch, "checkpointed", snapshot.sequence);
       } catch (error) {
+        if (superseded()) return;
         useProjectSessionStore
           .getState()
           .setRecoveryState(sessionId, epoch, "failed", snapshot.sequence);
@@ -178,9 +196,34 @@ export function recoverySequenceFor(sessionId: string, contents: string): number
   return coordinator.sequenceFor(sessionId, contents);
 }
 
-export function releaseRecoveryCheckpoint(sessionId: string): void {
-  coordinator.release(sessionId);
-  useProjectSessionStore.getState().clearRecovery(sessionId);
+export function releaseRecoveryCheckpoint(sessionId: string, throughSequence: number): void {
+  if (coordinator.cover(sessionId, throughSequence) === "covered") {
+    useProjectSessionStore.getState().clearRecovery(sessionId);
+  }
+}
+
+export function recoveryOfferMessage(candidate: {
+  sourcePath: string | null;
+  createdAtMs: number;
+  originalRelation?: string;
+}): string {
+  const when = new Date(candidate.createdAtMs).toLocaleString();
+  const base = `Recover unsaved work from ${when}?`;
+  if (candidate.originalRelation === "changed") {
+    const name = candidate.sourcePath ? fileDisplayName(candidate.sourcePath) : "The original file";
+    return `${base} ${name} changed after this checkpoint. Recover opens an unsaved copy and does not replace that file.`;
+  }
+  if (candidate.originalRelation === "missing") {
+    return `${base} The original project file is missing. Recover does not recreate it.`;
+  }
+  return base;
+}
+
+export function recoveryAllowsOpenOriginal(candidate: {
+  sourcePath: string | null;
+  originalRelation?: string;
+}): boolean {
+  return Boolean(candidate.sourcePath) && candidate.originalRelation !== "missing";
 }
 
 export async function discardCurrentRecovery(
@@ -209,6 +252,7 @@ interface RecoveryCandidate extends RecoverySnapshot {
   applicationVersion: string;
   createdAtMs: number;
   integrity: string;
+  originalRelation?: string;
 }
 
 interface RecoveryScan {
@@ -276,10 +320,12 @@ export async function offerRecoveryOnStartup(
       continue;
     }
 
-    const recover = await askLabeledYesNo(
-      `Recover unsaved work from ${new Date(candidate.createdAtMs).toLocaleString()}?`,
-      { title: "Project recovery", kind: "warning", yes: "Recover", no: "Other options" },
-    );
+    const recover = await askLabeledYesNo(recoveryOfferMessage(candidate), {
+      title: "Project recovery",
+      kind: "warning",
+      yes: "Recover",
+      no: "Other options",
+    });
     if (recover) {
       if (!(await confirmReplacement())) return false;
       useProjectSessionStore.getState().startSession({
@@ -291,7 +337,7 @@ export async function offerRecoveryOnStartup(
       return true;
     }
 
-    if (candidate.sourcePath) {
+    if (recoveryAllowsOpenOriginal(candidate)) {
       const openSource = await askLabeledYesNo("Open the original project instead?", {
         title: "Project recovery",
         kind: "info",
@@ -300,12 +346,17 @@ export async function offerRecoveryOnStartup(
       });
       if (openSource) return openOriginal(candidate, confirmReplacement);
     } else {
-      const discard = await askLabeledYesNo("Discard this untitled recovery?", {
-        title: "Project recovery",
-        kind: "warning",
-        yes: "Discard Recovery",
-        no: "Keep",
-      });
+      const discard = await askLabeledYesNo(
+        candidate.sourcePath
+          ? "Discard this recovery? The missing original file will not be recreated."
+          : "Discard this untitled recovery?",
+        {
+          title: "Project recovery",
+          kind: "warning",
+          yes: "Discard Recovery",
+          no: "Keep",
+        },
+      );
       if (!discard) continue;
     }
     await coordinator.discard(candidate.sessionId, candidate.sequence);
