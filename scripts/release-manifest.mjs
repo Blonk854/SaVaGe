@@ -72,6 +72,46 @@ function lockfileHashes(root) {
   };
 }
 
+const GATE_ENFORCEMENTS = new Set([
+  "fail",
+  "report-only",
+  "manual",
+  "not-measured",
+  "not-in-pipeline",
+  "not-provisioned",
+]);
+
+export function readQualityGates(root = REPO_ROOT) {
+  const policy = JSON.parse(readFileSync(join(root, "docs/engineering/quality-gates.json"), "utf8"));
+  if (policy?.coverage?.mode !== "report-only" || policy?.coverage?.repositoryPercentageGate !== false) {
+    throw new Error("Coverage must stay a report-only artifact with no repository-wide percentage gate");
+  }
+  if (!Array.isArray(policy.gates) || policy.gates.length === 0) {
+    throw new Error("Quality gates are missing");
+  }
+  for (const gate of policy.gates) {
+    if (!gate?.id || !GATE_ENFORCEMENTS.has(gate.enforcement)) {
+      throw new Error(`Unknown quality gate enforcement for ${gate?.id ?? "<missing>"}`);
+    }
+  }
+  return policy;
+}
+
+export function acceptanceGateResults(policy, rustAudit = "not-run") {
+  if (rustAudit !== "passed" && rustAudit !== "not-run") {
+    throw new Error("--rust-audit must be passed or not-run");
+  }
+  return {
+    note: "Fail gates are recorded as passed only because this sidecar is written after those commands succeed. Other enforcement values are not passing results.",
+    gates: policy.gates.map((gate) => ({
+      id: gate.id,
+      plan: gate.plan,
+      enforcement: gate.enforcement,
+      result: gate.enforcement === "fail" ? (gate.id === "rust-audit" ? rustAudit : "passed") : gate.enforcement,
+    })),
+  };
+}
+
 export function buildProvenance({
   version,
   gitCommit,
@@ -80,6 +120,7 @@ export function buildProvenance({
   signed = false,
   toolchain,
   checks,
+  acceptanceGates,
   createdAt = new Date().toISOString(),
   root = REPO_ROOT,
 }) {
@@ -104,6 +145,7 @@ export function buildProvenance({
     toolchain,
     lockfiles: lockfileHashes(root),
     checks,
+    acceptanceGates,
     artifact: {
       fileName,
       sha256: sha256File(installerPath),
@@ -128,6 +170,7 @@ function commandProvenance(args, root) {
     throw new Error(`Git tag ${gitTag || "<none>"} does not match ${expectedTag}`);
   }
   const outDir = resolve(String(args.out ?? dirname(installer)));
+  const rustAudit = String(args["rust-audit"] ?? "not-run");
   const provenance = buildProvenance({
     version,
     gitCommit: String(args.commit ?? process.env.GITHUB_SHA ?? ""),
@@ -142,7 +185,11 @@ function commandProvenance(args, root) {
       versionConsistency: "passed",
       frontend: String(args["checks-frontend"] ?? "passed"),
       rust: String(args["checks-rust"] ?? "passed"),
+      javascriptAudit: "passed",
+      rustAudit,
+      coverage: "report-only",
     },
+    acceptanceGates: acceptanceGateResults(readQualityGates(root), rustAudit),
   });
   if (!provenance.gitCommit) {
     throw new Error("provenance requires --commit or GITHUB_SHA");

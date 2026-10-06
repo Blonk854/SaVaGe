@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: release-nsis-${{ github.ref }}
@@ -51,8 +52,49 @@ jobs:
           }
           Add-Content -Path $env:GITHUB_OUTPUT -Value "value=$version"
 
-      - name: Frontend and Rust checks
-        run: pnpm check
+      - name: Quality gates
+        run: pnpm check:ci
+
+      - name: Record benchmark gate
+        if: always() && !cancelled()
+        run: node scripts/quality-reports.mjs
+
+      - name: Upload test results
+        if: always() && !cancelled()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results
+          path: test-results/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload coverage report
+        if: always() && !cancelled()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: coverage/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload benchmark status
+        if: always() && !cancelled()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: benchmark-results
+          path: benchmark-results/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Rust advisory audit
+        if: always() && !cancelled()
+        uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: src-tauri
 
       - name: Fetch locked Rust crates
         run: cargo fetch --locked --manifest-path src-tauri/Cargo.toml
@@ -74,7 +116,8 @@ jobs:
             --tag $env:GITHUB_REF_NAME `
             --node $node `
             --pnpm $pnpm `
-            --rustc $rustc
+            --rustc $rustc `
+            --rust-audit passed
 
       - name: Upload unsigned artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -94,6 +137,8 @@ jobs:
           $dir = "src-tauri/target/release/bundle/nsis"
           $notes = @"
           Unsigned internal/opt-in NSIS build of SaVaGe $version from tag ${{ github.ref_name }}. This GitHub Release is a prerelease.
+
+          provenance.json records the acceptance gates. Passing gates are version consistency, the production JavaScript audit, frontend tests with a coverage report, the frontend build, Rust fmt/test/Clippy, the Rust advisory audit, and this installer. Coverage has no repository-wide percentage gate. This workflow does not claim native smoke, end-to-end accessibility, visual regression, performance budgets, or Authenticode signing.
 
           There is no automatic updater. Install by running the tagged setup. Do not mark this release as latest stable until the promotion record and Authenticode signing are complete.
 

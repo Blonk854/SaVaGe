@@ -49,9 +49,11 @@ npx --yes pnpm@10.17.1 tauri build --debug
 - Production JavaScript findings fail `pnpm audit:frontend`. There are no owned ignore-CVE
 	exceptions; a future low/moderate exception needs owner, mitigation, expiry, and re-review
 	before `pnpm.auditConfig.ignoreCves` is used.
-- Frontend coverage reports are optional CI artifacts only. Vitest has no repository-wide
-	percentage threshold; do not add one as a merge gate. Per-risk coverage belongs with the
-	tests for that boundary.
+- Frontend coverage reports are optional CI artifacts. `pnpm check:ci` runs Vitest 3.2.7
+	with `@vitest/coverage-v8` (devDependency only; same locked version as Vitest; MIT; not in
+	the desktop bundle). Upload uses `if-no-files-found: warn` and `continue-on-error`. There
+	is no repository-wide percentage gate. Per-risk coverage belongs with the tests for that
+	boundary. See [quality-gates.json](quality-gates.json).
 
 The automation probe found Edge 153.0.4234.32, but neither `tauri-driver` nor a matching
 EdgeDriver is installed. Until a compatible pair is selected and pinned, native coverage is

@@ -1,0 +1,112 @@
+{
+  "policyVersion": 1,
+  "coverage": {
+    "mode": "report-only",
+    "repositoryPercentageGate": false,
+    "upload": "optional-artifact",
+    "provider": "@vitest/coverage-v8",
+    "providerVersion": "3.2.7",
+    "dependency": {
+      "need": "Vitest 3.2.7 runs tests but does not ship a coverage provider.",
+      "alternatives": "Keep the locked Vitest runner. Reject @vitest/coverage-istanbul and a hosted coverage upload that would need a token.",
+      "license": "MIT",
+      "maintenance": "Same Vitest release line as the locked runner.",
+      "footprint": "devDependency only. Uses the built-in V8 inspector and is not part of the desktop bundle.",
+      "pin": "Exact 3.2.7, the same version pnpm-lock.yaml resolves for vitest."
+    }
+  },
+  "triggers": {
+    "pullRequest": true,
+    "protectedBranches": ["main", "master"],
+    "schedule": "17 8 * * 1",
+    "releaseTags": "v*.*.*"
+  },
+  "artifacts": {
+    "testResults": {
+      "path": "test-results/",
+      "ifNoFilesFound": "warn"
+    },
+    "coverage": {
+      "path": "coverage/",
+      "ifNoFilesFound": "warn"
+    },
+    "benchmarks": {
+      "path": "benchmark-results/",
+      "ifNoFilesFound": "warn"
+    },
+    "installer": {
+      "path": "src-tauri/target/release/bundle/nsis/",
+      "ifNoFilesFound": "error",
+      "surfaces": ["release"]
+    }
+  },
+  "gates": [
+    {
+      "id": "version-consistency",
+      "plan": "alpha",
+      "enforcement": "fail",
+      "workflowCommand": "node scripts/release-manifest.mjs check",
+      "packageCommand": "release-manifest.mjs\" check",
+      "surfaces": ["check", "release"]
+    },
+    {
+      "id": "javascript-audit",
+      "plan": "alpha",
+      "enforcement": "fail",
+      "workflowCommand": "pnpm audit:frontend",
+      "surfaces": ["check", "release", "release:package"]
+    },
+    {
+      "id": "frontend-tests-build-rust",
+      "plan": "alpha",
+      "enforcement": "fail",
+      "workflowCommand": "pnpm check:ci",
+      "includes": ["test:coverage", "build", "check:rust"],
+      "surfaces": ["check", "release", "release:package"]
+    },
+    {
+      "id": "rust-audit",
+      "plan": "beta",
+      "enforcement": "fail",
+      "workflowCommand": "rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998",
+      "surfaces": ["check", "release"],
+      "local": "not-run"
+    },
+    {
+      "id": "frontend-coverage",
+      "plan": "alpha",
+      "enforcement": "report-only",
+      "note": "The report is an artifact. A repository-wide percentage is not a merge or release gate."
+    },
+    {
+      "id": "benchmarks",
+      "plan": "1.0",
+      "enforcement": "not-measured",
+      "note": "Section 6.8 owns named-machine budgets. This status file is not a passing result."
+    },
+    {
+      "id": "installer",
+      "plan": "1.0",
+      "enforcement": "fail",
+      "workflowCommand": "pnpm tauri:build -- --ci --bundles nsis",
+      "surfaces": ["release", "release:package"]
+    },
+    {
+      "id": "native-smoke",
+      "plan": "beta",
+      "enforcement": "manual",
+      "evidence": "docs/engineering/native-smoke-checklist.md"
+    },
+    {
+      "id": "e2e-accessibility-visual",
+      "plan": "beta",
+      "enforcement": "not-in-pipeline",
+      "note": "Section 6.7 owns critical journeys, accessibility checks, and visual regression."
+    },
+    {
+      "id": "authenticode",
+      "plan": "1.0",
+      "enforcement": "not-provisioned"
+    }
+  ]
+}

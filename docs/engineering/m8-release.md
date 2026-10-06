@@ -50,9 +50,12 @@ npx --yes pnpm@10.17.1 release:check
 npx --yes pnpm@10.17.1 release:package
 ```
 
-`scripts/release-package.ps1` runs frozen install, `pnpm audit:frontend`, `pnpm check`, `cargo fetch --locked`,
+`scripts/release-package.ps1` runs frozen install, `pnpm audit:frontend`, `pnpm check:ci`, `cargo fetch --locked`,
 `pnpm tauri:build -- --ci --bundles nsis`, then writes checksums next to
 `src-tauri/target/release/bundle/nsis/SaVaGe_<version>_x64-setup.exe`.
+`check:ci` is coverage plus the frontend build and Rust fmt/test/Clippy. Local provenance
+leaves the Rust advisory audit as `not-run`; the tagged workflow records it after
+`rustsec/audit-check` succeeds.
 
 `-AllowUntagged` is only for a local dry run. It still records `signed: false` and
 must not be used for a distributed artifact.
@@ -61,8 +64,8 @@ must not be used for a distributed artifact.
 
 | Workflow | Trigger | Secrets | Output |
 |---|---|---|---|
-| `.github/workflows/check.yml` | pull requests, `main`/`master`, Monday 08:17 UTC | default `GITHUB_TOKEN` for cargo-audit | version check + `pnpm audit:frontend` + `pnpm check` + Rust advisory audit |
-| `.github/workflows/release.yml` | tags `v*.*.*` | GitHub `GITHUB_TOKEN` only | JS audit + checks + NSIS + checksums + provenance |
+| `.github/workflows/check.yml` | pull requests, protected `main`/`master`, Monday 08:17 UTC | default `GITHUB_TOKEN` for cargo-audit and artifact upload | version check + `pnpm audit:frontend` + `pnpm check:ci` + Rust advisory audit + test/coverage/benchmark artifacts |
+| `.github/workflows/release.yml` | tags `v*.*.*` | GitHub `GITHUB_TOKEN` only | the same gates, then NSIS + checksums + provenance |
 
 Actions are pinned by commit SHA. Third-party actions used here:
 
@@ -72,12 +75,22 @@ Actions are pinned by commit SHA. Third-party actions used here:
 | `actions/setup-node` | `820762786026740c76f36085b0efc47a31fe5020` (v7.0.0) | Node from `.node-version` | preinstalled Node, unpinned |
 | `dtolnay/rust-toolchain` | `6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772` (v1) | Rust 1.96.0 plus clippy/rustfmt | downloading `rustup-init` unpinned |
 | `rustsec/audit-check` | `69366f33c96575abad1ee0dba8212993eecbe998` (v2.0.0) | `cargo audit` against `src-tauri/Cargo.lock` | installing `cargo-audit` unpinned on the runner |
-| `actions/upload-artifact` | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` (v7.0.1) | retain the installer if release attach fails | `gh` only |
+| `actions/upload-artifact` | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` (v7.0.1) | retain test, coverage, and benchmark reports, and the installer if release attach fails | `gh` only |
 
 pnpm comes from Corepack using `package.json` `packageManager`. Cargo and pnpm installs
 are locked. Create a GitHub Environment named `release` and restrict who can approve
 it before the first tag. Required status checks are a repository-settings step, not
-part of this YAML.
+part of this YAML. The check to require on protected `main` and `master` is `Check / verify`.
+
+## Acceptance gates
+
+[quality-gates.json](quality-gates.json) is the list the release sidecar copies into
+`provenance.json` `acceptanceGates`. Commands with `"enforcement": "fail"` fail the
+pull request, the protected branch, and the tagged installer. Coverage is uploaded
+when the report exists and is not a percentage gate. The benchmark artifact says
+`not-measured` until named budgets exist. Native smoke, end-to-end accessibility,
+visual regression, and Authenticode stay explicit non-passing results. Do not mark
+those gates passed because this workflow is green.
 
 ## Provenance sidecar
 
@@ -85,7 +98,7 @@ Each tagged installer is published with:
 
 - `SHA256SUMS.txt` — SHA-256 of the NSIS setup executable
 - `provenance.json` — product version, git commit/tag, toolchain versions, lockfile
-  hashes, check results, artifact hash, and `signed: false`
+  hashes, check results, acceptance gates, artifact hash, and `signed: false`
 
 Keep previous verified installers and their sidecars. A later binary downgrade is not
 document rollback. See [m8-retain.md](m8-retain.md).

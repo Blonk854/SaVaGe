@@ -16,8 +16,10 @@
     "tauri:build": "tauri build",
     "manual:pdf": "npx --yes md-to-pdf USER_MANUAL.md --config-file ./md-to-pdf.config.cjs && node -e \"const fs=require('fs');fs.mkdirSync('docs',{recursive:true});fs.mkdirSync('src-tauri/resources',{recursive:true});fs.copyFileSync('USER_MANUAL.pdf','docs/USER_MANUAL.pdf');fs.copyFileSync('USER_MANUAL.pdf','src-tauri/resources/USER_MANUAL.pdf');console.log('Synced PDF to docs/ and src-tauri/resources/')\"",
     "test": "vitest run",
+    "test:coverage": "node scripts/quality-reports.mjs && vitest run --coverage --reporter=default --reporter=json --outputFile=test-results/vitest.json",
     "test:watch": "vitest",
     "check": "pnpm check:frontend && pnpm check:rust",
+    "check:ci": "pnpm test:coverage && pnpm build && pnpm check:rust",
     "check:frontend": "pnpm test && pnpm build",
     "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo test --manifest-path src-tauri/Cargo.toml --locked && cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings",
     "audit:frontend": "pnpm audit --prod",
@@ -56,6 +58,7 @@
     "jsdom": "^26.1.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@vitest/coverage-v8": "3.2.7"
   }
 }

@@ -255,10 +255,10 @@ This is the practical remaining-work list for the current repo state, based on t
 - Evidence: [src/features/editor/recovery.ts](src/features/editor/recovery.ts), [src-tauri/src/commands/recovery.rs](src-tauri/src/commands/recovery.rs)
 
 ### 6.6 CI and quality gates
-- Add coverage reporting to CI and ensure the required quality gateways run on pull requests and protected release branches. Coverage upload remains optional and must not use a repository-wide percentage gate.
-- Include JavaScript dependency auditing and release-artifact upload for tests, coverage, benchmark, and installer outputs. **Done for JS audit:** `pnpm audit:frontend` (`pnpm audit --prod`) on pull requests, `main`/`master`, weekly schedule, tagged NSIS, and local `release:package`. No owned CVE exceptions.
-- Make the release pipeline reflect the plan’s acceptance gates rather than only the minimum build/test flow.
-- Evidence: [.github/workflows/check.yml](.github/workflows/check.yml), [.github/workflows/release.yml](.github/workflows/release.yml), [package.json](package.json#L6-L28)
+- Add coverage reporting to CI and ensure the required quality gateways run on pull requests and protected release branches. **Done:** `pnpm check:ci` runs Vitest with V8 coverage, the production build, and Rust fmt/test/Clippy on pull requests, protected `main`/`master`, the weekly schedule, and tagged NSIS. Coverage upload is `continue-on-error` with `if-no-files-found: warn`. There is no repository-wide percentage gate.
+- Include JavaScript dependency auditing and release-artifact upload for tests, coverage, benchmark, and installer outputs. **Done:** `pnpm audit:frontend` (`pnpm audit --prod`) and `rustsec/audit-check` on those triggers, plus local `release:package` for the JavaScript audit. No owned CVE exceptions. Check and release upload test results, the coverage report, and a benchmark status file. Tagged NSIS still uploads the installer with `if-no-files-found: error`. The benchmark file stays `not-measured` until section 6.8.
+- Make the release pipeline reflect the plan’s acceptance gates rather than only the minimum build/test flow. **Done:** [docs/engineering/quality-gates.json](docs/engineering/quality-gates.json) is copied into `provenance.json`. Fail gates are the commands above. Native smoke stays manual, E2E/accessibility/visual stay out of this pipeline, performance budgets stay not-measured, and Authenticode stays not provisioned.
+- Evidence: [.github/workflows/check.yml](.github/workflows/check.yml), [.github/workflows/release.yml](.github/workflows/release.yml), [package.json](package.json#L6-L28), [docs/engineering/quality-gates.json](docs/engineering/quality-gates.json)
 
 ### 6.7 E2E, accessibility, and visual regression
 - Add the critical journey tests called for by the plan: import/convert/save/reopen/export, malformed input handling, recovery, close prompts, and keyboard-only file workflows.

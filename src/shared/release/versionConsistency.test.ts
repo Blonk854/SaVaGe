@@ -66,6 +66,8 @@ describe("release version consistency", () => {
       signed: boolean;
       signingPolicy: string;
       gitTag: string;
+      checks: { coverage: string; rustAudit: string };
+      acceptanceGates: { gates: { id: string; enforcement: string; result: string }[] };
       rollout: { distribution: string; autoUpdater: boolean; unsignedMaxChannel: string };
       artifact: { fileName: string; sha256: string };
     };
@@ -80,6 +82,17 @@ describe("release version consistency", () => {
     expect(provenance.gitTag).toBe(`v${pkg.version}`);
     expect(sums).toBe(`${provenance.artifact.sha256}  ${provenance.artifact.fileName}`);
     expect(provenance.artifact.fileName).toBe(`SaVaGe_${pkg.version}_x64-setup.exe`);
+    expect(provenance.checks.coverage).toBe("report-only");
+    expect(provenance.checks.rustAudit).toBe("not-run");
+    const gates = Object.fromEntries(
+      provenance.acceptanceGates.gates.map((gate) => [gate.id, gate.result]),
+    );
+    expect(gates.benchmarks).toBe("not-measured");
+    expect(gates["native-smoke"]).toBe("manual");
+    expect(gates["frontend-coverage"]).toBe("report-only");
+    for (const gate of provenance.acceptanceGates.gates) {
+      if (gate.enforcement !== "fail") expect(gate.result).not.toBe("passed");
+    }
   });
 });
 

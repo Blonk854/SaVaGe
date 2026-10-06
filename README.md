@@ -32,9 +32,11 @@ pnpm tauri:dev
 | `pnpm tauri:dev` | Run desktop app |
 | `pnpm tauri:build` | Production installer |
 | `pnpm test` | Vitest unit tests |
+| `pnpm test:coverage` | Vitest plus a V8 coverage report (no percentage gate) |
 | `pnpm build` | Frontend-only build |
 | `pnpm check` | Frontend build/tests plus Rust fmt/tests/Clippy |
-| `pnpm audit:frontend` | Audit production JavaScript dependencies (CI on PRs, `master`, weekly, and tagged NSIS) |
+| `pnpm check:ci` | Coverage, frontend build, and Rust fmt/tests/Clippy (pull requests, `main`/`master`, and tagged NSIS) |
+| `pnpm audit:frontend` | Audit production JavaScript dependencies (CI on PRs, `main`/`master`, weekly, and tagged NSIS) |
 | `pnpm audit:rust` | Audit Rust crates (`cargo audit`; install the crate first) |
 | `pnpm release:check` | Confirm package, Cargo, Tauri, and manual versions match |
 | `pnpm release:package` | Production NSIS installer plus SHA-256 and provenance sidecars |
