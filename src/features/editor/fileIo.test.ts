@@ -11,12 +11,16 @@ import {
   confirmDocumentReplacement,
   exportPng,
   exportSvg,
+  newProject,
   openConvertedSvg,
   openFile,
+  openRecentProject,
+  reopenLastProjectOnStartup,
   saveProject,
 } from "./fileIo";
 import { useUiStore } from "../../shared/stores/uiStore";
 import { resolveUnsavedChangesPrompt } from "../../shared/ui/unsavedChangesPrompt";
+import { handleWindowCloseRequest } from "../../shared/ui/nativeConfirm";
 
 describe("saveProject", () => {
   beforeEach(() => {
@@ -208,6 +212,7 @@ describe("saveProject", () => {
         throw new Error("repeat Save must not open a dialog");
       },
       invoke: async (command, args) => {
+        if (command !== "write_project_file") return undefined;
         writeCommand = command;
         writeArgs = args;
         return { size: 11, modifiedMs: 21 };
@@ -298,6 +303,7 @@ describe("saveProject", () => {
               fingerprint: { size: 40, modifiedMs: 50 },
             };
           }
+          if (command === "remember_open_project") return undefined;
           throw new Error(command);
         },
       },
@@ -305,7 +311,11 @@ describe("saveProject", () => {
     );
 
     expect(result).toBe("reloaded");
-    expect(commands).toEqual(["write_project_file", "read_project_file"]);
+    expect(commands).toEqual([
+      "write_project_file",
+      "read_project_file",
+      "remember_open_project",
+    ]);
     expect(useProjectSessionStore.getState().fileFingerprint).toEqual({
       size: 40,
       modifiedMs: 50,
@@ -673,5 +683,135 @@ describe("export jobs", () => {
       }, "job_png"),
     ).rejects.toThrow(/current stage finishes/);
     expect(useUiStore.getState().exporting).toBe(false);
+  });
+});
+
+describe("document replacement", () => {
+  beforeEach(() => {
+    const doc = createEmptyDocument();
+    useDocumentStore.getState().loadDocument(doc);
+    useProjectSessionStore.getState().startSession({
+      displayName: "Poster",
+      projectPath: "C:\\projects\\poster.savage",
+      projectDestinationGrantId: "grant_poster",
+      savedContents: projectContents(doc),
+    });
+  });
+
+  it("leaves a clean untitled document in place without asking", async () => {
+    const doc = createEmptyDocument();
+    useDocumentStore.getState().loadDocument(doc);
+    useProjectSessionStore.getState().startSession({
+      displayName: "Untitled",
+      savedContents: projectContents(doc),
+    });
+    let prompts = 0;
+    await expect(
+      confirmDocumentReplacement(async () => {
+        prompts += 1;
+        return "cancel";
+      }),
+    ).resolves.toBe(true);
+    expect(prompts).toBe(0);
+  });
+
+  it("cancels New, Open, and recent reopen without replacing a modified document", async () => {
+    useDocumentStore.getState().updateArtboard(
+      useDocumentStore.getState().doc.activeArtboardId,
+      { width: 640 },
+    );
+    const before = projectContents(useDocumentStore.getState().doc);
+    const sessionId = useProjectSessionStore.getState().sessionId;
+
+    await expect(newProject(async () => "cancel")).resolves.toBe(false);
+    await expect(
+      openFile(
+        {
+          chooseOpen: async () => ({
+            path: "C:\\projects\\other.savage",
+            projectDestinationGrantId: "grant_other",
+          }),
+          chooseSave: async () => null,
+          invoke: async () => ({
+            contents: projectContents(createEmptyDocument()),
+            fingerprint: { size: 1, modifiedMs: 1 },
+          }),
+        },
+        async () => "cancel",
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      openRecentProject(
+        "recent_1",
+        {
+          chooseOpen: async () => null,
+          chooseSave: async () => null,
+          invoke: async (command) => {
+            if (command === "reopen_recent_project") {
+              return { path: "C:\\projects\\other.savage", grantId: "grant_other" };
+            }
+            if (command === "read_project_file") {
+              return {
+                contents: projectContents(createEmptyDocument()),
+                fingerprint: { size: 1, modifiedMs: 1 },
+              };
+            }
+            throw new Error(command);
+          },
+        },
+        async () => "cancel",
+      ),
+    ).resolves.toBe(false);
+
+    expect(projectContents(useDocumentStore.getState().doc)).toBe(before);
+    expect(useProjectSessionStore.getState().sessionId).toBe(sessionId);
+  });
+
+  it("starts a clean untitled document after New discards changes", async () => {
+    useDocumentStore.getState().updateArtboard(
+      useDocumentStore.getState().doc.activeArtboardId,
+      { width: 640 },
+    );
+    await expect(newProject(async () => "discard")).resolves.toBe(true);
+    expect(useProjectSessionStore.getState().projectPath).toBeNull();
+    expect(useProjectSessionStore.getState().displayName).toBe("Untitled");
+    expect(isProjectModified(useDocumentStore.getState().doc)).toBe(false);
+  });
+
+  it("asks Save, Discard, or Cancel before close and shutdown replace a modified document", async () => {
+    useDocumentStore.getState().updateArtboard(
+      useDocumentStore.getState().doc.activeArtboardId,
+      { width: 640 },
+    );
+    let prompts = 0;
+    const exited: string[] = [];
+    await handleWindowCloseRequest({
+      preventDefault: () => exited.push("prevent"),
+      confirm: () =>
+        confirmDocumentReplacement(async () => {
+          prompts += 1;
+          return "cancel";
+        }),
+      destroy: async () => {
+        exited.push("exit");
+      },
+    });
+    expect(prompts).toBe(1);
+    expect(exited).toEqual(["prevent"]);
+    expect(isProjectModified(useDocumentStore.getState().doc)).toBe(true);
+  });
+
+  it("does not reopen the last project when startup has nothing to restore", async () => {
+    await expect(
+      reopenLastProjectOnStartup({
+        chooseOpen: async () => null,
+        chooseSave: async () => null,
+        invoke: async (command) => {
+          expect(command).toBe("startup_recent_project");
+          return null;
+        },
+      }),
+    ).resolves.toBe(false);
+    expect(useProjectSessionStore.getState().projectPath).toBe("C:\\projects\\poster.savage");
   });
 });

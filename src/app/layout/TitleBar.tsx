@@ -10,6 +10,10 @@ interface Props {
   onOpen: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  recentProjects: { id: string; label: string }[];
+  reopenLastProject: boolean;
+  onOpenRecent: (id: string) => void;
+  onToggleReopenLast: () => void;
   onExportSvg: () => void;
   onExportPng: () => void;
   onUndo: () => void;
@@ -41,7 +45,11 @@ type MenuId = "file" | "edit" | "object" | "view" | "help";
 const MENU_IDS: MenuId[] = ["file", "edit", "object", "view", "help"];
 
 function menuItems(root: HTMLElement | null, id: MenuId) {
-  return [...(root?.querySelectorAll<HTMLElement>(`#menu-${id} [role="menuitem"]`) ?? [])];
+  return [
+    ...(root?.querySelectorAll<HTMLElement>(
+      `#menu-${id} [role="menuitem"], #menu-${id} [role="menuitemcheckbox"]`,
+    ) ?? []),
+  ];
 }
 
 function menuButton(root: HTMLElement | null, id: MenuId) {
@@ -98,22 +106,26 @@ function MenuItem({
   onFocus,
   onMouseEnter,
   onMouseLeave,
+  checked,
 }: {
   children: ReactNode;
   onClick: () => void;
   onFocus?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  checked?: boolean;
 }) {
   return (
     <button
       type="button"
-      role="menuitem"
+      role={checked === undefined ? "menuitem" : "menuitemcheckbox"}
+      aria-checked={checked}
       onClick={onClick}
       onFocus={onFocus}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
+      {checked ? "✓ " : ""}
       {children}
     </button>
   );
@@ -127,6 +139,10 @@ export function TitleBar({
   onOpen,
   onSave,
   onSaveAs,
+  recentProjects,
+  reopenLastProject,
+  onOpenRecent,
+  onToggleReopenLast,
   onExportSvg,
   onExportPng,
   onUndo,
@@ -263,6 +279,19 @@ export function TitleBar({
         <Menu id="file" label="File" open={open} onOpen={setOpen}>
           <MenuItem onClick={run(onNew)}>New</MenuItem>
           <MenuItem onClick={run(onOpen)}>Open…</MenuItem>
+          {recentProjects.length === 0 ? (
+            <div className="menu__note">No recent projects</div>
+          ) : (
+            recentProjects.map((project) => (
+              <MenuItem key={project.id} onClick={run(() => onOpenRecent(project.id))}>
+                {project.label}
+              </MenuItem>
+            ))
+          )}
+          <MenuItem onClick={run(onToggleReopenLast)} checked={reopenLastProject}>
+            Reopen last project
+          </MenuItem>
+          <div className="menu__rule" role="separator" />
           <MenuItem onClick={run(onSave)}>Save</MenuItem>
           <MenuItem onClick={run(onSaveAs)}>Save As…</MenuItem>
           <MenuItem onClick={run(onExportSvg)}>Export SVG…</MenuItem>
@@ -432,9 +461,23 @@ export function TitleBar({
           padding: 0.45rem 0.6rem;
           border-radius: 6px;
           color: var(--fg-0);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 280px;
         }
         .menu__fly button:hover,
         .menu__fly button:focus-visible { background: rgba(184,255,60,0.1); }
+        .menu__note {
+          padding: 0.45rem 0.6rem;
+          color: var(--fg-1);
+          font-size: 0.85rem;
+        }
+        .menu__rule {
+          height: 1px;
+          margin: 0.25rem 0.35rem;
+          background: var(--border);
+        }
       `}</style>
     </header>
   );

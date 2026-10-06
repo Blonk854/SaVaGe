@@ -243,10 +243,10 @@ This is the practical remaining-work list for the current repo state, based on t
 - Evidence: [src-tauri/src/commands/import.rs](src-tauri/src/commands/import.rs#L15-L90), [src-tauri/src/commands/export.rs](src-tauri/src/commands/export.rs#L200-L290), [src-tauri/src/commands/convert.rs](src-tauri/src/commands/convert.rs)
 
 ### 6.4 File lifecycle and user protection
-- Finish the session-state model for project path, display name, revision tracking, modified status, save time, and recovery state.
-- Verify Save, Save As, New, Open, Replace-with-conversion, Close, and app shutdown still present Save/Discard/Cancel decisions for modified documents.
-- Keep recent projects and reopen-last-project behavior available and consistent with the plan.
-- Evidence: [src/features/editor/fileIo.ts](src/features/editor/fileIo.ts), [src/shared/stores/projectSessionStore.ts](src/shared/stores/projectSessionStore.ts), [src/app/layout/TitleBar.tsx](src/app/layout/TitleBar.tsx#L263)
+- Finish the session-state model for project path, display name, revision tracking, modified status, save time, and recovery state. **Done:** the project session snapshot keeps path, display name, serialized current/saved revisions, Unsaved/Modified/Saved, save time, and recovery status (`none`, `pending`, `checkpointed`, `failed`). Selection does not mark the project modified. An untouched new document is an acknowledged untitled baseline.
+- Verify Save, Save As, New, Open, Replace-with-conversion, Close, and app shutdown still present Save/Discard/Cancel decisions for modified documents. **Done:** those replacements share one decision. Cancel leaves the document open. Recovery replacement uses the same decision. Window close and application exit share it.
+- Keep recent projects and reopen-last-project behavior available and consistent with the plan. **Done:** a native list of 10 `.savage` files. Remember requires a live destination grant. Reopen uses an id. Reopen last project is opt-in and off by default. The menu shows name and parent folder, not a full path.
+- Evidence: [src/features/editor/fileIo.ts](src/features/editor/fileIo.ts), [src/shared/stores/projectSessionStore.ts](src/shared/stores/projectSessionStore.ts), [src/app/layout/TitleBar.tsx](src/app/layout/TitleBar.tsx#L263), [src-tauri/src/commands/recent_projects.rs](src-tauri/src/commands/recent_projects.rs)
 
 ### 6.5 Recovery and persistence
 - Confirm recovery snapshots are sequence-aware and newer-than-original aware.

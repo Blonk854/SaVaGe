@@ -40,6 +40,7 @@ const defaultDependencies: RecoveryDependencies = {
 
 export class RecoveryCoordinator {
   private sessionId: string | null = null;
+  private epoch = 0;
   private sequence = 0;
   private latest: RecoverySnapshot | null = null;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -56,16 +57,16 @@ export class RecoveryCoordinator {
 
   noteDocument(doc: SvgDocument): void {
     const session = useProjectSessionStore.getState();
-    if (this.sessionId !== session.sessionId) {
-      this.cancelTimers();
-      this.sessionId = session.sessionId;
-      this.sequence = 0;
-    }
+    this.align(session.sessionId, session.recoveryEpoch);
     const contents = projectContents(doc);
     if (!isProjectModified(doc)) {
       const throughSequence = this.sequence;
       this.cancelTimers();
       this.latest = null;
+      this.sequence = 0;
+      useProjectSessionStore
+        .getState()
+        .setRecoveryState(session.sessionId, this.epoch, "none", 0);
       if (throughSequence > 0) {
         void this.dependencies.remove(session.sessionId, throughSequence).catch((error) =>
           this.report(error),
@@ -83,12 +84,23 @@ export class RecoveryCoordinator {
       sequence: this.sequence,
       contents,
     };
+    useProjectSessionStore
+      .getState()
+      .setRecoveryState(session.sessionId, this.epoch, "pending", this.sequence);
     if (this.idleTimer) this.dependencies.clearTimer(this.idleTimer);
     this.idleTimer = this.dependencies.setTimer(() => this.flush(), RECOVERY_IDLE_MS);
     this.maximumTimer ??= this.dependencies.setTimer(
       () => this.flush(),
       RECOVERY_MAX_DIRTY_MS,
     );
+  }
+
+  /** Drop a pending checkpoint when the session has been saved or replaced. */
+  release(sessionId: string): void {
+    if (this.sessionId !== sessionId) return;
+    this.cancelTimers();
+    this.latest = null;
+    this.sequence = 0;
   }
 
   sequenceFor(sessionId: string, contents: string): number {
@@ -107,11 +119,36 @@ export class RecoveryCoordinator {
     this.latest = null;
   }
 
+  private align(sessionId: string, epoch: number): void {
+    if (this.sessionId === sessionId && this.epoch === epoch) return;
+    this.cancelTimers();
+    this.sessionId = sessionId;
+    this.epoch = epoch;
+    this.sequence = 0;
+    this.latest = null;
+  }
+
   private flush(): void {
     const snapshot = this.latest;
+    const epoch = this.epoch;
+    const sessionId = this.sessionId;
     this.cancelTimers();
-    if (!snapshot) return;
-    void this.dependencies.write(snapshot).catch((error) => this.report(error));
+    if (!snapshot || !sessionId) return;
+    void Promise.resolve().then(async () => {
+      const current = useProjectSessionStore.getState();
+      if (current.sessionId !== sessionId || current.recoveryEpoch !== epoch) return;
+      try {
+        await this.dependencies.write(snapshot);
+        useProjectSessionStore
+          .getState()
+          .setRecoveryState(sessionId, epoch, "checkpointed", snapshot.sequence);
+      } catch (error) {
+        useProjectSessionStore
+          .getState()
+          .setRecoveryState(sessionId, epoch, "failed", snapshot.sequence);
+        this.report(error);
+      }
+    });
   }
 
   private cancelTimers(): void {
@@ -139,6 +176,11 @@ const coordinator = new RecoveryCoordinator();
 
 export function recoverySequenceFor(sessionId: string, contents: string): number {
   return coordinator.sequenceFor(sessionId, contents);
+}
+
+export function releaseRecoveryCheckpoint(sessionId: string): void {
+  coordinator.release(sessionId);
+  useProjectSessionStore.getState().clearRecovery(sessionId);
 }
 
 export async function discardCurrentRecovery(
@@ -180,8 +222,11 @@ function isRecoveryScan(value: unknown): value is RecoveryScan {
   return Array.isArray(scan.candidates) && Array.isArray(scan.issues);
 }
 
-async function openOriginal(candidate: RecoveryCandidate): Promise<void> {
-  if (!candidate.sourcePath) return;
+async function openOriginal(
+  candidate: RecoveryCandidate,
+  confirmReplacement: () => Promise<boolean>,
+): Promise<boolean> {
+  if (!candidate.sourcePath) return false;
   const result = await invoke<unknown>("read_text_file", { path: candidate.sourcePath });
   if (!result || typeof result !== "object") throw new Error("Original project read was invalid");
   const contents = (result as { contents?: unknown }).contents;
@@ -196,6 +241,7 @@ async function openOriginal(candidate: RecoveryCandidate): Promise<void> {
     throw new Error("Original project read was invalid");
   }
   const document = parseSavageDocument(contents);
+  if (!(await confirmReplacement())) return false;
   useProjectSessionStore.getState().startSession({
     displayName: fileDisplayName(candidate.sourcePath),
     projectPath: candidate.sourcePath,
@@ -203,12 +249,14 @@ async function openOriginal(candidate: RecoveryCandidate): Promise<void> {
     savedContents: projectContents(document),
   });
   useDocumentStore.getState().loadDocument(document);
+  return true;
 }
 
 export async function offerRecoveryOnStartup(
   notify: (message: string) => void,
-): Promise<void> {
-  if (!isTauri()) return;
+  confirmReplacement: () => Promise<boolean>,
+): Promise<boolean> {
+  if (!isTauri()) return false;
   const value = await invoke<unknown>("list_recoveries");
   if (!isRecoveryScan(value)) throw new Error("Native recovery scan returned invalid data");
   if (value.issues.length) {
@@ -233,13 +281,14 @@ export async function offerRecoveryOnStartup(
       { title: "Project recovery", kind: "warning", yes: "Recover", no: "Other options" },
     );
     if (recover) {
+      if (!(await confirmReplacement())) return false;
       useProjectSessionStore.getState().startSession({
         displayName: `Recovered ${candidate.sourcePath ? fileDisplayName(candidate.sourcePath) : "Untitled"}`,
       });
       useDocumentStore.getState().loadDocument(document);
       await coordinator.discard(candidate.sessionId, candidate.sequence);
       notify("Recovered project opened as an unsaved document");
-      return;
+      return true;
     }
 
     if (candidate.sourcePath) {
@@ -249,10 +298,7 @@ export async function offerRecoveryOnStartup(
         yes: "Open Original",
         no: "Discard Recovery",
       });
-      if (openSource) {
-        await openOriginal(candidate);
-        return;
-      }
+      if (openSource) return openOriginal(candidate, confirmReplacement);
     } else {
       const discard = await askLabeledYesNo("Discard this untitled recovery?", {
         title: "Project recovery",
@@ -264,4 +310,5 @@ export async function offerRecoveryOnStartup(
     }
     await coordinator.discard(candidate.sessionId, candidate.sequence);
   }
+  return false;
 }

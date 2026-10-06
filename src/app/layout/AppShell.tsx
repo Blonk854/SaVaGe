@@ -25,6 +25,8 @@ import {
   confirmDocumentReplacement,
   newProject,
   openFile,
+  openRecentProject,
+  reopenLastProjectOnStartup,
   saveProject,
 } from "../../features/editor/fileIo";
 import { handleWindowCloseRequest } from "../../shared/ui/nativeConfirm";
@@ -57,6 +59,13 @@ import {
   offerRecoveryOnStartup,
   startRecoveryScheduler,
 } from "../../features/editor/recovery";
+import {
+  onRecentProjectsChanged,
+  recentMenuLabel,
+  refreshRecentProjects,
+  setReopenLastProject,
+  useRecentProjectsStore,
+} from "../../features/editor/recentProjects";
 
 function viewportSize() {
   const el = document.querySelector(".shell__main") as HTMLElement | null;
@@ -69,6 +78,8 @@ export function AppShell() {
   const setRightTab = useUiStore((s) => s.setRightTab);
   const temporal = useDocumentStore.temporal;
   const displayName = useProjectSessionStore((s) => s.displayName);
+  const recentProjects = useRecentProjectsStore((s) => s.projects);
+  const reopenLastProject = useRecentProjectsStore((s) => s.reopenLastProject);
   const saveLabel = useProjectSaveLabel();
   const modified = saveLabel !== "Saved";
   const [toast, setToast] = useState<{ message: string; kind: NoticeKind } | null>(null);
@@ -86,9 +97,33 @@ export function AppShell() {
   useEffect(() => startRecoveryScheduler((message) => flash(message)), []);
 
   useEffect(() => {
-    void offerRecoveryOnStartup((message) => flash(message, "warn")).catch((error) =>
-      flash(error instanceof Error ? error.message : String(error), "error"),
-    );
+    const refresh = () => {
+      void refreshRecentProjects().catch((error) =>
+        flash(error instanceof Error ? error.message : String(error), "warn"),
+      );
+    };
+    refresh();
+    return onRecentProjectsChanged(refresh);
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      let replaced = false;
+      try {
+        replaced = await offerRecoveryOnStartup(
+          (message) => flash(message, "warn"),
+          () => confirmDocumentReplacement(),
+        );
+      } catch (error) {
+        flash(error instanceof Error ? error.message : String(error), "error");
+      }
+      if (replaced || !isTauri()) return;
+      try {
+        await reopenLastProjectOnStartup();
+      } catch (error) {
+        flash(error instanceof Error ? error.message : String(error), "warn");
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -181,6 +216,21 @@ export function AppShell() {
         }
         onSave={() => runSave()}
         onSaveAs={() => runSave(true)}
+        recentProjects={recentProjects.map((project) => ({
+          id: project.id,
+          label: recentMenuLabel(project),
+        }))}
+        reopenLastProject={reopenLastProject}
+        onOpenRecent={(id) =>
+          void openRecentProject(id).catch((error) =>
+            flash(error instanceof Error ? error.message : String(error), "error"),
+          )
+        }
+        onToggleReopenLast={() =>
+          void setReopenLastProject(!reopenLastProject).catch((error) =>
+            flash(error instanceof Error ? error.message : String(error), "error"),
+          )
+        }
         onExportSvg={() =>
           void exportSvg()
             .then((result) => {

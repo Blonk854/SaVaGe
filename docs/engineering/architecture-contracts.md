@@ -32,8 +32,10 @@ production transform implementation, to pin multiplication order and skew behavi
 - Loading or replacing a document clears both undo and redo history. Undo cannot restore a
   document from a previous session.
 - The project session store owns session ID, display name, destination path/fingerprint,
-  acknowledged serialized payload, pending save operation ID, and save timestamp outside the
-  repaint store. Native-owned destination grants remain future hardening.
+  acknowledged serialized payload, pending save operation ID, save timestamp, and recovery
+  checkpoint status outside the repaint store. The current and saved revisions are that
+  serialization, so unequal content cannot be marked clean. Native destination grants authorize
+  repeat Save.
 - Save captures an immutable document snapshot and its session/state identity. Completion
   may acknowledge only that captured state in the same session; later edits remain dirty.
 - Save As changes the active destination only after a successful write. Open parses a candidate
@@ -45,8 +47,11 @@ production transform implementation, to pin multiplication order and skew behavi
 - Modified state is derived from the current deterministic serialization and the acknowledged
   saved payload. This keeps the checkpoint identifiable after history eviction and makes undo to
   saved content clean without storing repaint or selection state in history.
-- New, Open, raster-mode replacement, and Close use one deduplicated Save/Discard/Cancel decision.
-  A save followed by a newer edit does not permit replacement.
+- New, Open, raster-mode replacement, recovery replacement, and Close use one deduplicated
+  Save/Discard/Cancel decision. Window close and application exit share that decision. A save
+  followed by a newer edit does not permit replacement. An untouched new document is an
+  acknowledged untitled baseline and does not prompt. Imported SVG, conversions, and recovered
+  documents stay unacknowledged until Save.
 - Undo stays on zundo. Snapshots store `{ doc }` only and rely on Immer structural sharing of
   unchanged nodes. The stack is capped at 100 steps and 48 MiB of unique retained past/future
   graph. Oldest steps drop first; the live document is never discarded to meet the budget.
@@ -55,6 +60,17 @@ production transform implementation, to pin multiplication order and skew behavi
 Focused history and deferred-promise tests enforce these rules, including cancellation,
 out-of-order completion, edit-during-save, prompt deduplication, undo/redo cleanliness,
 repeat-save fingerprint forwarding, and save-conflict Reload / Save As / Overwrite.
+
+## Recent Projects Contract
+
+- The native recent-projects file records at most 10 `.savage` destinations. The webview can
+  remember a project only through a live destination grant, and can reopen one only by id.
+- The File menu receives the display name and parent folder, not a full path.
+- Reopen last project stays off until the user checks it. Startup runs it only after recovery
+  does not replace the document, and a modified document still goes through Save/Discard/Cancel.
+- A missing file is dropped from the list. A newer recent-projects file is left unchanged.
+- Successful project Open, Save, Save As, and Reload refresh the list. Save As cancel, export,
+  and SVG open do not.
 
 ## Plugin Command Contract
 

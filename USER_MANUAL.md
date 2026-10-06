@@ -471,8 +471,10 @@ Booleans need at least two selected **filled** shapes that can be treated as clo
 
 | Command | Behavior |
 |---|---|
-| **New** | **Ctrl+N**. Starts an empty Edit document. If the current document is not a saved `.savage` match, SaVaGe asks **Save**, **Discard**, or **Cancel** in the app. Closing the window uses the same in-app prompt. |
-| **Open…** | **Ctrl+O**. Opens `.savage` or `.svg` into Edit. Photos and PNG/JPEG/WEBP/GIF/BMP/TIFF switch to Convert and attach the file. A damaged project file shows an error instead of crashing. |
+| **New** | **Ctrl+N**. Starts an empty Edit document and treats that empty document as the untitled baseline. If the current document has unsaved changes, SaVaGe asks **Save**, **Discard**, or **Cancel**. Closing the window and quitting use the same in-app prompt. An untouched new document does not ask. |
+| **Open…** | **Ctrl+O**. Opens `.savage` or `.svg` into Edit. Photos and PNG/JPEG/WEBP/GIF/BMP/TIFF switch to Convert and attach the file. A damaged project file shows an error instead of crashing. Opening a `.savage` file adds it to Recent projects. |
+| **Recent projects** | Up to 10 `.savage` files opened or saved on this account. The menu shows the file name and parent folder. Choosing one uses the same unsaved-changes prompt as Open. A file that is no longer there is removed from the list. |
+| **Reopen last project** | Off until checked. The next launch opens the most recent `.savage` file after any recovery prompt, and still asks before replacing unsaved work. |
 | **Save** | **Ctrl+S**. Writes the current `.savage` if one is already the save target. The first save on an Unsaved document opens a location dialog. If the file changed on disk since it was opened or last saved, SaVaGe offers **Reload**, **Save As…**, **Overwrite**, or **Cancel**. |
 | **Save As…** | **Ctrl+Shift+S**. Always asks for a location. The current project path changes only after a successful write. Cancel leaves the previous file (or Unsaved) as the save target. |
 | **Export SVG…** | Writes an SVG file. Does not mark the project Saved. Status-bar **Cancel** requests a stop after the current stage; the job stays busy until it exits and a cancelled export does not write the file. |

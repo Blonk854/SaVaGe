@@ -14,15 +14,22 @@ export interface FileFingerprint {
   modifiedMs: number;
 }
 
+/** Checkpoint progress for the current session. Selection and camera never change it. */
+export type RecoverySnapshotStatus = "none" | "pending" | "checkpointed" | "failed";
+
 interface ProjectSessionState {
   sessionId: string;
   displayName: string;
   projectPath: string | null;
   projectDestinationGrantId: string | null;
   fileFingerprint: FileFingerprint | null;
+  /** Acknowledged serialization. This is the last-saved revision identity. */
   savedContents: string | null;
   pendingOperationId: string | null;
   lastSavedAt: number | null;
+  recoveryStatus: RecoverySnapshotStatus;
+  recoverySequence: number;
+  recoveryEpoch: number;
   startSession: (options: {
     displayName: string;
     projectPath?: string | null;
@@ -30,6 +37,13 @@ interface ProjectSessionState {
     fileFingerprint?: FileFingerprint | null;
     savedContents?: string | null;
   }) => void;
+  setRecoveryState: (
+    sessionId: string,
+    epoch: number,
+    status: RecoverySnapshotStatus,
+    sequence: number,
+  ) => void;
+  clearRecovery: (sessionId: string) => void;
   beginSave: (contents: string, recoverySequence?: number) => SaveSnapshot;
   acknowledgeSave: (
     snapshot: SaveSnapshot,
@@ -57,6 +71,9 @@ export const useProjectSessionStore = create<ProjectSessionState>((set, get) => 
   savedContents: null,
   pendingOperationId: null,
   lastSavedAt: null,
+  recoveryStatus: "none",
+  recoverySequence: 0,
+  recoveryEpoch: 0,
 
   startSession: ({
     displayName,
@@ -74,7 +91,26 @@ export const useProjectSessionStore = create<ProjectSessionState>((set, get) => 
       savedContents,
       pendingOperationId: null,
       lastSavedAt: projectPath && savedContents ? Date.now() : null,
+      recoveryStatus: "none",
+      recoverySequence: 0,
+      recoveryEpoch: get().recoveryEpoch + 1,
     }),
+
+  setRecoveryState: (sessionId, epoch, status, sequence) => {
+    const current = get();
+    if (current.sessionId !== sessionId || current.recoveryEpoch !== epoch) return;
+    set({ recoveryStatus: status, recoverySequence: sequence });
+  },
+
+  clearRecovery: (sessionId) => {
+    const current = get();
+    if (current.sessionId !== sessionId) return;
+    set({
+      recoveryEpoch: current.recoveryEpoch + 1,
+      recoveryStatus: "none",
+      recoverySequence: 0,
+    });
+  },
 
   beginSave: (contents, recoverySequence = 0) => {
     const snapshot = {
@@ -123,8 +159,56 @@ export const useProjectSessionStore = create<ProjectSessionState>((set, get) => 
   },
 }));
 
+export function acknowledgeUntitledDocument(doc: SvgDocument): void {
+  const current = useProjectSessionStore.getState();
+  if (current.projectPath || current.savedContents !== null) return;
+  useProjectSessionStore.setState({
+    displayName: doc.name || current.displayName,
+    savedContents: projectContents(doc),
+  });
+}
+
+export interface ProjectSessionSnapshot {
+  sessionId: string;
+  projectPath: string | null;
+  displayName: string;
+  /** Deterministic serialization of the open document. */
+  currentRevision: string;
+  /** Acknowledged serialization from the last New, Open, or successful Save. */
+  savedRevision: string | null;
+  modified: boolean;
+  saveLabel: ProjectSaveLabel;
+  lastSavedAt: number | null;
+  recoveryStatus: RecoverySnapshotStatus;
+  recoverySequence: number;
+}
+
+export function projectSessionSnapshot(doc: SvgDocument): ProjectSessionSnapshot {
+  const session = useProjectSessionStore.getState();
+  const currentRevision = projectContents(doc);
+  const savedRevision = session.savedContents;
+  const modified = savedRevision !== currentRevision;
+  const saveLabel: ProjectSaveLabel = !session.projectPath
+    ? "Unsaved"
+    : modified
+      ? "Modified"
+      : "Saved";
+  return {
+    sessionId: session.sessionId,
+    projectPath: session.projectPath,
+    displayName: session.displayName,
+    currentRevision,
+    savedRevision,
+    modified,
+    saveLabel,
+    lastSavedAt: session.lastSavedAt,
+    recoveryStatus: session.recoveryStatus,
+    recoverySequence: session.recoverySequence,
+  };
+}
+
 export function isProjectModified(doc: SvgDocument): boolean {
-  return useProjectSessionStore.getState().savedContents !== projectContents(doc);
+  return projectSessionSnapshot(doc).modified;
 }
 
 export type ProjectSaveLabel = "Unsaved" | "Modified" | "Saved";

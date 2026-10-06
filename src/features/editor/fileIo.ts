@@ -33,7 +33,9 @@ import {
 import {
   discardCurrentRecovery,
   recoverySequenceFor,
+  releaseRecoveryCheckpoint,
 } from "./recovery";
+import { notifyRecentProjectsChanged } from "./recentProjects";
 
 export type { ReplacementDecision };
 
@@ -132,6 +134,19 @@ async function enqueueWrite(
   }
 }
 
+async function rememberProjectGrant(
+  grantId: string | null | undefined,
+  invokeCommand: FileIoDependencies["invoke"],
+): Promise<void> {
+  if (!grantId) return;
+  try {
+    await invokeCommand("remember_open_project", { destinationGrantId: grantId });
+    notifyRecentProjectsChanged();
+  } catch {
+    /* Opening or saving already succeeded. The recent list is advisory. */
+  }
+}
+
 function fileNameOnly(value: string | undefined, fallback: string): string {
   return value?.split(/[/\\]/).pop() || fallback;
 }
@@ -216,6 +231,10 @@ export async function openFile(
         fileFingerprint: readResult.fingerprint,
         savedContents: projectContents(document),
       });
+      await rememberProjectGrant(
+        typeof selection === "string" ? null : selection.projectDestinationGrantId,
+        dependencies.invoke,
+      );
     } else {
       document = svgStringToDocument(text);
       if (!(await confirmDocumentReplacement(decide))) return;
@@ -241,8 +260,11 @@ export async function newProject(
 ): Promise<boolean> {
   if (!(await confirmDocumentReplacement(decide))) return false;
   const document = createEmptyDocument();
-  useProjectSessionStore.getState().startSession({ displayName: "Untitled" });
   useDocumentStore.getState().loadDocument(document);
+  useProjectSessionStore.getState().startSession({
+    displayName: "Untitled",
+    savedContents: projectContents(useDocumentStore.getState().doc),
+  });
   useUiStore.getState().setMode("edit");
   return true;
 }
@@ -307,6 +329,58 @@ async function reloadProjectFromGrant(
     savedContents: projectContents(document),
   });
   useDocumentStore.getState().loadDocument(document);
+  await rememberProjectGrant(destination.grantId, invokeCommand);
+}
+
+async function openGrantedProject(
+  destination: GrantedDestination,
+  invokeCommand: FileIoDependencies["invoke"],
+  decide: ReplacementDecisionProvider,
+): Promise<boolean> {
+  const readResult = parseReadResult(
+    await invokeCommand("read_project_file", {
+      destinationGrantId: destination.grantId,
+    }),
+  );
+  const document = parseSavageDocument(readResult.contents);
+  if (!(await confirmDocumentReplacement(decide))) return false;
+  useProjectSessionStore.getState().startSession({
+    displayName: fileDisplayName(destination.path),
+    projectPath: destination.path,
+    projectDestinationGrantId: destination.grantId,
+    fileFingerprint: readResult.fingerprint,
+    savedContents: projectContents(document),
+  });
+  useDocumentStore.getState().loadDocument(document);
+  useUiStore.getState().setMode("edit");
+  await rememberProjectGrant(destination.grantId, invokeCommand);
+  return true;
+}
+
+export async function openRecentProject(
+  id: string,
+  dependencies: FileIoDependencies = defaultDependencies,
+  decide: ReplacementDecisionProvider = promptReplacementDecision,
+): Promise<boolean> {
+  let destination: GrantedDestination;
+  try {
+    destination = parseGrantedDestination(
+      await dependencies.invoke("reopen_recent_project", { id }),
+    );
+  } catch (error) {
+    notifyRecentProjectsChanged();
+    throw error;
+  }
+  return openGrantedProject(destination, dependencies.invoke, decide);
+}
+
+export async function reopenLastProjectOnStartup(
+  dependencies: FileIoDependencies = defaultDependencies,
+  decide: ReplacementDecisionProvider = promptReplacementDecision,
+): Promise<boolean> {
+  const selected = await dependencies.invoke("startup_recent_project");
+  if (!selected) return false;
+  return openGrantedProject(parseGrantedDestination(selected), dependencies.invoke, decide);
 }
 
 export async function saveProject(
@@ -359,12 +433,14 @@ export async function saveProject(
           destination.path,
           destination.grantId,
           fingerprint,
-        )
-    ) {
-      return "stale";
-    }
-    void discardCurrentRecovery(snapshot.sessionId, snapshot.recoverySequence);
-    return "saved";
+    )
+  ) {
+    return "stale";
+  }
+  releaseRecoveryCheckpoint(snapshot.sessionId);
+  void discardCurrentRecovery(snapshot.sessionId, snapshot.recoverySequence);
+  await rememberProjectGrant(destination.grantId, dependencies.invoke);
+  return "saved";
   } catch (error) {
     useProjectSessionStore.getState().finishSaveFailure(snapshot);
     const message = nativeErrorMessage(error);

@@ -23,7 +23,7 @@ import type {
   Transform2D,
 } from "../document/types";
 import { identity, nodeWorldMatrix, transformForNewParent } from "../geometry/transform";
-import { projectContents } from "./projectSessionStore";
+import { acknowledgeUntitledDocument, projectContents } from "./projectSessionStore";
 
 interface DocumentState {
   doc: SvgDocument;
@@ -602,6 +602,8 @@ export const useDocumentStore = create<DocumentState>()(
     },
   ),
 );
+
+acknowledgeUntitledDocument(useDocumentStore.getState().doc);
 
 export function useDocumentTemporal() {
   return useDocumentStore.temporal;

@@ -16,6 +16,10 @@ use commands::export::{
 use commands::help::open_user_manual;
 use commands::import::{read_image_preview, read_project_file, read_text_file};
 use commands::lifecycle::exit_application;
+use commands::recent_projects::{
+    list_recent_projects, remember_open_project, reopen_recent_project, set_reopen_last_project,
+    startup_recent_project,
+};
 use commands::recovery::{delete_recovery, list_recoveries, write_recovery};
 use commands::source_grants::{
     claim_dropped_image, pick_image_source, pick_open_source, SourceGrantManager,
@@ -56,6 +60,11 @@ pub fn run() {
             write_recovery,
             list_recoveries,
             delete_recovery,
+            list_recent_projects,
+            remember_open_project,
+            set_reopen_last_project,
+            reopen_recent_project,
+            startup_recent_project,
             pick_image_source,
             pick_open_source,
             claim_dropped_image,
