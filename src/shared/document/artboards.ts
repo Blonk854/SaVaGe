@@ -51,9 +51,23 @@ export function syncDocBoundsFromArtboards(doc: SvgDocument) {
     maxX = Math.max(maxX, a.x + a.width);
     maxY = Math.max(maxY, a.y + a.height);
   }
-  doc.viewBox = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-  doc.width = Math.max(1, Math.round(doc.viewBox.w));
-  doc.height = Math.max(1, Math.round(doc.viewBox.h));
+  const next = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  const width = Math.max(1, Math.round(next.w));
+  const height = Math.max(1, Math.round(next.h));
+  const view = doc.viewBox;
+  if (
+    view?.x === next.x &&
+    view.y === next.y &&
+    view.w === next.w &&
+    view.h === next.h &&
+    doc.width === width &&
+    doc.height === height
+  ) {
+    return;
+  }
+  doc.viewBox = next;
+  doc.width = width;
+  doc.height = height;
 }
 
 export function nextArtboardPlacement(doc: SvgDocument, width = 1920, height = 1080) {

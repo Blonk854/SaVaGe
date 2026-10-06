@@ -261,3 +261,12 @@ against path replacement, symlink changes, or reparse-point changes after author
 	variable Syne/DM Sans. Outline conversion keeps five measured latin WOFFs (~17–19 KiB).
 	Static `@fontsource/dm-sans` and `@fontsource/syne` are not imported; the copied WOFFs stay.
 - Named-machine p50/p95 interaction budgets remain a later M7 measurement, not this slice.
+
+## M6 Browser-Adapter Journey Evidence
+
+- `src/app/journeys/browserJourneys.test.tsx` mounts the real shell. `@tauri-apps/api` and the dialog plugin are replaced with `src/shared/platform/browserNative.ts`, an in-memory command surface. Production files do not import it, so a browser session cannot report a successful native save.
+- Covered journeys: import, convert, compare, open in the editor, save, reopen, and SVG export; draw, property edit, group, undo/redo, and close Cancel then Discard; malformed JSON and an over-limit read that keep the current document; recovery into an unsaved copy; keyboard Open, Convert, property edit, Save, and Export SVG.
+- Accessibility checks cover the menubar, layer and artboard lists, F2 rename cancel, focus return, the Artboard canvas name, disabled Convert reason, and the selection live region. jsdom does not move focus on Tab, so keyboard tests focus the named control and press Enter.
+- Visual contracts lock converter empty, loaded, tracing, completed, stale, and preview-error states, plus the empty editor, a populated editor, the open File menu, and the unsaved and file-changed prompts. Theme tokens lock focus, status color, the 1100px compact rule, and forced-colors. These are DOM and CSS contracts, not pixel screenshots.
+- Multi-selection no longer rebuilds a fresh node array inside a store selector, which was an infinite render when two objects were selected. Fitting an artboard no longer rewrites document bounds that are already current, so New Artboard can run against a frozen store document.
+- Native WebView2 dialogs, pixel screenshots, Narrator, scaling, and high contrast remain [the manual gate](native-smoke-checklist.md). `e2e-accessibility-visual` fails the check when the browser-adapter suite fails. It does not mark native end-to-end complete.

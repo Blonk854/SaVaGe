@@ -100,8 +100,10 @@
     {
       "id": "e2e-accessibility-visual",
       "plan": "beta",
-      "enforcement": "not-in-pipeline",
-      "note": "Section 6.7 owns critical journeys, accessibility checks, and visual regression."
+      "enforcement": "fail",
+      "workflowCommand": "pnpm check:ci",
+      "note": "Vitest mounts the shell on an in-memory native adapter. That covers convert/save/reopen/export, malformed and oversized open, recovery, close prompts, keyboard file commands, menu/list/focus/live-region checks, and structural visual contracts. Pixel screenshots, Narrator, scaling, and high contrast stay on native-smoke. This is not WebView2 evidence.",
+      "surfaces": ["check", "release", "release:package"]
     },
     {
       "id": "authenticode",

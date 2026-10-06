@@ -261,10 +261,10 @@ This is the practical remaining-work list for the current repo state, based on t
 - Evidence: [.github/workflows/check.yml](.github/workflows/check.yml), [.github/workflows/release.yml](.github/workflows/release.yml), [package.json](package.json#L6-L28), [docs/engineering/quality-gates.json](docs/engineering/quality-gates.json)
 
 ### 6.7 E2E, accessibility, and visual regression
-- Add the critical journey tests called for by the plan: import/convert/save/reopen/export, malformed input handling, recovery, close prompts, and keyboard-only file workflows.
-- Add accessibility checks for menus, list-based panels, focus, and live-region status updates.
-- Add visual regression coverage for the main editor and converter states.
-- Evidence: [savage_upgrade.md](savage_upgrade.md#L674-L794)
+- Add the critical journey tests called for by the plan: import/convert/save/reopen/export, malformed input handling, recovery, close prompts, and keyboard-only file workflows. **Done for the browser adapter:** Vitest mounts the shell against an in-memory command surface. A trace opens in the editor, saves, reopens, and exports SVG. Drawing, property edit, group, undo/redo, and close Cancel/Discard are covered. Malformed JSON and an over-limit read leave the open document in place. Recovery opens an unsaved copy. Keyboard Open, Convert, property edit, Save, and Export SVG are covered. jsdom has no tab order, so those tests focus the named control and activate it with Enter. This is not WebView2 or native-dialog evidence.
+- Add accessibility checks for menus, list-based panels, focus, and live-region status updates. **Done:** F10, arrow menus, Escape focus return, disabled Convert reason, layer and artboard arrow selection, F2 rename cancel, the Artboard canvas name, and a polite selection announcement. Tool keys do not fire while a property field is focused.
+- Add visual regression coverage for the main editor and converter states. **Done as structural contracts:** converter empty, loaded, tracing, completed, stale, and preview-error states; editor empty and populated; open File menu; unsaved and file-changed prompts. Theme tokens cover focus, status colors, the 1100px compact breakpoint, and forced-colors. Pixel screenshots, Narrator, scaling, and high contrast stay on the manual native gate.
+- Evidence: [src/app/journeys/browserJourneys.test.tsx](src/app/journeys/browserJourneys.test.tsx), [src/shared/platform/browserNative.ts](src/shared/platform/browserNative.ts), [docs/engineering/quality-gates.json](docs/engineering/quality-gates.json)
 
 ### 6.8 Performance and release-readiness baselines
 - Establish benchmark fixtures and repeatable measurement commands for startup, import, render, pan/zoom, hit testing, save, reopen, and export.

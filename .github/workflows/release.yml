@@ -138,7 +138,7 @@ jobs:
           $notes = @"
           Unsigned internal/opt-in NSIS build of SaVaGe $version from tag ${{ github.ref_name }}. This GitHub Release is a prerelease.
 
-          provenance.json records the acceptance gates. Passing gates are version consistency, the production JavaScript audit, frontend tests with a coverage report, the frontend build, Rust fmt/test/Clippy, the Rust advisory audit, and this installer. Coverage has no repository-wide percentage gate. This workflow does not claim native smoke, end-to-end accessibility, visual regression, performance budgets, or Authenticode signing.
+          provenance.json records the acceptance gates. Passing gates are version consistency, the production JavaScript audit, frontend tests with a coverage report, the frontend build, Rust fmt/test/Clippy, the Rust advisory audit, browser-adapter journeys with accessibility and structural visual contracts, and this installer. Coverage has no repository-wide percentage gate. This workflow does not claim native WebView2 smoke, pixel screenshots, Narrator, display scaling, high contrast, performance budgets, or Authenticode signing.
 
           There is no automatic updater. Install by running the tagged setup. Do not mark this release as latest stable until the promotion record and Authenticode signing are complete.
 

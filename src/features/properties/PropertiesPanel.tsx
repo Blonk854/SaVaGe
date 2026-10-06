@@ -49,9 +49,9 @@ export function PropertiesPanel() {
     if (s.selection.length !== 1) return null;
     return s.doc.nodes[s.selection[0]] ?? null;
   });
-  const mixedNodes = useDocumentStore((s) =>
-    s.selection.length > 1 ? s.selection.map((id) => s.doc.nodes[id]) : emptyNodes,
-  );
+  const selectionIds = useDocumentStore((s) => s.selection);
+  const nodes = useDocumentStore((s) => s.doc.nodes);
+  const mixedNodes = selectionIds.length > 1 ? selectionIds.map((id) => nodes[id]) : emptyNodes;
   const updateNode = useDocumentStore((s) => s.updateNode);
   const setNodeTransform = useDocumentStore((s) => s.setNodeTransform);
 

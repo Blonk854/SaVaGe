@@ -88,9 +88,11 @@ part of this YAML. The check to require on protected `main` and `master` is `Che
 `provenance.json` `acceptanceGates`. Commands with `"enforcement": "fail"` fail the
 pull request, the protected branch, and the tagged installer. Coverage is uploaded
 when the report exists and is not a percentage gate. The benchmark artifact says
-`not-measured` until named budgets exist. Native smoke, end-to-end accessibility,
-visual regression, and Authenticode stay explicit non-passing results. Do not mark
-those gates passed because this workflow is green.
+`not-measured` until named budgets exist. Browser-adapter journeys, accessibility
+checks, and structural visual contracts run inside `pnpm check:ci` and are a failing
+gate. Native smoke, pixel screenshots, Narrator, display scaling, high contrast, and
+Authenticode stay explicit non-passing results. Do not mark those passed because this
+workflow is green.
 
 ## Provenance sidecar
 
