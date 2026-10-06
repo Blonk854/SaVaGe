@@ -6,13 +6,17 @@ import { readQualityGates, REPO_ROOT } from "./release-manifest.mjs";
 
 export function benchmarkGateStatus(policy) {
   const gate = policy.gates.find((item) => item.id === "benchmarks");
-  if (!gate || gate.enforcement !== "not-measured") {
-    throw new Error("Benchmark gate must stay not-measured until named budgets exist");
+  if (!gate || gate.enforcement !== "recorded") {
+    throw new Error(
+      "Benchmark gate must stay recorded; named-machine budgets are not a pull-request threshold",
+    );
   }
   return {
     id: "benchmarks",
     enforcement: gate.enforcement,
-    result: "not-measured",
+    result: "recorded",
+    baseline: "docs/engineering/benchmark-baseline.json",
+    command: "pnpm bench",
     note: gate.note,
   };
 }

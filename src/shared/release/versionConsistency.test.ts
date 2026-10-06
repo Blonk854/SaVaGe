@@ -87,7 +87,7 @@ describe("release version consistency", () => {
     const gates = Object.fromEntries(
       provenance.acceptanceGates.gates.map((gate) => [gate.id, gate.result]),
     );
-    expect(gates.benchmarks).toBe("not-measured");
+    expect(gates.benchmarks).toBe("recorded");
     expect(gates["native-smoke"]).toBe("manual");
     expect(gates["frontend-coverage"]).toBe("report-only");
     for (const gate of provenance.acceptanceGates.gates) {

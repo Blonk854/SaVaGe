@@ -1,0 +1,48 @@
+{
+  "fixtureVersion": 1,
+  "standardFixture": "paths-1000",
+  "fixtures": {
+    "paths-100": {
+      "pathCount": 100,
+      "pointCount": 404,
+      "curveCount": 80,
+      "strokeCount": 102,
+      "effectCount": 2,
+      "meshCells": 4,
+      "groupCount": 5,
+      "maxDepth": 3,
+      "symbolInstances": 8,
+      "bitmapBytes": 70,
+      "historyDepth": 0,
+      "sha256": "38e95a559da61fc4f69fe894de9a640d6c4504ecaad3905354a3cc2e7a744afa"
+    },
+    "paths-1000": {
+      "pathCount": 1000,
+      "pointCount": 4004,
+      "curveCount": 800,
+      "strokeCount": 1002,
+      "effectCount": 20,
+      "meshCells": 4,
+      "groupCount": 48,
+      "maxDepth": 3,
+      "symbolInstances": 8,
+      "bitmapBytes": 70,
+      "historyDepth": 0,
+      "sha256": "5484d311a55d50374db4bbcf2cf39bf02139b172b8107897683cddd5a9a14e33"
+    },
+    "paths-10000": {
+      "pathCount": 10000,
+      "pointCount": 40004,
+      "curveCount": 8000,
+      "strokeCount": 10002,
+      "effectCount": 200,
+      "meshCells": 4,
+      "groupCount": 480,
+      "maxDepth": 3,
+      "symbolInstances": 8,
+      "bitmapBytes": 70,
+      "historyDepth": 0,
+      "sha256": "b78a3a7a3864799d1267c1bb5f729bc6f54feaa05e8cb3097549b25017efb648"
+    }
+  }
+}

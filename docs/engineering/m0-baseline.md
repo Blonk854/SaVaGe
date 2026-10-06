@@ -260,7 +260,7 @@ against path replacement, symlink changes, or reparse-point changes after author
 	`convertTextToOutlines` → `fontOutlines` / opentype.js; no second lazy graph. UI fonts are
 	variable Syne/DM Sans. Outline conversion keeps five measured latin WOFFs (~17–19 KiB).
 	Static `@fontsource/dm-sans` and `@fontsource/syne` are not imported; the copied WOFFs stay.
-- Named-machine p50/p95 interaction budgets remain a later M7 measurement, not this slice.
+- Named-machine p50/p95 interaction budgets are recorded in [benchmark-baseline.json](benchmark-baseline.json).
 
 ## M6 Browser-Adapter Journey Evidence
 
@@ -270,3 +270,15 @@ against path replacement, symlink changes, or reparse-point changes after author
 - Visual contracts lock converter empty, loaded, tracing, completed, stale, and preview-error states, plus the empty editor, a populated editor, the open File menu, and the unsaved and file-changed prompts. Theme tokens lock focus, status color, the 1100px compact rule, and forced-colors. These are DOM and CSS contracts, not pixel screenshots.
 - Multi-selection no longer rebuilds a fresh node array inside a store selector, which was an infinite render when two objects were selected. Fitting an artboard no longer rewrites document bounds that are already current, so New Artboard can run against a frozen store document.
 - Native WebView2 dialogs, pixel screenshots, Narrator, scaling, and high contrast remain [the manual gate](native-smoke-checklist.md). `e2e-accessibility-visual` fails the check when the browser-adapter suite fails. It does not mark native end-to-end complete.
+
+## Performance baselines
+
+`pnpm bench` measures the pinned 100, 1,000, and 10,000 path corpus. The reference
+run is [benchmark-baseline.json](benchmark-baseline.json): DESKTOP-SCI395N on
+2026-10-06, Ryzen 7 3700X, 16 GB, RTX 3060 Ti, WebView2 154.0.4258.53, 96 DPI,
+Node 24.16.0. On the standard 1,000-path fixture, warm CPU pan/zoom p95 is
+3.542 ms and hit-test p95 is 0.649 ms. Both are inside the provisional 16.67 ms
+and 16 ms targets. They are Node command times, not WebView2 frames. First
+usable window stays unmeasured against the 2 second target. A later run on this
+machine fails above a 25% p95 regression. Pull requests do not apply that
+threshold. Alpha, beta, and 1.0 dispositions are [release-gates.md](release-gates.md).

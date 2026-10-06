@@ -16,6 +16,7 @@
     "tauri:build": "tauri build",
     "manual:pdf": "npx --yes md-to-pdf USER_MANUAL.md --config-file ./md-to-pdf.config.cjs && node -e \"const fs=require('fs');fs.mkdirSync('docs',{recursive:true});fs.mkdirSync('src-tauri/resources',{recursive:true});fs.copyFileSync('USER_MANUAL.pdf','docs/USER_MANUAL.pdf');fs.copyFileSync('USER_MANUAL.pdf','src-tauri/resources/USER_MANUAL.pdf');console.log('Synced PDF to docs/ and src-tauri/resources/')\"",
     "test": "vitest run",
+    "bench": "vitest run --config vitest.bench.config.ts src/shared/bench/startup.bench.ts && vitest run --config vitest.bench.config.ts src/shared/bench/measure.bench.ts",
     "test:coverage": "node scripts/quality-reports.mjs && vitest run --coverage --reporter=default --reporter=json --outputFile=test-results/vitest.json",
     "test:watch": "vitest",
     "check": "pnpm check:frontend && pnpm check:rust",

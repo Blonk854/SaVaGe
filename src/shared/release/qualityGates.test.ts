@@ -27,6 +27,7 @@ type Artifact = {
 };
 
 type QualityPolicy = {
+  releaseReadiness: string;
   coverage: {
     mode: string;
     repositoryPercentageGate: boolean;
@@ -121,10 +122,19 @@ describe("CI quality gates", () => {
     expect(release.match(/continue-on-error: true/g)).toHaveLength(3);
   });
 
-  it("records benchmarks as not measured and keeps a local rust audit unmarked", () => {
+  it("records benchmarks against the named-machine baseline and keeps a local rust audit unmarked", () => {
     execFileSync("node", [resolve(root, "scripts/quality-reports.mjs")], { cwd: root });
-    const status = JSON.parse(read("benchmark-results/status.json")) as { result: string };
-    expect(status.result).toBe("not-measured");
+    const status = JSON.parse(read("benchmark-results/status.json")) as {
+      result: string;
+      baseline: string;
+      command: string;
+    };
+    expect(status.result).toBe("recorded");
+    expect(status.baseline).toBe("docs/engineering/benchmark-baseline.json");
+    expect(status.command).toBe("pnpm bench");
+    expect(read(policy.releaseReadiness)).toMatch(/Alpha Quality Gate/);
+    expect(read(policy.releaseReadiness)).toMatch(/Beta Quality Gate/);
+    expect(read(policy.releaseReadiness)).toMatch(/1\.0 Quality Gate/);
 
     const pkg = JSON.parse(read("package.json")) as { version: string };
     const dir = mkdtempSync(join(tmpdir(), "savage-gates-"));

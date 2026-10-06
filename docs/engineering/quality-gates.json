@@ -1,5 +1,6 @@
 {
   "policyVersion": 1,
+  "releaseReadiness": "docs/engineering/release-gates.md",
   "coverage": {
     "mode": "report-only",
     "repositoryPercentageGate": false,
@@ -81,8 +82,8 @@
     {
       "id": "benchmarks",
       "plan": "1.0",
-      "enforcement": "not-measured",
-      "note": "Section 6.8 owns named-machine budgets. This status file is not a passing result."
+      "enforcement": "recorded",
+      "note": "Named-machine budgets live in docs/engineering/benchmark-baseline.json. pnpm bench compares a local run to that file. This status file is not a pull-request failure."
     },
     {
       "id": "installer",

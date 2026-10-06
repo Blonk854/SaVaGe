@@ -77,6 +77,7 @@ const GATE_ENFORCEMENTS = new Set([
   "report-only",
   "manual",
   "not-measured",
+  "recorded",
   "not-in-pipeline",
   "not-provisioned",
 ]);

@@ -1,0 +1,144 @@
+{
+  "fixtureVersion": 1,
+  "standardFixture": "paths-1000",
+  "buildMode": "vitest-jsdom-cpu",
+  "conditions": "warm",
+  "machine": {
+    "name": "DESKTOP-SCI395N",
+    "os": "win32 10.0.19045",
+    "cpu": "AMD Ryzen 7 3700X 8-Core Processor",
+    "logicalProcessors": 16,
+    "memoryBytes": 17103769600,
+    "gpu": "NVIDIA GeForce RTX 3060 Ti",
+    "webView2": "154.0.4258.53",
+    "dpi": 96,
+    "node": "v24.16.0"
+  },
+  "startup": {
+    "editorModuleEvalMs": 278.8945,
+    "windowMs": null
+  },
+  "metrics": {
+    "importParse": {
+      "p50": 17.453,
+      "p95": 18.445
+    },
+    "renderFrame": {
+      "p50": 1.19,
+      "p95": 1.433
+    },
+    "panZoomFrame": {
+      "p50": 1.573,
+      "p95": 3.542
+    },
+    "hitTestHit": {
+      "p50": 0.576,
+      "p95": 0.649
+    },
+    "hitTestMiss": {
+      "p50": 0.503,
+      "p95": 0.558
+    },
+    "save": {
+      "p50": 3.461,
+      "p95": 3.724
+    },
+    "reopen": {
+      "p50": 19.261,
+      "p95": 20.852
+    },
+    "exportSvg": {
+      "p50": 3.334,
+      "p95": 3.972
+    }
+  },
+  "versusPlan": {
+    "renderFrame": "within-provisional-target",
+    "panZoomFrame": "within-provisional-target",
+    "hitTestHit": "within-provisional-target",
+    "hitTestMiss": "within-provisional-target",
+    "startupWindow": "not-measured",
+    "editorModuleEval": "within-provisional-target"
+  },
+  "otherFixtures": {
+    "paths-100": {
+      "importParse": {
+        "p50": 3.201,
+        "p95": 4.472
+      },
+      "renderFrame": {
+        "p50": 0.326,
+        "p95": 0.406
+      },
+      "panZoomFrame": {
+        "p50": 0.503,
+        "p95": 0.637
+      },
+      "hitTestHit": {
+        "p50": 0.175,
+        "p95": 0.244
+      },
+      "hitTestMiss": {
+        "p50": 0.073,
+        "p95": 0.123
+      },
+      "save": {
+        "p50": 0.56,
+        "p95": 2.997
+      },
+      "reopen": {
+        "p50": 3.047,
+        "p95": 3.464
+      },
+      "exportSvg": {
+        "p50": 0.618,
+        "p95": 0.696
+      }
+    },
+    "paths-10000": {
+      "importParse": {
+        "p50": 173.01,
+        "p95": 179.932
+      },
+      "renderFrame": {
+        "p50": 10.565,
+        "p95": 11.504
+      },
+      "panZoomFrame": {
+        "p50": 12.749,
+        "p95": 14.825
+      },
+      "hitTestHit": {
+        "p50": 12381.475,
+        "p95": 12381.475
+      },
+      "hitTestMiss": {
+        "p50": 12003.921,
+        "p95": 12003.921
+      },
+      "save": {
+        "p50": 33.909,
+        "p95": 34.148
+      },
+      "reopen": {
+        "p50": 176.838,
+        "p95": 177.591
+      },
+      "exportSvg": {
+        "p50": 29.78,
+        "p95": 30.237
+      }
+    }
+  },
+  "regressionAllowance": 0.25,
+  "recordedAt": "2026-10-06T08:52:24.513Z",
+  "notes": [
+    "Frame and hit-test times are CPU work in Node against a non-GPU canvas. They check the provisional 60 FPS and 16 ms targets as command time, not WebView2 present time.",
+    "startup.windowMs stays null. First usable window on a release build is still a manual observation. editorModuleEvalMs is a cold Vitest import of the editor modules and is not a regression gate.",
+    "Save and reopen time JSON plus a temp file. They do not include the native ReplaceFileW path.",
+    "Export times SVG serialization, not PNG raster export.",
+    "The 10,000-path hit test is one probe. Derived matrices are not bulk-cached above 8,192 nodes, so each probe recomputes them.",
+    "The enforced regression allowance applies to the standard 1,000-path fixture only. The 100-path and 10,000-path fixtures are recorded beside it.",
+    "CI uploads this gate as recorded and does not fail on hardware noise. Re-run pnpm bench on the named machine."
+  ]
+}
