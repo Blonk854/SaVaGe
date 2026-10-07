@@ -44,8 +44,11 @@ the committed p95. It does not run in pull-request CI.
 
 ## What `pnpm bench` measures
 
-On the standard 1,000-path document, and recorded alongside the 100-path and
-10,000-path documents:
+`pnpm bench` builds the 100, 1,000, and 10,000 path corpus from
+[src/shared/bench/corpus.ts](../../src/shared/bench/corpus.ts).
+[fixtures/benchmarks/manifest.json](../../fixtures/benchmarks/manifest.json) pins the
+census and SHA-256. On the standard 1,000-path document, and recorded alongside
+the 100-path and 10,000-path documents:
 
 | Step | What is timed |
 |---|---|
