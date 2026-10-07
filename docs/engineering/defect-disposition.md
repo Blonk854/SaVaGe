@@ -48,9 +48,10 @@ installer row.
 
 | Item | Evidence | Disposition |
 |---|---|---|
-| Hit testing above 8,192 nodes | On 2026-10-06, DESKTOP-SCI395N, the 10,000-path probe in [benchmark-baseline.json](benchmark-baseline.json) took 12,381 ms for a hit and 12,004 ms for a miss. The standard 1,000-path hit p95 is 0.649 ms, inside the 16 ms target. | **Accept** for 1.0. |
+| Hit testing above 8,192 nodes | On 2026-10-06, DESKTOP-SCI395N, the 10,000-path probe in [benchmark-baseline.json](benchmark-baseline.json) took 12,381 ms for a hit and 12,004 ms for a miss. Matrices are not bulk-cached above 8,192 nodes ([src/shared/geometry/derivedCache.ts](../../src/shared/geometry/derivedCache.ts)). The standard 1,000-path hit p95 is 0.649 ms, inside the 16 ms target. | **Accept** for 1.0. |
 
-The performance gate is the standard fixture. The derived-cache contract caps a bulk
+The performance gate is the standard fixture. The derived-cache contract
+([src/shared/geometry/derivedCache.ts](../../src/shared/geometry/derivedCache.ts)) caps a bulk
 fill at 8,192 nodes and waits for a spatial index until a named-machine profile shows
 the linear pass is the bottleneck on that fixture. This probe is above the cap, so
 each hit recomputes matrices. The manual already tells a lagging trace to simplify

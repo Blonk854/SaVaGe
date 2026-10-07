@@ -95,8 +95,12 @@ requests do not fail on hardware noise. Alpha, beta, and 1.0 dispositions are
 checks, and structural visual contracts run inside `pnpm check:ci` and are a failing
 gate. Native smoke, Narrator, display scaling, high contrast, and
 Authenticode stay explicit non-passing results. The missing-WebView2 guest run is
-deferred and optional. Packaged pixel baselines and
-release-window timing are recorded evidence, not pull-request failures. Do not mark
+deferred and optional ([webview2-missing-vm.md](webview2-missing-vm.md)). Packaged pixel baselines
+([pixel-baselines/manifest.json](pixel-baselines/manifest.json), captured by
+[scripts/capture-pixels.ps1](../../scripts/capture-pixels.ps1)) and release-window timing
+([window-timing.json](window-timing.json) from [scripts/measure-window.ps1](../../scripts/measure-window.ps1),
+[present-timing.json](present-timing.json) from [scripts/measure-present.ps1](../../scripts/measure-present.ps1)) are
+recorded evidence, not pull-request failures. Do not mark
 the manual items passed because this workflow is green.
 
 ## Provenance sidecar

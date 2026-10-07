@@ -211,7 +211,7 @@ repeat-save fingerprint forwarding, and save-conflict Reload / Save As / Overwri
 - World matrices and world AABBs are the cached hot derived data. Hit testing, snapping,
   alignment, and flattening keep calling `nodeWorldMatrix` / `nodeWorldBounds`; those wrappers
   cache per immutable document snapshot.
-- Cache size is bounded: 16 document snapshots and 8192 node entries per snapshot. Larger
+- Cache size is bounded in [src/shared/geometry/derivedCache.ts](../../src/shared/geometry/derivedCache.ts): 16 document snapshots and 8192 node entries per snapshot. Larger
   documents skip bulk fill and evict least-recent node entries. History beyond 16 snapshots
   recomputes.
 - Immer/history/load produce new document objects, so edits, ancestor transforms, reparenting,

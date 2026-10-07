@@ -32,7 +32,7 @@ pnpm tauri:dev
 | `pnpm tauri:dev` | Run desktop app |
 | `pnpm tauri:build` | Production installer |
 | `pnpm test` | Vitest unit tests |
-| `pnpm bench` | Run `src/shared/bench/startup.bench.ts` and `src/shared/bench/measure.bench.ts` on the 100 / 1,000 / 10,000 path fixtures from `src/shared/bench/corpus.ts`, then compare them with the reference baseline |
+| `pnpm bench` | Run `src/shared/bench/startup.bench.ts`, then `src/shared/bench/measure.bench.ts` (`runBenchmark` in `src/shared/bench/run.ts`) on the 100 / 1,000 / 10,000 path fixtures from `src/shared/bench/corpus.ts`, and compare p95 with the reference baseline through `src/shared/bench/compare.ts` |
 | `pnpm test:coverage` | Vitest plus a V8 coverage report (no percentage gate) |
 | `pnpm build` | Frontend-only build |
 | `pnpm check` | Frontend build/tests plus Rust fmt/tests/Clippy |
@@ -45,8 +45,9 @@ pnpm tauri:dev
 | `pnpm release:rollback` | Copy compatibility fixtures and print a rollback rehearsal plan |
 | `pnpm release:retain` | List or append-only-record a tagged NSIS in the verified installer catalog |
 | `pnpm install:inspect` | Record a current-user NSIS install (WebView2, Help, no file association) |
-| `pnpm window:measure` | Time a release build until the converter is usable, into `docs/engineering/window-timing.json` |
-| `pnpm pixels:capture` | Capture packaged WebView2 pixels of the primary states |
+| `pnpm window:measure` | Run `scripts/measure-window.ps1` and record accessibility-tree time until the converter is usable, into `docs/engineering/window-timing.json` |
+| `pnpm present:measure` | Run `scripts/measure-present.ps1` and record WebView2 first-frame present time, into `docs/engineering/present-timing.json` |
+| `pnpm pixels:capture` | Run `scripts/capture-pixels.ps1` and write packaged WebView2 pixels of the primary states to `docs/engineering/pixel-baselines/manifest.json` |
 | `pnpm recovery:packaged` | Kill a release build after a checkpoint and record the recovery prompt |
 | `pnpm recovery:source` | Confirm Open Original and Discard leave a `.savage` unchanged |
 | `pnpm webview2:missing` | Deferred optional check: exercise the installer only when the WebView2 runtime is absent |

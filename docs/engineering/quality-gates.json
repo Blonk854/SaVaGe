@@ -83,7 +83,7 @@
       "id": "benchmarks",
       "plan": "1.0",
       "enforcement": "recorded",
-      "note": "Named-machine budgets live in docs/engineering/benchmark-baseline.json. pnpm bench compares a local run to that file. This status file is not a pull-request failure."
+      "note": "Named-machine budgets live in docs/engineering/benchmark-baseline.json. pnpm bench times them in src/shared/bench/run.ts and compares p95 in src/shared/bench/compare.ts. This status file is not a pull-request failure."
     },
     {
       "id": "installer",
@@ -111,21 +111,21 @@
       "plan": "1.0",
       "enforcement": "recorded",
       "evidence": "docs/engineering/window-timing.json",
-      "note": "pnpm window:measure times a release executable until Open Image is in the WebView2 accessibility tree. It is not a pull-request failure and it is not WebView2 present time. Present time is the webview2-present gate."
+      "note": "pnpm window:measure (scripts/measure-window.ps1) times a release executable until Open Image is in the WebView2 accessibility tree. It is not a pull-request failure and it is not WebView2 present time. Present time is the webview2-present gate."
     },
     {
       "id": "webview2-present",
       "plan": "1.0",
       "enforcement": "recorded",
       "evidence": "docs/engineering/present-timing.json",
-      "note": "pnpm present:measure times a release executable until WebView2 presents the empty-converter title in the first frame that also shows Open Image. The timestamp is element-timing presentationTime. It is not a pull-request failure."
+      "note": "pnpm present:measure (scripts/measure-present.ps1) times a release executable until WebView2 presents the empty-converter title in the first frame that also shows Open Image. The timestamp is element-timing presentationTime. It is not a pull-request failure."
     },
     {
       "id": "pixel-baselines",
       "plan": "1.0",
       "enforcement": "recorded",
       "evidence": "docs/engineering/pixel-baselines/manifest.json",
-      "note": "pnpm pixels:capture writes packaged WebView2 screenshots of the primary states. Structural DOM contracts remain in the browser-adapter suite. Narrator, scaling, and high contrast stay manual."
+      "note": "pnpm pixels:capture (scripts/capture-pixels.ps1) writes packaged WebView2 screenshots of the primary states. Structural DOM contracts remain in the browser-adapter suite. Narrator, scaling, and high contrast stay manual."
     },
     {
       "id": "webview2-missing",

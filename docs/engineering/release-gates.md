@@ -8,8 +8,9 @@ whose evidence is still manual or unmeasured.
 
 Performance numbers and the machine they were taken on live in
 [benchmark-baseline.json](benchmark-baseline.json). Re-measure with `pnpm bench`.
-That command fails when the standard 1,000-path fixture is more than 25% slower than
-the committed p95. It does not run in pull-request CI.
+That command fails when [src/shared/bench/compare.ts](../../src/shared/bench/compare.ts)
+sees the standard 1,000-path fixture more than 25% slower than the committed p95.
+It does not run in pull-request CI.
 
 ## Alpha Quality Gate
 
@@ -34,8 +35,8 @@ the committed p95. It does not run in pull-request CI.
 
 | Criterion | Status | Evidence |
 |---|---|---|
-| Performance budgets on the standard fixtures | Window and present targets met | `pnpm bench` against [benchmark-baseline.json](benchmark-baseline.json). CPU command time is inside the provisional 60 FPS and 16 ms targets. On 2026-10-06 the release executable on DESKTOP-SCI395N reached Open Image in the accessibility tree in 1,867 ms on a new WebView2 profile and 312 ms warm p95 ([window-timing.json](window-timing.json)). On 2026-10-07 the same machine presented that first usable frame in 879 ms cold and 543 ms warm p95, under the 2 second target ([present-timing.json](present-timing.json)). CPU bench times are still not a packaged frame rate. |
-| Visual regression of primary states | Packaged pixels recorded | Eleven stable 1440×900 captures from the release window are in [pixel-baselines/manifest.json](pixel-baselines/manifest.json). Structural DOM and CSS contracts still fail `pnpm check:ci`. Narrator, display scaling, and high contrast stay on the manual native gate. |
+| Performance budgets on the standard fixtures | Window and present targets met | `pnpm bench` against [benchmark-baseline.json](benchmark-baseline.json). Timings are [src/shared/bench/run.ts](../../src/shared/bench/run.ts); the 25% p95 gate is [src/shared/bench/compare.ts](../../src/shared/bench/compare.ts). CPU command time is inside the provisional 60 FPS and 16 ms targets. On 2026-10-06 the release executable on DESKTOP-SCI395N reached Open Image in the accessibility tree in 1,867 ms on a new WebView2 profile and 312 ms warm p95 ([window-timing.json](window-timing.json), [scripts/measure-window.ps1](../../scripts/measure-window.ps1)). On 2026-10-07 the same machine presented that first usable frame in 879 ms cold and 543 ms warm p95, under the 2 second target ([present-timing.json](present-timing.json), [scripts/measure-present.ps1](../../scripts/measure-present.ps1)). CPU bench times are still not a packaged frame rate. |
+| Visual regression of primary states | Packaged pixels recorded | Eleven stable 1440×900 captures from the release window are in [pixel-baselines/manifest.json](pixel-baselines/manifest.json), captured by [scripts/capture-pixels.ps1](../../scripts/capture-pixels.ps1). Structural DOM and CSS contracts still fail `pnpm check:ci`. Narrator, display scaling, and high contrast stay on the manual native gate. |
 | Installer and upgrade smoke | Met as a failing check | Tagged NSIS is a failing release check. Guest sign-off covers `v0.1.2` and `v0.1.3` items. The missing-WebView2 guest run is a deferred optional step ([webview2-missing-vm.md](webview2-missing-vm.md)), not an open 1.0 item. The 2026-10-06 host refusal stays in [webview2-missing.json](webview2-missing.json). |
 | Documentation matches behavior | Met for the recorded manual slice | `USER_MANUAL.md` matches the file commands, inspector tabs, and recovery prompts checked in M6. |
 | No unresolved critical or high-severity defects | Met for the reviewed record | Same review. Nothing in that record is an open critical or high defect. |
@@ -49,17 +50,19 @@ the committed p95. It does not run in pull-request CI.
 [fixtures/benchmarks/manifest.json](../../fixtures/benchmarks/manifest.json) pins the
 census and SHA-256. The command runs
 [src/shared/bench/startup.bench.ts](../../src/shared/bench/startup.bench.ts), then
-[src/shared/bench/measure.bench.ts](../../src/shared/bench/measure.bench.ts). On the
-standard 1,000-path document, and recorded alongside the 100-path and 10,000-path
-documents:
+[src/shared/bench/measure.bench.ts](../../src/shared/bench/measure.bench.ts). Import through
+export are `runBenchmark` in [src/shared/bench/run.ts](../../src/shared/bench/run.ts).
+The 25% p95 allowance is [src/shared/bench/compare.ts](../../src/shared/bench/compare.ts).
+On the standard 1,000-path document, and recorded alongside the 100-path and
+10,000-path documents:
 
 | Step | What is timed |
 |---|---|
-| Startup | Cold Vitest import of parse, serialize, hit testing, draw, and camera. Packaged window time is [window-timing.json](window-timing.json), not this command. |
+| Startup | Cold Vitest import in [src/shared/bench/startup.bench.ts](../../src/shared/bench/startup.bench.ts) of parse, serialize, hit testing, draw, and camera. Packaged window time is [window-timing.json](window-timing.json) from [scripts/measure-window.ps1](../../scripts/measure-window.ps1), not this command. |
 | Import | `parseSavageDocument` of the fixture JSON. |
 | Render | One editor frame: grid, document, and overlays. |
 | Pan/zoom | `setZoomCentered` or `setPan`, then the same frame. |
-| Hit testing | Warm `hitTestTopNode` on path centers and on points outside every shape. The 10,000-path file is one probe: matrices are not bulk-cached above 8,192 nodes. |
+| Hit testing | Warm `hitTestTopNode` on path centers and on points outside every shape. The 10,000-path file is one probe: matrices are not bulk-cached above 8,192 nodes ([src/shared/geometry/derivedCache.ts](../../src/shared/geometry/derivedCache.ts)). |
 | Save | `JSON.stringify` plus a temp-file write. |
 | Reopen | Read that file and parse it. |
 | Export | `documentToSvgString`. |
@@ -67,9 +70,10 @@ documents:
 The canvas context records draw calls and does not present pixels. A p95 under
 16.67 ms means the CPU work fits in a 60 FPS budget. It does not prove the
 packaged WebView2 frame rate. First-frame present time is `pnpm present:measure`
-([present-timing.json](present-timing.json)). Native save replacement and PNG
+([scripts/measure-present.ps1](../../scripts/measure-present.ps1),
+[present-timing.json](present-timing.json)). Native save replacement and PNG
 export are outside this command.
 
 Re-record the reference file only on the named machine, with
-`BENCH_RECORD=1` set for that run. Other machines can miss the 25% allowance
-without a product regression.
+`BENCH_RECORD=1` set for that run. Other machines can miss the 25% allowance in
+[src/shared/bench/compare.ts](../../src/shared/bench/compare.ts) without a product regression.

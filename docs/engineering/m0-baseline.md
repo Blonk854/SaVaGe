@@ -251,7 +251,7 @@ against path replacement, symlink changes, or reparse-point changes after author
 - Chrome subscribes to save-label / rounded zoom / tool slices rather than the full document.
 	Idle pointer moves skip snapping and tool updates. Identical pan, zoom, hover, and frame-time
 	writes do not notify. Document edits still raise dirty and paint.
-- World matrices and world AABBs cache per document snapshot (16 documents, 8192 nodes).
+- World matrices and world AABBs cache per document snapshot (16 documents, 8192 nodes) in [src/shared/geometry/derivedCache.ts](../../src/shared/geometry/derivedCache.ts).
 	Invalidation tests cover in-place edits, ancestor transforms, reparenting, symbol instance
 	boxes, undo/redo, and document replacement against uncached oracles.
 - Hit testing rejects padded world AABBs before Path2D tests. Topmost reverse-paint-order
@@ -269,7 +269,7 @@ against path replacement, symlink changes, or reparse-point changes after author
 - `src/app/journeys/browserJourneys.test.tsx` mounts the real shell. `@tauri-apps/api` and the dialog plugin are replaced with `src/shared/platform/browserNative.ts`, an in-memory command surface. Production files do not import it, so a browser session cannot report a successful native save.
 - Covered journeys: import, convert, compare, open in the editor, save, reopen, and SVG export; draw, property edit, group, undo/redo, and close Cancel then Discard; malformed JSON and an over-limit read that keep the current document; recovery into an unsaved copy; keyboard Open, Convert, property edit, Save, and Export SVG.
 - Accessibility checks cover the menubar, layer and artboard lists, F2 rename cancel, focus return, the Artboard canvas name, disabled Convert reason, and the selection live region. jsdom does not move focus on Tab, so keyboard tests focus the named control and press Enter.
-- Visual contracts lock converter empty, loaded, tracing, completed, stale, and preview-error states, plus the empty editor, a populated editor, the open File menu, and the unsaved and file-changed prompts. Theme tokens lock focus, status color, the 1100px compact rule, and forced-colors. These are DOM and CSS contracts. Packaged WebView2 pixels of those states are [pixel-baselines/manifest.json](pixel-baselines/manifest.json).
+- Visual contracts lock converter empty, loaded, tracing, completed, stale, and preview-error states, plus the empty editor, a populated editor, the open File menu, and the unsaved and file-changed prompts. Theme tokens lock focus, status color, the 1100px compact rule, and forced-colors. These are DOM and CSS contracts. Packaged WebView2 pixels of those states are [pixel-baselines/manifest.json](pixel-baselines/manifest.json), captured by [scripts/capture-pixels.ps1](../../scripts/capture-pixels.ps1).
 - Multi-selection no longer rebuilds a fresh node array inside a store selector, which was an infinite render when two objects were selected. Fitting an artboard no longer rewrites document bounds that are already current, so New Artboard can run against a frozen store document.
 - Native WebView2 dialogs, Narrator, scaling, and high contrast remain [the manual gate](native-smoke-checklist.md). Packaged pixel baselines do not mark native end-to-end complete. `e2e-accessibility-visual` fails the check when the browser-adapter suite fails.
 
@@ -280,7 +280,9 @@ against path replacement, symlink changes, or reparse-point changes after author
 [fixtures/benchmarks/manifest.json](../../fixtures/benchmarks/manifest.json) pins the
 census and SHA-256. The command runs
 [src/shared/bench/startup.bench.ts](../../src/shared/bench/startup.bench.ts), then
-[src/shared/bench/measure.bench.ts](../../src/shared/bench/measure.bench.ts). The reference
+[src/shared/bench/measure.bench.ts](../../src/shared/bench/measure.bench.ts). Timed steps are
+`runBenchmark` in [src/shared/bench/run.ts](../../src/shared/bench/run.ts). The 25% p95
+gate is [src/shared/bench/compare.ts](../../src/shared/bench/compare.ts). The reference
 run is [benchmark-baseline.json](benchmark-baseline.json): DESKTOP-SCI395N on
 2026-10-06, Ryzen 7 3700X, 16 GB, RTX 3060 Ti, WebView2 154.0.4258.53, 96 DPI,
 Node 24.16.0. On the standard 1,000-path fixture, warm CPU pan/zoom p95 is
@@ -288,9 +290,13 @@ Node 24.16.0. On the standard 1,000-path fixture, warm CPU pan/zoom p95 is
 and 16 ms targets. They are Node command times, not WebView2 frames. The release
 executable on this machine reached a usable window in 1,867 ms on a new WebView2
 profile and 312 ms warm p95, under the 2 second target
-([window-timing.json](window-timing.json)). That is accessibility-tree time. On
+([window-timing.json](window-timing.json), recorded by
+[scripts/measure-window.ps1](../../scripts/measure-window.ps1)). That is accessibility-tree time. On
 2026-10-07 the same release executable presented the first usable frame in 879 ms
-cold and 543 ms warm p95 ([present-timing.json](present-timing.json)). A later run on this
+cold and 543 ms warm p95 ([present-timing.json](present-timing.json), recorded by
+[scripts/measure-present.ps1](../../scripts/measure-present.ps1)). A later run on this
 machine fails above a 25% p95 regression. Pull requests do not apply that
-threshold. Alpha, beta, and 1.0 dispositions are [release-gates.md](release-gates.md).
+threshold. The 10,000-path hit test is one probe because matrices are not bulk-cached
+above 8,192 nodes
+([src/shared/geometry/derivedCache.ts](../../src/shared/geometry/derivedCache.ts)). Alpha, beta, and 1.0 dispositions are [release-gates.md](release-gates.md).
 The defect review is [defect-disposition.md](defect-disposition.md).
