@@ -1,0 +1,38 @@
+{
+    "result":  "source-unchanged",
+    "definition":  "A release executable opened a temporary .savage, resized its artboard, wrote a checkpoint, and was killed. Restart offered the native recovery prompt. Open Original and Discard Recovery both left the source file bytes and timestamp unchanged. The recovered edit was not written back. This is the release executable, not an NSIS install. Checkpoints use the Windows known-folder app data directory.",
+    "prompt":  "Recover unsaved work from 10/6/2026, 10:34:49 PM?",
+    "openOriginalPrompt":  "Open the original project instead?",
+    "discardPrompt":  "Recover unsaved work from 10/6/2026, 10:34:49 PM?",
+    "discardChoice":  "Open the original project instead?",
+    "edit":  "512×512",
+    "sourceSha256":  "618a602030244771d79a5a403228a935d643ed51423716484cf31255a5ddec7c",
+    "sourceUnchangedAfterEdit":  true,
+    "sourceUnchangedAfterOpenOriginal":  true,
+    "sourceUnchangedAfterDiscard":  true,
+    "sourceLastWriteBefore":  "2026-10-07T02:34:46.0331042Z",
+    "sourceLastWriteAfterOpenOriginal":  "2026-10-07T02:34:46.0331042Z",
+    "sourceLastWriteAfterDiscard":  "2026-10-07T02:34:46.0331042Z",
+    "checkpointSha256":  "1ae1994edbb8c28b0c4232fe663e1fa8a8cd36d4d7272ed4aceafae02b2cfac0",
+    "checkpointRemoved":  true,
+    "openOriginalCapture":  "docs/engineering/packaged-recovery-source-open.png",
+    "openOriginalCaptureShows":  "The title reads source-check and Saved. The window stays on Convert because Open Original does not switch modes.",
+    "discardCapture":  "docs/engineering/packaged-recovery-source-discard.png",
+    "discardCaptureShows":  "The title reads Untitled and Unsaved, the startup document, after Discard Recovery removes the checkpoint.",
+    "executable":  {
+                       "path":  "C:\\Users\\s_sme\\Documents\\Projects\\SaVaGe\\src-tauri\\target\\release\\savage.exe",
+                       "sha256":  "1ce6ee159a2f1447a14a10b38aa05c2c77a89d37f15d922eba72092152a69912"
+                   },
+    "commit":  "4d25779b9e29f81ecb9af56e0cab84288b764cea",
+    "workingTreeDirty":  true,
+    "webView2":  "154.0.4258.53",
+    "machine":  "DESKTOP-SCI395N",
+    "otherInstances":  [
+                           {
+                               "id":  10748,
+                               "path":  "C:\\Users\\s_sme\\Documents\\Projects\\SaVaGe\\src-tauri\\target\\debug\\savage.exe",
+                               "started":  "2026-10-06T09:28:14.2116843Z"
+                           }
+                       ],
+    "recordedAt":  "2026-10-07T02:34:58.2216937Z"
+}

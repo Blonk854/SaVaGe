@@ -132,7 +132,14 @@
       "plan": "beta",
       "enforcement": "recorded",
       "evidence": "docs/engineering/packaged-recovery.json",
-      "note": "pnpm recovery:packaged kills a release executable after a checkpoint and records the restart prompt. It is not a pull-request failure. The recovery directory must start empty because the packaged app does not follow an overridden APPDATA."
+      "note": "pnpm recovery:packaged kills a release executable after a checkpoint and records the restart prompt. It is not a pull-request failure. The recovery directory must start empty because the packaged app does not follow an overridden APPDATA. pnpm recovery:source records that Open Original and Discard Recovery leave a .savage unchanged."
+    },
+    {
+      "id": "packaged-recovery-source",
+      "plan": "beta",
+      "enforcement": "recorded",
+      "evidence": "docs/engineering/packaged-recovery-source.json",
+      "note": "pnpm recovery:source opens a temporary .savage, kills the release executable, and checks Open Original and Discard Recovery. It is not a pull-request failure."
     },
     {
       "id": "authenticode",

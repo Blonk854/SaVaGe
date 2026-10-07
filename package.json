@@ -34,6 +34,7 @@
     "window:measure": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-window.ps1",
     "pixels:capture": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-pixels.ps1",
     "recovery:packaged": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-packaged-recovery.ps1",
+    "recovery:source": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-packaged-recovery-source.ps1",
     "webview2:missing": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/webview2-missing.ps1"
   },
   "dependencies": {

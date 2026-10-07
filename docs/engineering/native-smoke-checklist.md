@@ -26,10 +26,12 @@ Install/update/uninstall evidence is recorded in
       Convert, Layers, and Properties remain reachable. Maximize on 1080p @ 200% if needed.
 - [ ] High Contrast: focus rings, selected tabs, and disabled buttons remain distinguishable.
 - [ ] Narrator: F10 File menu, Tab to a layer row, canvas named Artboard, selection count announced.
-- [ ] Reopen after a process kill and confirm the recovery prompt. Recover opens Unsaved work;
+- [x] Reopen after a process kill and confirm the recovery prompt. Recover opens Unsaved work;
       Discard or Open Original does not overwrite the source `.savage`.
-      Untitled kill/restart on the release executable is recorded in
-      [packaged-recovery.json](packaged-recovery.json). The source-file overwrite check is still open.
+      Release executable, not an NSIS install. Untitled Recover is in
+      [packaged-recovery.json](packaged-recovery.json). Open Original and Discard
+      Recovery left `source-check.savage` unchanged in
+      [packaged-recovery-source.json](packaged-recovery-source.json).
 - [ ] Uninstall **without** deleting application data and confirm user project files remain intact.
 - [ ] Reinstall and confirm leftover recovery can still be offered.
 - [ ] If a prior verified NSIS exists: install it without deleting app data, open schema 1
