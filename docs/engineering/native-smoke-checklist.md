@@ -44,8 +44,9 @@ Install/update/uninstall evidence is recorded in
 Guest `v0.1.2` (`660206b7…4575`) signed off 2026-09-18: install, Help, Open/Save/reopen,
 Save As cancel, malformed/future reject, Convert cancel+retry, Undo/Redo, window close,
 960×600, 150%/200% scaling, High Contrast, Narrator, kill-process recovery, uninstall
-without deleting app data, leftover recovery, closed-app reinstall. WebView2-missing is
-not a Guest item here.
+without deleting app data, leftover recovery, closed-app reinstall. The
+missing-WebView2 guest run is a deferred optional step
+([webview2-missing-vm.md](webview2-missing-vm.md)), not a Guest item here.
 
 Guest `v0.1.3` (`b54b1a75…5726`) signed off 2026-09-18: two-instance Save Reload / Save As /
 Overwrite / Cancel, then live prior-NSIS rollback to `v0.1.2` without deleting app data.

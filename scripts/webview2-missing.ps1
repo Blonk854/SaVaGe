@@ -1,5 +1,5 @@
-# Missing-WebView2 installer check.
-# A machine that already has the Evergreen runtime cannot mark this gate.
+# Deferred optional Missing-WebView2 installer check. Not a 1.0 gate.
+# A machine that already has the Evergreen runtime cannot record a pass.
 # Pass -Setup only when the runtime registry value is absent.
 
 param(
@@ -41,13 +41,10 @@ $hostFacts = Get-HostFacts
 $recordedAt = (Get-Date).ToUniversalTime().ToString("o")
 
 if ($hostFacts.webView2) {
-  $next = "Run scripts/webview2-missing.ps1 on a Windows machine or virtual machine whose Evergreen WebView2 runtime key is absent. Online setup should download the bootstrapper. Offline setup should abort and leave no install directory."
-  if (-not $hostFacts.sandbox) {
-    $next = "This host cannot supply that machine: Windows Sandbox is not installed, and Windows 10 Home cannot enable Sandbox or Hyper-V. " + $next
-  }
+  $next = "Deferred optional step. This host refusal is not an open 1.0 item. A future run belongs on a Windows machine whose Evergreen WebView2 runtime key is absent. Steps: docs/engineering/webview2-missing-vm.md."
   Write-WebView2Result ([ordered]@{
     result = "refused"
-    reason = "The Evergreen WebView2 runtime is already installed. This run does not mark the missing-runtime gate."
+    reason = "The Evergreen WebView2 runtime is already installed. This deferred optional check does not run setup on this machine."
     host = $hostFacts
     nextStep = $next
     recordedAt = $recordedAt

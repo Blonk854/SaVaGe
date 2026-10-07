@@ -80,6 +80,7 @@ const GATE_ENFORCEMENTS = new Set([
   "recorded",
   "not-in-pipeline",
   "not-provisioned",
+  "optional",
 ]);
 
 export function readQualityGates(root = REPO_ROOT) {

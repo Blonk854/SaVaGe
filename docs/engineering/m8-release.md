@@ -94,7 +94,8 @@ requests do not fail on hardware noise. Alpha, beta, and 1.0 dispositions are
 [defect-disposition.md](defect-disposition.md). Browser-adapter journeys, accessibility
 checks, and structural visual contracts run inside `pnpm check:ci` and are a failing
 gate. Native smoke, Narrator, display scaling, high contrast, and
-Authenticode stay explicit non-passing results. Packaged pixel baselines and
+Authenticode stay explicit non-passing results. The missing-WebView2 guest run is
+deferred and optional. Packaged pixel baselines and
 release-window timing are recorded evidence, not pull-request failures. Do not mark
 the manual items passed because this workflow is green.
 

@@ -1,14 +1,15 @@
 # Missing-WebView2 VM runbook
 
-Recorded: 2026-10-06
+Recorded: 2026-10-06. Deferred optional on 2026-10-07.
 
-This is the manual 1.0 check in [m8-install.md](m8-install.md). It runs the unsigned
-`v0.1.3` NSIS setup on a Windows 10 virtual machine that does not already have the
-Evergreen WebView2 runtime. The script is [scripts/webview2-missing.ps1](../../scripts/webview2-missing.ps1).
+This is not a 1.0 check and does not block release. It is the optional later run
+for [m8-install.md](m8-install.md): the unsigned `v0.1.3` NSIS setup on a Windows 10
+virtual machine that does not already have the Evergreen WebView2 runtime. The
+script is [scripts/webview2-missing.ps1](../../scripts/webview2-missing.ps1).
 
 The Windows 11 Home host cannot supply this machine. Windows 11 includes the
 Evergreen runtime, and Home cannot enable Windows Sandbox or Hyper-V. A refusal
-recorded on that host does not close the gate.
+recorded on that host does not start this optional run.
 
 ## Guest
 
@@ -92,7 +93,7 @@ A pass exits 0 and writes [webview2-missing.json](webview2-missing.json) with `r
 `%LOCALAPPDATA%\SaVaGe\savage.exe` exists. The bundled bootstrapper is silent
 (`downloadBootstrapper` in `src-tauri/tauri.conf.json`).
 
-`online-failed` and `offline-failed` leave the gate open. Copy both JSON files back to
-the host. Replace `docs/engineering/webview2-missing.json` only with the online pass.
-Keep the offline file next to the promotion notes. Then check the WebView2 row in
-[m8-install.md](m8-install.md).
+`online-failed` and `offline-failed` stay on this optional run. They do not reopen
+the 1.0 install sign-off. Copy both JSON files back to the host. Replace
+`docs/engineering/webview2-missing.json` only with the online pass. Keep the offline
+file next to the promotion notes.

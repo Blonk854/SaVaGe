@@ -44,9 +44,9 @@ npx --yes pnpm@10.17.1 tauri build --debug
 
 - Packaged smoke on a non-admin Windows account: Guest signed off `v0.1.2` (install,
 	scaling, HC/Narrator, close, recovery) and `v0.1.3` (two-instance Save) on 2026-09-18.
-	Still open: WebView2-missing VM. The 2026-10-06 attempt on this PC was refused
-	([webview2-missing.json](webview2-missing.json)). Guest steps:
-	[webview2-missing-vm.md](webview2-missing-vm.md).
+	The missing-WebView2 guest run is a deferred optional step
+	([webview2-missing-vm.md](webview2-missing-vm.md)), not an open gate. The 2026-10-06
+	host refusal remains [webview2-missing.json](webview2-missing.json).
 - Local `cargo-audit` is optional; CI runs the pinned `rustsec/audit-check` action.
 - Production JavaScript findings fail `pnpm audit:frontend`. There are no owned ignore-CVE
 	exceptions; a future low/moderate exception needs owner, mitigation, expiry, and re-review

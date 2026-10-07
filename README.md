@@ -49,7 +49,7 @@ pnpm tauri:dev
 | `pnpm pixels:capture` | Capture packaged WebView2 pixels of the primary states |
 | `pnpm recovery:packaged` | Kill a release build after a checkpoint and record the recovery prompt |
 | `pnpm recovery:source` | Confirm Open Original and Discard leave a `.savage` unchanged |
-| `pnpm webview2:missing` | Exercise the installer only when the WebView2 runtime is absent |
+| `pnpm webview2:missing` | Deferred optional check: exercise the installer only when the WebView2 runtime is absent |
 
 Tagged installers are unsigned until an Authenticode certificate is provisioned. Verify
 `SHA256SUMS.txt` before running `SaVaGe_<version>_x64-setup.exe`. GitHub Releases are

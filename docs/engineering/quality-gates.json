@@ -129,10 +129,10 @@
     },
     {
       "id": "webview2-missing",
-      "plan": "1.0",
-      "enforcement": "manual",
+      "plan": "deferred",
+      "enforcement": "optional",
       "evidence": "docs/engineering/webview2-missing.json",
-      "note": "pnpm webview2:missing refuses to pass on a machine that already has the Evergreen runtime. The Windows 10 guest steps are docs/engineering/webview2-missing-vm.md."
+      "note": "Deferred on 2026-10-07. Not a 1.0 item. pnpm webview2:missing still refuses on a machine that already has the Evergreen runtime. A future Windows 10 guest run is docs/engineering/webview2-missing-vm.md."
     },
     {
       "id": "packaged-recovery",

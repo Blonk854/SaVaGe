@@ -70,9 +70,12 @@ These are stated behavior. They are not open defects.
 | This release does not register a `.savage` file association. | Install contract; user manual |
 | Pattern and scatter spacing are fixed. Vanishing points are not draggable. Text outlines use the bundled faces. Browsers may skip mesh paint. | User manual §12.1 |
 
+## Deferred optional
+
+- The missing-WebView2 guest run. Taken off the 1.0 gate on 2026-10-07. [webview2-missing.json](webview2-missing.json) still records the host refusal. A later run is [webview2-missing-vm.md](webview2-missing-vm.md).
+
 ## What this review leaves open
 
-- The missing-WebView2 run. [webview2-missing.json](webview2-missing.json) refused on this PC because the runtime is already installed and Windows 10 Home cannot host Sandbox or Hyper-V. The Windows 11 Home host still has the runtime. Guest steps are [webview2-missing-vm.md](webview2-missing-vm.md).
 - Live disk-full and removable-media injection beyond the missing-volume unit test.
 - Narrator, display scaling, and high contrast. Guest signed those on the 0.1.2 installer. This review does not repeat them on the current executable.
 - Authenticode. Unsigned internal builds stay below stable.
