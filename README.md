@@ -32,7 +32,7 @@ pnpm tauri:dev
 | `pnpm tauri:dev` | Run desktop app |
 | `pnpm tauri:build` | Production installer |
 | `pnpm test` | Vitest unit tests |
-| `pnpm bench` | Measure the 100 / 1,000 / 10,000 path fixtures from `src/shared/bench/corpus.ts` and compare them with the reference baseline |
+| `pnpm bench` | Run `src/shared/bench/startup.bench.ts` and `src/shared/bench/measure.bench.ts` on the 100 / 1,000 / 10,000 path fixtures from `src/shared/bench/corpus.ts`, then compare them with the reference baseline |
 | `pnpm test:coverage` | Vitest plus a V8 coverage report (no percentage gate) |
 | `pnpm build` | Frontend-only build |
 | `pnpm check` | Frontend build/tests plus Rust fmt/tests/Clippy |

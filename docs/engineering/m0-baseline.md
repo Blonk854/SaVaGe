@@ -278,7 +278,9 @@ against path replacement, symlink changes, or reparse-point changes after author
 `pnpm bench` builds the 100, 1,000, and 10,000 path corpus from
 [src/shared/bench/corpus.ts](../../src/shared/bench/corpus.ts).
 [fixtures/benchmarks/manifest.json](../../fixtures/benchmarks/manifest.json) pins the
-census and SHA-256. The reference
+census and SHA-256. The command runs
+[src/shared/bench/startup.bench.ts](../../src/shared/bench/startup.bench.ts), then
+[src/shared/bench/measure.bench.ts](../../src/shared/bench/measure.bench.ts). The reference
 run is [benchmark-baseline.json](benchmark-baseline.json): DESKTOP-SCI395N on
 2026-10-06, Ryzen 7 3700X, 16 GB, RTX 3060 Ti, WebView2 154.0.4258.53, 96 DPI,
 Node 24.16.0. On the standard 1,000-path fixture, warm CPU pan/zoom p95 is
