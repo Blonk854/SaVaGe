@@ -27,7 +27,7 @@ the committed p95. It does not run in pull-request CI.
 | Recovery, native job bounds, and the security boundary | Met in automated tests, with named manual leftovers | Recovery sequence rules, exclusive convert/export jobs, CSP, and grant checks. Live disk-full and removable media stay manual. |
 | Capabilities reduced and CSP enabled | Met in source | Production CSP tests. Packaged WebView2 enforcement of that policy is still a native observation. |
 | Core workflow and accessibility checks | Met for the browser adapter | Convert/save/reopen/export, close prompts, keyboard file commands, menu/list/focus/live region, and structural visual contracts. This is not WebView2, Narrator, or pixel evidence. |
-| No known critical or high-severity data-loss defects | Open | This repository has withdrawal records, not a defect tracker. A green check is not that review. |
+| No known critical or high-severity data-loss defects | Met for the reviewed record | [defect-disposition.md](defect-disposition.md). Guest close, destination, and undo defects from 0.1.0 and 0.1.1 are closed on 0.1.2. No withdrawal names corruption or missing recovery. |
 | Recovery verified in a packaged build | Met for the release executable | `scripts/verify-packaged-recovery.ps1` killed `src-tauri/target/release/savage.exe` after a 512 artboard checkpoint. Restart showed the native prompt, Recover opened an unsaved copy, and the killed session's checkpoint was removed. The window capture shows Recovered Untitled. `scripts/verify-packaged-recovery-source.ps1` then opened a temporary `.savage`, killed the app after an edit, and confirmed Open Original and Discard Recovery left that file's bytes and timestamp unchanged. This is not an NSIS install. The known-folder recovery directory has to start empty because the packaged app does not follow an overridden APPDATA. |
 
 ## 1.0 Quality Gate
@@ -38,8 +38,8 @@ the committed p95. It does not run in pull-request CI.
 | Visual regression of primary states | Packaged pixels recorded | Eleven stable 1440×900 captures from the release window are in [pixel-baselines/manifest.json](pixel-baselines/manifest.json). Structural DOM and CSS contracts still fail `pnpm check:ci`. Narrator, display scaling, and high contrast stay on the manual native gate. |
 | Installer and upgrade smoke | Partial | Tagged NSIS is a failing release check. Guest sign-off covers `v0.1.2` and `v0.1.3` items. On 2026-10-06 `pnpm webview2:missing` refused on DESKTOP-SCI395N: WebView2 154.0.4258.53 is already installed, and Windows 10 Home cannot host Sandbox or Hyper-V ([webview2-missing.json](webview2-missing.json)). The missing-runtime gate stays open. |
 | Documentation matches behavior | Met for the recorded manual slice | `USER_MANUAL.md` matches the file commands, inspector tabs, and recovery prompts checked in M6. |
-| No unresolved critical or high-severity defects | Open | Same review gap as the beta gate. |
-| Medium-severity defects have an explicit disposition | Open | No medium-defect log is kept in this repository. |
+| No unresolved critical or high-severity defects | Met for the reviewed record | Same review. Nothing in that record is an open critical or high defect. |
+| Medium-severity defects have an explicit disposition | Met | One item, accepted: hit testing above 8,192 nodes. [defect-disposition.md](defect-disposition.md). |
 | Release notes cover format compatibility and limitations | Met for the current notes | [release-notes-0.1.0.md](release-notes-0.1.0.md) and [m8-compatibility.md](m8-compatibility.md). |
 
 ## What `pnpm bench` measures

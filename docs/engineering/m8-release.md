@@ -90,7 +90,8 @@ pull request, the protected branch, and the tagged installer. Coverage is upload
 when the report exists and is not a percentage gate. The benchmark artifact says
 `recorded` and points at [benchmark-baseline.json](benchmark-baseline.json). Pull
 requests do not fail on hardware noise. Alpha, beta, and 1.0 dispositions are
-[release-gates.md](release-gates.md). Browser-adapter journeys, accessibility
+[release-gates.md](release-gates.md). Defect classifications are
+[defect-disposition.md](defect-disposition.md). Browser-adapter journeys, accessibility
 checks, and structural visual contracts run inside `pnpm check:ci` and are a failing
 gate. Native smoke, Narrator, display scaling, high contrast, and
 Authenticode stay explicit non-passing results. Packaged pixel baselines and

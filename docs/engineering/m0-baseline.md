@@ -287,3 +287,4 @@ profile and 312 ms warm p95, under the 2 second target
 cold and 543 ms warm p95 ([present-timing.json](present-timing.json)). A later run on this
 machine fails above a 25% p95 regression. Pull requests do not apply that
 threshold. Alpha, beta, and 1.0 dispositions are [release-gates.md](release-gates.md).
+The defect review is [defect-disposition.md](defect-disposition.md).

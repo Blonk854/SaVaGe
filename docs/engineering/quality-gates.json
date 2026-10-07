@@ -149,6 +149,13 @@
       "note": "pnpm recovery:source opens a temporary .savage, kills the release executable, and checks Open Original and Discard Recovery. It is not a pull-request failure."
     },
     {
+      "id": "defect-disposition",
+      "plan": "1.0",
+      "enforcement": "recorded",
+      "evidence": "docs/engineering/defect-disposition.md",
+      "note": "The reviewed record has no open critical or high defect. Hit testing above 8,192 nodes is accepted. This file is not a pull-request failure."
+    },
+    {
       "id": "authenticode",
       "plan": "1.0",
       "enforcement": "not-provisioned"
