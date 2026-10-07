@@ -87,7 +87,9 @@ part of this YAML. The check to require on protected `main` and `master` is `Che
 [quality-gates.json](quality-gates.json) is the list the release sidecar copies into
 `provenance.json` `acceptanceGates`. Commands with `"enforcement": "fail"` fail the
 pull request, the protected branch, and the tagged installer. Coverage is uploaded
-when the report exists and is not a percentage gate. The benchmark artifact says
+when the report exists and is not a percentage gate. The benchmark artifact
+([../../benchmark-results/status.json](../../benchmark-results/status.json), written by
+[scripts/quality-reports.mjs](../../scripts/quality-reports.mjs)) says
 `recorded` and points at [benchmark-baseline.json](benchmark-baseline.json). Pull
 requests do not fail on hardware noise. Alpha, beta, and 1.0 dispositions are
 [release-gates.md](release-gates.md). Defect classifications are
