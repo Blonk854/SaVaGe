@@ -73,8 +73,8 @@ Guest `v0.1.3` (`b54b1a75…5726`, commit `665851be19cec99e29b4c645cbb886d587ec2
 - [x] Uninstall **without** checking Delete application data. `%LOCALAPPDATA%\SaVaGe` is gone; `%APPDATA%\com.savage.svgstudio` and the user `.savage` remain. Guest 2026-09-18: app data remained.
 - [x] Reinstall. Recovery prompt still appears for leftover checkpoints.
       Guest 2026-09-18: `%APPDATA%\com.savage.svgstudio\recovery` remained after uninstall without deleting app data. Kill-process relaunch already showed the recovery prompt.
-- [ ] WebView2 missing: on a machine or VM without the runtime, `scripts/webview2-missing.ps1 -Setup <nsis>` downloads it when online, or aborts with a non-zero setup exit and no install directory when offline. Do not mark this item from a machine that already has WebView2. `pnpm webview2:missing` records that refusal and does not run setup.
-      2026-10-06 on DESKTOP-SCI395N: [webview2-missing.json](webview2-missing.json) records `refused`. This PC has WebView2 154.0.4258.53, and Windows 10 Home has neither Windows Sandbox nor Hyper-V. Guest sign-off does not cover this either.
+- [ ] WebView2 missing: on a machine or VM without the runtime, `scripts/webview2-missing.ps1 -Setup <nsis>` downloads it when online, or aborts with a non-zero setup exit and no install directory when offline. Do not mark this item from a machine that already has WebView2. `pnpm webview2:missing` records that refusal and does not run setup. The guest steps are [webview2-missing-vm.md](webview2-missing-vm.md).
+      2026-10-06 on DESKTOP-SCI395N: [webview2-missing.json](webview2-missing.json) records `refused`. This PC has WebView2 154.0.4258.53, and Windows 10 Home has neither Windows Sandbox nor Hyper-V. Guest sign-off does not cover this either. The same host, now Windows 11 Home 26H2, still has the runtime (154.0.4258.62) and still cannot host Sandbox or Hyper-V.
 
 Do not mark this gate from `pnpm tauri:dev` or a Vite browser tab.
 

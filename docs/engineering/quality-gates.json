@@ -132,7 +132,7 @@
       "plan": "1.0",
       "enforcement": "manual",
       "evidence": "docs/engineering/webview2-missing.json",
-      "note": "pnpm webview2:missing refuses to pass on a machine that already has the Evergreen runtime."
+      "note": "pnpm webview2:missing refuses to pass on a machine that already has the Evergreen runtime. The Windows 10 guest steps are docs/engineering/webview2-missing-vm.md."
     },
     {
       "id": "packaged-recovery",
