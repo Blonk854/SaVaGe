@@ -64,7 +64,7 @@ must not be used for a distributed artifact.
 
 | Workflow | Trigger | Secrets | Output |
 |---|---|---|---|
-| `.github/workflows/check.yml` | pull requests, protected `main`/`master`, Monday 08:17 UTC | default `GITHUB_TOKEN` for cargo-audit and artifact upload | version check + `pnpm audit:frontend` + `pnpm check:ci` + Rust advisory audit + test/coverage/benchmark artifacts |
+| `.github/workflows/check.yml` | pull requests, protected `main`/`master`, Monday 08:17 UTC | default `GITHUB_TOKEN` for cargo-audit and artifact upload | version check + `pnpm audit:frontend` + `pnpm check:ci` + Rust advisory audit + test results, coverage, and [benchmark-results/status.json](../../benchmark-results/status.json) |
 | `.github/workflows/release.yml` | tags `v*.*.*` | GitHub `GITHUB_TOKEN` only | the same gates, then NSIS + checksums + provenance |
 
 Actions are pinned by commit SHA. Third-party actions used here:
