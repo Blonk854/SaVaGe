@@ -55,7 +55,11 @@ npx --yes pnpm@10.17.1 tauri build --debug
 	with `@vitest/coverage-v8` (devDependency only; same locked version as Vitest; MIT; not in
 	the desktop bundle). Upload uses `if-no-files-found: warn` and `continue-on-error`. There
 	is no repository-wide percentage gate. Per-risk coverage belongs with the tests for that
-	boundary. See [quality-gates.json](quality-gates.json).
+	boundary. `pnpm test:coverage` also writes
+	[../../benchmark-results/status.json](../../benchmark-results/status.json) through
+	[scripts/quality-reports.mjs](../../scripts/quality-reports.mjs). That status is `recorded`
+	and points at [benchmark-baseline.json](benchmark-baseline.json). It is not a pull-request
+	failure. See [quality-gates.json](quality-gates.json).
 
 The automation probe found Edge 153.0.4234.32, but neither `tauri-driver` nor a matching
 EdgeDriver is installed. Until a compatible pair is selected and pinned, native coverage is

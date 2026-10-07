@@ -1,7 +1,7 @@
 # SaVaGe User Manual
 
 **Product:** SaVaGe — image-to-SVG converter and vector editor for Windows  
-**Document version:** matches application v0.1.3"
+**Document version:** matches application v0.1.3
 
 ---
 
@@ -747,7 +747,7 @@ Menu items do not show key badges in the title bar; the shortcuts in this sectio
 3. Text outlines use the bundled **DM Sans** and **Syne** faces.  
 4. Some web browsers will not paint mesh-gradient fills in exported SVG.  
 5. Installers are unsigned until Authenticode signing is added. Windows SmartScreen may warn; verify the SHA-256 from the tagged release before installing.  
-6. `.savage` files from a newer SaVaGe (version 2 or later) will not open in 0.1.0. The file is not converted or overwritten.
+6. `.savage` files from a newer SaVaGe (version 2 or later) will not open in 0.1.3. The file is not converted or overwritten.
 
 ### 12.2 Best practices
 

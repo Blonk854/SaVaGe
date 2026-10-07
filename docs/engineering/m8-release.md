@@ -36,7 +36,7 @@ These fields must be identical:
 - `src-tauri/tauri.conf.json` `version`
 - `USER_MANUAL.md` “matches application vX.Y.Z”
 
-The git tag must be `v` plus that version (`v0.1.0`). `pnpm release:check` and the
+The git tag must be `v` plus that version (`v0.1.3`). `pnpm release:check` and the
 Vitest release tests enforce the manifests. The release workflow refuses a tag that
 does not match.
 
@@ -75,7 +75,7 @@ Actions are pinned by commit SHA. Third-party actions used here:
 | `actions/setup-node` | `820762786026740c76f36085b0efc47a31fe5020` (v7.0.0) | Node from `.node-version` | preinstalled Node, unpinned |
 | `dtolnay/rust-toolchain` | `6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772` (v1) | Rust 1.96.0 plus clippy/rustfmt | downloading `rustup-init` unpinned |
 | `rustsec/audit-check` | `69366f33c96575abad1ee0dba8212993eecbe998` (v2.0.0) | `cargo audit` against `src-tauri/Cargo.lock` | installing `cargo-audit` unpinned on the runner |
-| `actions/upload-artifact` | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` (v7.0.1) | retain test, coverage, and benchmark reports, and the installer if release attach fails | `gh` only |
+| `actions/upload-artifact` | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` (v7.0.1) | retain test results, coverage, and [benchmark-results/status.json](../../benchmark-results/status.json), and the installer if release attach fails | `gh` only |
 
 pnpm comes from Corepack using `package.json` `packageManager`. Cargo and pnpm installs
 are locked. Create a GitHub Environment named `release` and restrict who can approve

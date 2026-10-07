@@ -16,17 +16,17 @@ This document contains the critique and a replacement execution plan. The origin
 
 ## 2. Evidence and Assumptions
 
-Evidence checked for this review:
+Evidence checked for this review. The code links below were re-read against the current tree. Section 3 remains the 2026-09-12 critique of the original plan.
 
 - The complete original plan and its ordering, acceptance criteria, and release gates.
-- [Document types](src/shared/document/types.ts#L3): decomposed transforms include skew fields, while the document version is fixed at 1.
-- [Matrix implementation](src/shared/geometry/transform.ts#L33): current composition applies translation, rotation, and scale, but not those skew fields.
-- [Document store](src/shared/stores/documentStore.ts#L76): document replacement and selection live in the temporal store; there is no session/save transaction contract.
-- [Conversion command](src-tauri/src/commands/convert.rs#L21): one synchronous command returns the complete SVG string, with no job identity or cancellation protocol.
-- [Plugin API](src/shared/plugins/api.ts#L45): registered commands execute in-process with document mutation access; supplied examples are built-in plugins.
-- [Build scripts](package.json#L6) and [Tauri configuration](src-tauri/tauri.conf.json#L6): the native manifest is under `src-tauri`, scripts assume pnpm availability, packaging is Windows NSIS, and CSP is disabled.
+- [Document types](src/shared/document/types.ts#L5-L13): decomposed transforms include skew fields. [Document version](src/shared/document/types.ts#L215) stays fixed at 1.
+- [Matrix implementation](src/shared/geometry/transform.ts#L34-L46): composition applies translation, rotation, scale, and both skews.
+- [Document store](src/shared/stores/documentStore.ts#L109-L117): document replacement and selection live in the temporal store. Save identity is the [project session](src/shared/stores/projectSessionStore.ts#L20-L32): session id, saved contents, and operation id.
+- [Conversion job](src-tauri/src/commands/convert.rs#L32-L38): a convert request carries job, session, and source-revision identity, and cancellation is cooperative.
+- [Plugin API](src/shared/plugins/api.ts#L73-L76): built-in commands run in-process on an isolated working copy. They are not a sandbox.
+- [Build scripts](package.json#L10-L39) and [Tauri configuration](src-tauri/tauri.conf.json#L24-L26): the native manifest is under `src-tauri`, scripts assume pnpm, packaging is Windows NSIS, and CSP is set for packaged and dev windows.
 
-The earlier review recorded 67 passing frontend tests, 4 passing Rust tests, and a successful frontend production build. Those checks were not rerun for this documentation-only review. They do not establish native UI automation, installer correctness, or SVG conformance. Browser-only startup previously failed at the Tauri boundary; native interactive startup was not verified because of local pnpm setup permissions.
+The 2026-09-12 review recorded 67 passing frontend tests, 4 passing Rust tests, and a successful frontend production build. Section 7 records a later frontend and Rust run. Neither run establishes native UI automation, installer correctness, or SVG conformance. Browser-only startup previously failed at the Tauri boundary, and those early checks did not verify native interactive startup.
 
 Assumptions requiring confirmation during milestone M0:
 
@@ -46,7 +46,7 @@ Risk estimates below are qualitative engineering judgments, not measured inciden
 
 **Classification:** Blocker for M2 geometry implementation.
 
-**Issue:** [Phase 1](savage_upgrade.md#L110) specifies one traversal and appearance-preserving reparenting, but not matrix representation, skew order, singular-transform behavior, or symbol/clip coordinate spaces. It also requires SVG export/import parity before the parser improvements in Phase 3. Current matrix composition ignores skew fields that exist in the model.
+**Issue:** [Phase 1](savage_upgrade.md#L110) specifies one traversal and appearance-preserving reparenting, but not matrix representation, skew order, singular-transform behavior, or symbol/clip coordinate spaces. It also requires SVG export/import parity before the parser improvements in Phase 3. The 2026-09-12 review found matrix composition ignoring skew fields that exist in the model. [transformToMatrix](src/shared/geometry/transform.ts#L34-L46) now applies those fields.
 
 **Why it matters:** Composing nonuniform scale and rotation can produce shear. Traversal alone cannot make a result correct if it is converted back into a lossy representation. A monolithic shared traversal would also risk conflating group compositing, hit testing, and serialization, which legitimately have different responsibilities.
 
@@ -218,17 +218,22 @@ Extend current modules and libraries where practical. Add a helper or service on
 | M3  | Session, undo, and safe file lifecycle                | M0, M1                             | Snapshot-correct Save/Open/Close and real Windows write tests         |
 | M4  | Recovery and file compatibility                       | M2, M3                             | Recovery fault tests and reader/writer matrix                         |
 | M5  | Native job lifecycle and complete boundary hardening  | M0, M1; M3 session contract        | Bounded work, honest cancellation, native authorization and CSP tests |
+| M6  | Core usability and visual/accessibility consolidation | M2, M3, M5                         | Verified primary user journey and accessible interface states         |
+| M7  | Measured performance improvements                     | Baseline M0; stable M2-M6 behavior | Before/after profiles and enforced regression budgets                 |
+| M8  | Release qualification and staged rollout              | M1-M7                              | Verified installer, compatibility evidence, rollback rehearsal        |
 
-## 6. Remaining work checklist
+M2 and M3 may proceed independently after shared invariants are established. Security fixes that already have clear contracts should land early, not wait for M5. Accessibility, tests, error handling, and documentation belong to every applicable milestone. No public alpha bypasses the input-security or data-loss gates.
 
-This is the practical remaining-work list for the current repo state, based on the evidence reviewed in [savage_upgrade.md](savage_upgrade.md) and on the fresh verification runs for the frontend and Rust checks.
+## 6. Upgrade checklist
+
+This is the status of the upgrade checklist for the current repo, based on [savage_upgrade.md](savage_upgrade.md) and on the frontend and Rust checks in section 7. Items marked done still name the limits that remain.
 
 ### 6.1 Geometry and correctness
 - Finish the single transform contract for rendering, bounds, hit testing, selection handles, snapping, flattening, clipboard, grouping, and SVG export/import.
 - Nested group/ungroup/copy now bake world matrices through `matrixToTransform` so rotated/scaled groups keep appearance. Symbol detach bakes instance world onto symbol roots and keeps nested locals. SVG import/export fidelity of symbol/use remains unsupported on the SVG interchange path.
 - Correct boolean operand selection so unsupported or non-participating shapes are not deleted. **Done:** mixed selections keep non-participants (`booleanOps.test.ts`).
 - Add geometry conformance coverage for mixed transforms, negative scale, rotation, translation, and multilevel groups. **Done:** hand-calculated fixtures pin world corners, AABBs, flatten, hit-test rejection, nested-path snap, and selection handles (`conformance.test.ts`). Nested path snap/anchors now use `nodeWorldMatrix`. SVG symbol/use interchange remains unsupported.
-- Evidence: [src/shared/stores/documentStore.ts](src/shared/stores/documentStore.ts), [src/shared/geometry/flatten.ts](src/shared/geometry/flatten.ts#L71-L78), [src/shared/geometry/conformance.test.ts](src/shared/geometry/conformance.test.ts), [src/features/tools/booleanOps.ts](src/features/tools/booleanOps.ts#L1-L46), [src/features/tools/booleanOps.test.ts](src/features/tools/booleanOps.test.ts)
+- Evidence: [src/shared/stores/documentStore.ts](src/shared/stores/documentStore.ts#L214-L230), [ungroup](src/shared/stores/documentStore.ts#L285-L296), [src/shared/geometry/transform.ts](src/shared/geometry/transform.ts#L159), [src/shared/geometry/flatten.ts](src/shared/geometry/flatten.ts#L71-L78), [src/shared/geometry/conformance.test.ts](src/shared/geometry/conformance.test.ts), [src/features/tools/booleanOps.ts](src/features/tools/booleanOps.ts#L14-L64), [src/features/tools/booleanOps.test.ts](src/features/tools/booleanOps.test.ts)
 
 ### 6.2 Validation and safety
 - Strengthen `.savage` validation to check required fields, finite geometry, paint values, ID uniqueness, ownership, reference integrity, depth, and resource limits before data enters the document store. **Done for Open:** finite transforms/geometry/paint, unique ownership, clip/symbol references, depth, and path-point limits.
@@ -240,13 +245,13 @@ This is the practical remaining-work list for the current repo state, based on t
 - Add preflight resource checks for raster decode, conversion, and PNG export, including dimension, pixel-count, memory, and output-size limits. **Done:** preview decode and conversion share a 64 MiB input, 16,384 per side, 40 million pixels, and 160 MiB decoded RGBA budget before allocation. PNG export stays 16,384 per side, 40 million pixels, and 32 MiB SVG. Live disk-full and removable-media remain manual.
 - Confirm cancellation is truthful and bounded for heavy work, including conversion and export tasks. **Done for convert and export:** cooperative checkpoints, exclusive slot, CancelRequested until the worker exits, no destination write after cancel. `vtracer` / `resvg` stages are not interruptible.
 - Keep job/session/source-revision identity explicit so stale results cannot replace newer work. **Done:** a running conversion records that identity, and a newer source revision supersedes it before the SVG can commit. Export writes only when the job, session, and source revision are still current. A late result cannot commit over a newer job.
-- Evidence: [src-tauri/src/commands/import.rs](src-tauri/src/commands/import.rs#L15-L90), [src-tauri/src/commands/export.rs](src-tauri/src/commands/export.rs#L200-L290), [src-tauri/src/commands/convert.rs](src-tauri/src/commands/convert.rs)
+- Evidence: [src-tauri/src/raster.rs](src-tauri/src/raster.rs#L7-L10), [src-tauri/src/commands/import.rs](src-tauri/src/commands/import.rs#L15), [src-tauri/src/commands/export.rs](src-tauri/src/commands/export.rs#L17-L21), [src-tauri/src/commands/convert.rs](src-tauri/src/commands/convert.rs#L32-L38)
 
 ### 6.4 File lifecycle and user protection
 - Finish the session-state model for project path, display name, revision tracking, modified status, save time, and recovery state. **Done:** the project session snapshot keeps path, display name, serialized current/saved revisions, Unsaved/Modified/Saved, save time, and recovery status (`none`, `pending`, `checkpointed`, `failed`). Selection does not mark the project modified. An untouched new document is an acknowledged untitled baseline.
 - Verify Save, Save As, New, Open, Replace-with-conversion, Close, and app shutdown still present Save/Discard/Cancel decisions for modified documents. **Done:** those replacements share one decision. Cancel leaves the document open. Recovery replacement uses the same decision. Window close and application exit share it.
 - Keep recent projects and reopen-last-project behavior available and consistent with the plan. **Done:** a native list of 10 `.savage` files. Remember requires a live destination grant. Reopen uses an id. Reopen last project is opt-in and off by default. The menu shows name and parent folder, not a full path.
-- Evidence: [src/features/editor/fileIo.ts](src/features/editor/fileIo.ts), [src/shared/stores/projectSessionStore.ts](src/shared/stores/projectSessionStore.ts), [src/app/layout/TitleBar.tsx](src/app/layout/TitleBar.tsx#L263), [src-tauri/src/commands/recent_projects.rs](src-tauri/src/commands/recent_projects.rs)
+- Evidence: [src/features/editor/fileIo.ts](src/features/editor/fileIo.ts), [src/shared/stores/projectSessionStore.ts](src/shared/stores/projectSessionStore.ts), [src/app/layout/TitleBar.tsx](src/app/layout/TitleBar.tsx#L288-L291), [src-tauri/src/commands/recent_projects.rs](src-tauri/src/commands/recent_projects.rs)
 
 ### 6.5 Recovery and persistence
 - Confirm recovery snapshots are sequence-aware and newer-than-original aware. **Done:** a snapshot sequence only moves forward, and startup compares the stored source fingerprint with the current file. The original is untitled, unchanged, changed, or missing.
@@ -258,7 +263,7 @@ This is the practical remaining-work list for the current repo state, based on t
 - Add coverage reporting to CI and ensure the required quality gateways run on pull requests and protected release branches. **Done:** `pnpm check:ci` runs Vitest with V8 coverage, the production build, and Rust fmt/test/Clippy on pull requests, protected `main`/`master`, the weekly schedule, and tagged NSIS. Coverage upload is `continue-on-error` with `if-no-files-found: warn`. There is no repository-wide percentage gate.
 - Include JavaScript dependency auditing and release-artifact upload for tests, coverage, benchmark, and installer outputs. **Done:** `pnpm audit:frontend` (`pnpm audit --prod`) and `rustsec/audit-check` on those triggers, plus local `release:package` for the JavaScript audit. No owned CVE exceptions. Check and release upload test results, the coverage report, and a benchmark status file. Tagged NSIS still uploads the installer with `if-no-files-found: error`. The benchmark status says `recorded` and points at the named-machine baseline. It does not fail a pull request.
 - Make the release pipeline reflect the plan’s acceptance gates rather than only the minimum build/test flow. **Done:** [docs/engineering/quality-gates.json](docs/engineering/quality-gates.json) is copied into `provenance.json`. Fail gates are the commands above. Native smoke stays manual. Browser-adapter journeys, accessibility checks, and structural visual contracts fail with `pnpm check:ci`. Performance budgets are the recorded reference-machine baseline, not a pull-request threshold. Authenticode stays not provisioned.
-- Evidence: [.github/workflows/check.yml](.github/workflows/check.yml), [.github/workflows/release.yml](.github/workflows/release.yml), [package.json](package.json#L6-L28), [docs/engineering/quality-gates.json](docs/engineering/quality-gates.json), [scripts/quality-reports.mjs](scripts/quality-reports.mjs), [benchmark-results/status.json](benchmark-results/status.json), [docs/engineering/benchmark-baseline.json](docs/engineering/benchmark-baseline.json)
+- Evidence: [.github/workflows/check.yml](.github/workflows/check.yml), [.github/workflows/release.yml](.github/workflows/release.yml), [package.json](package.json#L10-L39), [docs/engineering/quality-gates.json](docs/engineering/quality-gates.json), [scripts/quality-reports.mjs](scripts/quality-reports.mjs), [benchmark-results/status.json](benchmark-results/status.json), [docs/engineering/benchmark-baseline.json](docs/engineering/benchmark-baseline.json)
 
 ### 6.7 E2E, accessibility, and visual regression
 - Add the critical journey tests called for by the plan: import/convert/save/reopen/export, malformed input handling, recovery, close prompts, and keyboard-only file workflows. **Done for the browser adapter:** Vitest mounts the shell against an in-memory command surface. A trace opens in the editor, saves, reopens, and exports SVG. Drawing, property edit, group, undo/redo, and close Cancel/Discard are covered. Malformed JSON and an over-limit read leave the open document in place. Recovery opens an unsaved copy. Keyboard Open, Convert, property edit, Save, and Export SVG are covered. jsdom has no tab order, so those tests focus the named control and activate it with Enter. This is not WebView2 or native-dialog evidence.
@@ -287,14 +292,9 @@ Fresh verification was run against the current repo state:
 - Frontend: `npx --yes pnpm@10.17.1 check:frontend` → 206/206 frontend tests passed and the production build succeeded.
 - Rust: `npx --yes pnpm@10.17.1 check:rust` → 25/25 Rust tests passed, formatting and Clippy checks succeeded.
 
-These checks confirm the repo is in a strong state, but they do not prove the full upgrade plan is implemented. The checklist above still represents the remaining work required to satisfy the plan’s acceptance criteria and Definition of Done.
-| M6  | Core usability and visual/accessibility consolidation | M2, M3, M5                         | Verified primary user journey and accessible interface states         |
-| M7  | Measured performance improvements                     | Baseline M0; stable M2-M6 behavior | Before/after profiles and enforced regression budgets                 |
-| M8  | Release qualification and staged rollout              | M1-M7                              | Verified installer, compatibility evidence, rollback rehearsal        |
+These checks confirm the frontend build and the Rust fmt/test/Clippy suite. They do not prove packaged WebView2 behavior, the NSIS installer, or native smoke. Section 6 records what has landed and the limits still named on each item, including unsupported SVG symbol/use interchange, non-interruptible `vtracer` / `resvg` stages, manual disk-full checks, the manual native gate, Authenticode not provisioned, and the deferred expansion in 6.10.
 
-M2 and M3 may proceed independently after shared invariants are established. Security fixes that already have clear contracts should land early, not wait for M5. Accessibility, tests, error handling, and documentation belong to every applicable milestone. No public alpha bypasses the input-security or data-loss gates.
-
-## 6. Milestone Implementation Details
+## 8. Milestone Implementation Details
 
 ### M0. Establish the baseline and resolve short blocking decisions
 
@@ -458,7 +458,7 @@ Tasks:
 
 Exit checks: no unresolved critical/high security, corruption, or data-loss defects; medium defects have documented acceptance/mitigation; installer and downgrade rehearsal pass; support diagnostics and recovery instructions are usable; documentation reflects tested guarantees rather than aspirations.
 
-## 7. Required Test Matrix
+## 9. Required Test Matrix
 
 | Risk                       | Focused automated evidence                                             | Native/manual evidence                                           |
 | -------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -475,7 +475,7 @@ Exit checks: no unresolved critical/high security, corruption, or data-loss defe
 
 Independent raster references must pin fonts and renderer versions, restrict comparisons to supported features, and document pixel/geometry tolerances. Exact cross-renderer pixels are not a universal correctness requirement. Fuzzing is scheduled and resource-bounded; minimized failures become deterministic regression fixtures.
 
-## 8. Review and Delivery Rules
+## 10. Review and Delivery Rules
 
 1. Deliver one behavior-scoped change at a time: red regression test, smallest implementation, focused check, then broad suite. Avoid coupling tooling upgrades to geometry fixes.
 2. Every work item identifies owner/boundary, prerequisites, failure behavior, tests, dependency additions, format impact, and how to revert code without damaging user files.
@@ -484,7 +484,7 @@ Independent raster references must pin fonts and renderer versions, restrict com
 5. Estimate milestone effort after M0 probes resolve native automation, affine representation, and cancellation feasibility. Split any item lacking one demonstrable acceptance result before scheduling it.
 6. Update user documentation with behavior changes and maintain a small manual release checklist that references actual automated coverage. Do not mark a checklist satisfied merely because a test exists.
 
-## 9. First Executable Backlog
+## 11. First Executable Backlog
 
 1. Capture baseline build/test/audit results and prove non-admin tooling setup.
 2. Add two short probes: affine skew/reparent preservation and async-save/edit/undo acknowledgement.
@@ -497,7 +497,7 @@ Independent raster references must pin fonts and renderer versions, restrict com
 
 M0 closes after items 1-3; the remaining items are separate reviewable slices in M1-M3, not one giant initial release. Recovery follows validated ingestion and persistence; cancellation UI follows the demonstrated native job contract.
 
-## 10. Definition of Done
+## 12. Definition of Done
 
 A change is complete when its behavior and failure modes are specified, its owning boundary is correct, focused regression tests distinguish the old failure, relevant broader checks pass, compatibility and dependencies are reviewed, and user-facing errors/accessibility/docs are included. Native claims require native evidence. Performance claims require measurements. Release claims require a tested rollback path that preserves user data.
 

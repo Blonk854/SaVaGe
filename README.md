@@ -33,7 +33,7 @@ pnpm tauri:dev
 | `pnpm tauri:build` | Production installer |
 | `pnpm test` | Vitest unit tests |
 | `pnpm bench` | Run `src/shared/bench/startup.bench.ts`, then `src/shared/bench/measure.bench.ts` (`runBenchmark` in `src/shared/bench/run.ts`) on the 100 / 1,000 / 10,000 path fixtures from `src/shared/bench/corpus.ts`, and compare p95 with the reference baseline through `src/shared/bench/compare.ts` |
-| `pnpm test:coverage` | Vitest plus a V8 coverage report (no percentage gate) |
+| `pnpm test:coverage` | Write `benchmark-results/status.json` with `scripts/quality-reports.mjs`, then Vitest plus a V8 coverage report (no percentage gate) |
 | `pnpm build` | Frontend-only build |
 | `pnpm check` | Frontend build/tests plus Rust fmt/tests/Clippy |
 | `pnpm check:ci` | Coverage, frontend build, and Rust fmt/tests/Clippy (pull requests, `main`/`master`, and tagged NSIS) |
