@@ -1,5 +1,6 @@
 mod commands;
 mod evidence;
+mod present;
 mod raster;
 mod vectorize;
 
@@ -25,6 +26,7 @@ use commands::recovery::{delete_recovery, list_recoveries, write_recovery};
 use commands::source_grants::{
     claim_dropped_image, pick_image_source, pick_open_source, SourceGrantManager,
 };
+use present::record_open_image_present;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -78,7 +80,8 @@ pub fn run() {
             pick_png_destination,
             record_diagnostic,
             export_diagnostics,
-            exit_application
+            exit_application,
+            record_open_image_present
         ])
         .run(tauri::generate_context!())
         .expect("error while running SaVaGe");

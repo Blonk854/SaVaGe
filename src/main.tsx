@@ -4,6 +4,7 @@ import "@fontsource-variable/syne";
 import "@fontsource-variable/dm-sans";
 import "./app/theme.css";
 import App from "./app/App";
+import { installOpenImagePresentObserver } from "./shared/release/presentFrame";
 
 function showBootError(message: string) {
   const root = document.getElementById("root");
@@ -21,6 +22,8 @@ window.addEventListener("unhandledrejection", (e) => {
     showBootError(e.reason instanceof Error ? e.reason.message : String(e.reason));
   }
 });
+
+installOpenImagePresentObserver();
 
 const el = document.getElementById("root");
 if (!el) {

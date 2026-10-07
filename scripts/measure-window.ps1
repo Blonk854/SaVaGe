@@ -1,6 +1,6 @@
 # Time a release SaVaGe.exe from process start until the converter is usable.
 # Usable means the Open Image control is in the WebView2 accessibility tree.
-# This does not measure WebView2 present time.
+# This does not measure WebView2 present time. That is scripts/measure-present.ps1.
 
 param(
   [string]$Exe = "",
@@ -82,7 +82,7 @@ try {
 }
 
 $report = [ordered]@{
-  definition = "usableMs is process start until the Open Image control is in the WebView2 accessibility tree. visibleMs is the main window becoming visible. Neither is WebView2 present time."
+  definition = "usableMs is process start until the Open Image control is in the WebView2 accessibility tree. visibleMs is the main window becoming visible. Neither is WebView2 present time. Present time is docs/engineering/present-timing.json."
   targetMs = $targetMs
   versusPlan = $(if ($usableP95 -le $targetMs) { "within-provisional-target" } else { "above-provisional-target" })
   cold = $cold[0]

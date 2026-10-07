@@ -111,7 +111,14 @@
       "plan": "1.0",
       "enforcement": "recorded",
       "evidence": "docs/engineering/window-timing.json",
-      "note": "pnpm window:measure times a release executable until Open Image is in the WebView2 accessibility tree. It is not a pull-request failure and it is not WebView2 present time."
+      "note": "pnpm window:measure times a release executable until Open Image is in the WebView2 accessibility tree. It is not a pull-request failure and it is not WebView2 present time. Present time is the webview2-present gate."
+    },
+    {
+      "id": "webview2-present",
+      "plan": "1.0",
+      "enforcement": "recorded",
+      "evidence": "docs/engineering/present-timing.json",
+      "note": "pnpm present:measure times a release executable until WebView2 presents the empty-converter title in the first frame that also shows Open Image. The timestamp is element-timing presentationTime. It is not a pull-request failure."
     },
     {
       "id": "pixel-baselines",

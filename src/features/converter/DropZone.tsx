@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type HTMLAttributes } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { OPEN_IMAGE_PRESENT_ID } from "../../shared/release/presentFrame";
 import { Button } from "../../shared/ui/Button";
 import {
   displayName,
@@ -81,7 +82,10 @@ export function DropZone({ disabled, onFile, onReject, attachedPath }: Props) {
 
   return (
     <div className={`dropzone ${over ? "over" : ""} ${disabled ? "dropzone--busy" : ""}`} aria-busy={disabled || undefined}>
-      <p className="dropzone__title">
+      <p
+        className="dropzone__title"
+        {...({ elementtiming: OPEN_IMAGE_PRESENT_ID } as HTMLAttributes<HTMLParagraphElement>)}
+      >
         {attachedPath ? displayName(attachedPath) : "Drop an image to vectorize"}
       </p>
       <p className="muted">

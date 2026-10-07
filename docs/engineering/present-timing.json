@@ -1,0 +1,112 @@
+{
+    "definition":  "presentMs is process start until WebView2\u0027s element-timing presentationTime for the empty-converter title painted in the same frame as Open Image. Button text does not emit element timing. accessibleMs is the same launch until Open Image is in the accessibility tree. visibleMs is the main window becoming visible. presentMs is the present time.",
+    "targetMs":  2000,
+    "versusPlan":  "within-provisional-target",
+    "cold":  {
+                 "accessibleMs":  879.458,
+                 "label":  "cold",
+                 "visibleMs":  353.597,
+                 "clockGapMs":  17.506,
+                 "dpi":  96,
+                 "stopwatchPresentMs":  896.021,
+                 "receiveLagMs":  17.185,
+                 "presentMs":  878.515,
+                 "presentationTimeMs":  184
+             },
+    "warm":  {
+                 "samples":  5,
+                 "present":  {
+                                 "p50":  513.812,
+                                 "p95":  542.753
+                             }
+             },
+    "launches":  [
+                     {
+                         "accessibleMs":  879.458,
+                         "label":  "cold",
+                         "visibleMs":  353.597,
+                         "clockGapMs":  17.506,
+                         "dpi":  96,
+                         "stopwatchPresentMs":  896.021,
+                         "receiveLagMs":  17.185,
+                         "presentMs":  878.515,
+                         "presentationTimeMs":  184
+                     },
+                     {
+                         "accessibleMs":  516.972,
+                         "label":  "warm",
+                         "visibleMs":  24.156,
+                         "clockGapMs":  8.537,
+                         "dpi":  96,
+                         "stopwatchPresentMs":  522.348,
+                         "receiveLagMs":  16.891,
+                         "presentMs":  513.812,
+                         "presentationTimeMs":  188
+                     },
+                     {
+                         "accessibleMs":  508.367,
+                         "label":  "warm",
+                         "visibleMs":  28.31,
+                         "clockGapMs":  8.273,
+                         "dpi":  96,
+                         "stopwatchPresentMs":  519.854,
+                         "receiveLagMs":  19.292,
+                         "presentMs":  511.582,
+                         "presentationTimeMs":  188
+                     },
+                     {
+                         "accessibleMs":  540.298,
+                         "label":  "warm",
+                         "visibleMs":  29.523,
+                         "clockGapMs":  8.287,
+                         "dpi":  96,
+                         "stopwatchPresentMs":  551.04,
+                         "receiveLagMs":  19.768,
+                         "presentMs":  542.753,
+                         "presentationTimeMs":  212
+                     },
+                     {
+                         "accessibleMs":  496.424,
+                         "label":  "warm",
+                         "visibleMs":  30.907,
+                         "clockGapMs":  15.048,
+                         "dpi":  96,
+                         "stopwatchPresentMs":  532.457,
+                         "receiveLagMs":  19.93,
+                         "presentMs":  517.409,
+                         "presentationTimeMs":  200
+                     },
+                     {
+                         "accessibleMs":  480.199,
+                         "label":  "warm",
+                         "visibleMs":  30.228,
+                         "clockGapMs":  7.26,
+                         "dpi":  96,
+                         "stopwatchPresentMs":  508,
+                         "receiveLagMs":  20.128,
+                         "presentMs":  500.74,
+                         "presentationTimeMs":  180
+                     }
+                 ],
+    "machine":  {
+                    "name":  "DESKTOP-SCI395N",
+                    "os":  "Microsoft Windows 10 Home 10.0.19045",
+                    "cpu":  "AMD Ryzen 7 3700X 8-Core Processor",
+                    "logicalProcessors":  16,
+                    "memoryBytes":  17103769600,
+                    "gpu":  "NVIDIA GeForce RTX 3060 Ti",
+                    "webView2":  "154.0.4258.53",
+                    "dpi":  96
+                },
+    "executable":  {
+                       "path":  "C:\\Users\\s_sme\\Documents\\Projects\\SaVaGe\\src-tauri\\target\\release\\savage.exe",
+                       "sha256":  "93cdf70ea615f083598d6717ff1651f763676d2551789a4030dc0eb5b9f3a2f2"
+                   },
+    "commit":  "26828016c4db23f8ef14560151cea83ab0e37f18",
+    "workingTreeDirty":  true,
+    "profile":  "Isolated APPDATA and LOCALAPPDATA. The signed-in user\u0027s recovery files were not used.",
+    "otherInstances":  [
+
+                       ],
+    "recordedAt":  "2026-10-07T02:59:30.6333902Z"
+}

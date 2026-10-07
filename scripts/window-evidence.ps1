@@ -74,7 +74,8 @@ function Start-SavagePackaged {
   param(
     [Parameter(Mandatory = $true)][string]$Exe,
     [Parameter(Mandatory = $true)][hashtable]$AppProfile,
-    [string]$Fixture = ""
+    [string]$Fixture = "",
+    [string]$PresentFile = ""
   )
   $start = New-Object System.Diagnostics.ProcessStartInfo
   $start.FileName = $Exe
@@ -85,13 +86,20 @@ function Start-SavagePackaged {
   if ($start.EnvironmentVariables.ContainsKey("SAVAGE_VISUAL")) {
     $start.EnvironmentVariables.Remove("SAVAGE_VISUAL")
   }
+  if ($start.EnvironmentVariables.ContainsKey("SAVAGE_PRESENT_FILE")) {
+    $start.EnvironmentVariables.Remove("SAVAGE_PRESENT_FILE")
+  }
   if ($Fixture) {
     $start.EnvironmentVariables["SAVAGE_VISUAL"] = $Fixture
   }
+  if ($PresentFile) {
+    $start.EnvironmentVariables["SAVAGE_PRESENT_FILE"] = $PresentFile
+  }
+  $startedAt = [DateTimeOffset]::UtcNow
   $watch = [Diagnostics.Stopwatch]::StartNew()
   $process = [Diagnostics.Process]::Start($start)
   if (-not $process) { throw "Could not start $Exe" }
-  return @{ Process = $process; Watch = $watch }
+  return @{ Process = $process; Watch = $watch; StartedAt = $startedAt }
 }
 
 function Stop-SavagePackaged($Process) {

@@ -282,6 +282,8 @@ Node 24.16.0. On the standard 1,000-path fixture, warm CPU pan/zoom p95 is
 and 16 ms targets. They are Node command times, not WebView2 frames. The release
 executable on this machine reached a usable window in 1,867 ms on a new WebView2
 profile and 312 ms warm p95, under the 2 second target
-([window-timing.json](window-timing.json)). A later run on this
+([window-timing.json](window-timing.json)). That is accessibility-tree time. On
+2026-10-07 the same release executable presented the first usable frame in 879 ms
+cold and 543 ms warm p95 ([present-timing.json](present-timing.json)). A later run on this
 machine fails above a 25% p95 regression. Pull requests do not apply that
 threshold. Alpha, beta, and 1.0 dispositions are [release-gates.md](release-gates.md).

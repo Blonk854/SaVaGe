@@ -34,7 +34,7 @@ the committed p95. It does not run in pull-request CI.
 
 | Criterion | Status | Evidence |
 |---|---|---|
-| Performance budgets on the standard fixtures | Window target met; frame present time open | `pnpm bench` against [benchmark-baseline.json](benchmark-baseline.json). CPU command time is inside the provisional 60 FPS and 16 ms targets. On 2026-10-06 the release executable on DESKTOP-SCI395N reached Open Image in 1,867 ms on a new WebView2 profile and 312 ms warm p95, under the 2 second target ([window-timing.json](window-timing.json)). That is accessibility-tree time, not WebView2 present time. |
+| Performance budgets on the standard fixtures | Window and present targets met | `pnpm bench` against [benchmark-baseline.json](benchmark-baseline.json). CPU command time is inside the provisional 60 FPS and 16 ms targets. On 2026-10-06 the release executable on DESKTOP-SCI395N reached Open Image in the accessibility tree in 1,867 ms on a new WebView2 profile and 312 ms warm p95 ([window-timing.json](window-timing.json)). On 2026-10-07 the same machine presented that first usable frame in 879 ms cold and 543 ms warm p95, under the 2 second target ([present-timing.json](present-timing.json)). CPU bench times are still not a packaged frame rate. |
 | Visual regression of primary states | Packaged pixels recorded | Eleven stable 1440×900 captures from the release window are in [pixel-baselines/manifest.json](pixel-baselines/manifest.json). Structural DOM and CSS contracts still fail `pnpm check:ci`. Narrator, display scaling, and high contrast stay on the manual native gate. |
 | Installer and upgrade smoke | Partial | Tagged NSIS is a failing release check. Guest sign-off covers `v0.1.2` and `v0.1.3` items. On 2026-10-06 `pnpm webview2:missing` refused on DESKTOP-SCI395N: WebView2 154.0.4258.53 is already installed, and Windows 10 Home cannot host Sandbox or Hyper-V ([webview2-missing.json](webview2-missing.json)). The missing-runtime gate stays open. |
 | Documentation matches behavior | Met for the recorded manual slice | `USER_MANUAL.md` matches the file commands, inspector tabs, and recovery prompts checked in M6. |
@@ -60,8 +60,9 @@ On the standard 1,000-path document, and recorded alongside the 100-path and
 
 The canvas context records draw calls and does not present pixels. A p95 under
 16.67 ms means the CPU work fits in a 60 FPS budget. It does not prove the
-packaged WebView2 frame rate. Native save replacement and PNG export are outside
-this command.
+packaged WebView2 frame rate. First-frame present time is `pnpm present:measure`
+([present-timing.json](present-timing.json)). Native save replacement and PNG
+export are outside this command.
 
 Re-record the reference file only on the named machine, with
 `BENCH_RECORD=1` set for that run. Other machines can miss the 25% allowance

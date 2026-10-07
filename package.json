@@ -32,6 +32,7 @@
     "release:retain": "node scripts/retain-installer.mjs",
     "install:inspect": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/inspect-install.ps1",
     "window:measure": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-window.ps1",
+    "present:measure": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-present.ps1",
     "pixels:capture": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/capture-pixels.ps1",
     "recovery:packaged": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-packaged-recovery.ps1",
     "recovery:source": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-packaged-recovery-source.ps1",

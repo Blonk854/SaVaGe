@@ -1,5 +1,5 @@
 {
-    "definition":  "usableMs is process start until the Open Image control is in the WebView2 accessibility tree. visibleMs is the main window becoming visible. Neither is WebView2 present time.",
+    "definition":  "usableMs is process start until the Open Image control is in the WebView2 accessibility tree. visibleMs is the main window becoming visible. Neither is WebView2 present time. Present time is docs/engineering/present-timing.json.",
     "targetMs":  2000,
     "versusPlan":  "within-provisional-target",
     "cold":  {
