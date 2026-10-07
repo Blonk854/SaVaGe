@@ -4,7 +4,7 @@ Desktop image→SVG converter and vector editor (Tauri 2 + React + Rust).
 
 ## Prerequisites
 
-- Node.js 24.18.0 (see `.node-version`)
+- Node.js >=22 <27 (`package.json` engines). CI uses 24.18.0 (`.node-version`)
 - pnpm 10.17.1 (pinned in `package.json`)
 - Rust 1.96.0 (`rustup` reads `rust-toolchain.toml`)
 - Visual Studio 2022 Build Tools (C++ workload) on Windows

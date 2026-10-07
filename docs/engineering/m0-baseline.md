@@ -7,13 +7,13 @@ Starting commit: `c7204ef9f17cfab5d49d93d50b355fe0d0c79c1e`
 ## Toolchain
 
 - Windows desktop target
-- Node.js 24.18.0
+- Node.js 24.18.0 in `.node-version` (CI). `package.json` engines accept >=22 <27
 - pnpm 10.17.1
 - Rust/Cargo 1.96.0
 - Tauri 2
 - Vitest 3.2.7 resolved by the lockfile
 
-The repository pins Node, pnpm, and Rust. `npx --yes pnpm@10.17.1` is the verified
+The repository pins CI Node in `.node-version`, pnpm in `package.json` `packageManager`, and Rust in `rust-toolchain.toml`. `npx --yes pnpm@10.17.1` is the verified
 non-admin fallback when pnpm is not installed globally.
 
 ## Automated Results
