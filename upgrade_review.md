@@ -289,8 +289,8 @@ This is the status of the upgrade checklist for the current repo, based on [sava
 ## 7. Verification summary
 
 Fresh verification was run against the current repo state:
-- Frontend: `npx --yes pnpm@10.17.1 check:frontend` → 206/206 frontend tests passed and the production build succeeded.
-- Rust: `npx --yes pnpm@10.17.1 check:rust` → 25/25 Rust tests passed, formatting and Clippy checks succeeded.
+- Frontend: `npx --yes pnpm@10.17.1 check:frontend` → 345/345 frontend tests passed and the production build succeeded.
+- Rust: `npx --yes pnpm@10.17.1 check:rust` → 41/41 Rust tests passed, formatting and Clippy checks succeeded.
 
 These checks confirm the frontend build and the Rust fmt/test/Clippy suite. They do not prove packaged WebView2 behavior, the NSIS installer, or native smoke. Section 6 records what has landed and the limits still named on each item, including unsupported SVG symbol/use interchange, non-interruptible `vtracer` / `resvg` stages, manual disk-full checks, the manual native gate, Authenticode not provisioned, and the deferred expansion in 6.10.
 
