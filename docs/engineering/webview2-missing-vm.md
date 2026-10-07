@@ -36,10 +36,10 @@ Get-FileHash -Algorithm SHA256 C:\Users\Public\SaVaGe-0.1.3-internal\SaVaGe_0.1.
 
 Expected SHA-256: `b54b1a75d53d8bce8ab01977345bd08c59b188654d72d714335c5b4a62b85726`
 
-That setup is not on the Windows 11 host as of 2026-10-07. The copy at
-`artifacts/verified/v0.1.3/SaVaGe_0.1.3_x64-setup.exe` is the GitHub Release
-asset (`b0901b0f…33a6`), a later CI rebuild of the same commit. Do not copy it
-into the guest. The reason is in [promotion-records/v0.1.3.md](promotion-records/v0.1.3.md).
+On the Windows 11 host, copy from `glamp/nsis/SaVaGe_0.1.3_x64-setup.exe`.
+Re-hashed 2026-10-07 to `b54b1a75…5726` (4,144,606 bytes). Do not copy
+`artifacts/verified/v0.1.3/SaVaGe_0.1.3_x64-setup.exe` (`b0901b0f…33a6`); that
+is the later GitHub rebuild. See [promotion-records/v0.1.3.md](promotion-records/v0.1.3.md).
 
 Then unblock the unsigned file so SmartScreen does not turn a silent `/S` run into a failed result:
 
