@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { svgStringToDocument } from "./deserialize";
+import {
+  describeParserError,
+  svgStringToDocument,
+  SvgParseError,
+  type DropReport,
+} from "./deserialize";
 import { documentToSvgString, safeEmbeddedImageHref } from "./serialize";
 import { isSafePaintColor } from "./svgPaints";
 import { createEmptyDocument } from "./emptyDocument";
-import { defaultStroke, defaultTransform, type ImageNode } from "./types";
+import { defaultStroke, defaultTransform, type ImageNode, type PathNode } from "./types";
 
 function svg(body: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">${body}</svg>`;
@@ -136,5 +141,148 @@ describe("safe paint colors", () => {
     expect(isSafePaintColor("url(https://evil.example)")).toBe(false);
     expect(isSafePaintColor("javascript:alert(1)")).toBe(false);
     expect(isSafePaintColor("data:image/svg+xml;base64,AAAA")).toBe(false);
+  });
+});
+
+describe("import options", () => {
+  it("generates fresh ids by default", () => {
+    const doc = svgStringToDocument(svg(`<rect id="keep" width="4" height="4"/>`));
+    const node = doc.nodes[doc.rootChildIds[0]];
+    expect(node.id).not.toBe("keep");
+    expect(node.name).toBe("keep");
+  });
+
+  it("preserveIds reuses valid unique ids only", () => {
+    const doc = svgStringToDocument(svg(`<rect id="keep" width="4" height="4"/>`), "t", {
+      preserveIds: true,
+    });
+    expect(doc.nodes.keep?.type).toBe("rect");
+
+    const dup = svgStringToDocument(
+      svg(`<rect id="keep" width="4" height="4"/><rect id="keep" x="10" width="6" height="6"/>`),
+      "t",
+      { preserveIds: true },
+    );
+    expect(dup.rootChildIds).toHaveLength(2);
+    expect(dup.rootChildIds).not.toContain("keep");
+
+    for (const bad of ["__proto__", "constructor", "has space", "a".repeat(65)]) {
+      const d = svgStringToDocument(svg(`<rect id="${bad}" width="4" height="4"/>`), "t", {
+        preserveIds: true,
+      });
+      expect(d.rootChildIds).toHaveLength(1);
+      expect(d.rootChildIds[0]).not.toBe(bad);
+    }
+  });
+
+  it("SvgParseError carries a line number", () => {
+    let caught: unknown;
+    try {
+      svgStringToDocument('<svg xmlns="http://www.w3.org/2000/svg">\n<rect width="1"\n<rect/></svg>');
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(SvgParseError);
+    const error = caught as SvgParseError;
+    expect(error.message).toMatch(/Invalid SVG/);
+    expect(typeof error.line).toBe("number");
+    expect(error.line).toBeGreaterThanOrEqual(1);
+  });
+
+  it("describeParserError reads Chromium and jsdom formats", () => {
+    const chromium = describeParserError(
+      "This page contains the following errors:\nerror on line 14 at column 3: Opening and ending tag mismatch\nBelow is a rendering of the page up to the first error.",
+    );
+    expect(chromium.line).toBe(14);
+    expect(chromium.column).toBe(3);
+    expect(chromium.message).toMatch(/line 14/);
+
+    const jsdom = describeParserError("3:1: disallowed character in attribute name.");
+    expect(jsdom.line).toBe(3);
+    expect(jsdom.column).toBe(1);
+  });
+
+  it("reports unsupported constructs", () => {
+    const report: DropReport = { dropped: new Map() };
+    svgStringToDocument(
+      svg(
+        `<style>x</style><rect filter="url(#f)" width="1" height="1"/><use href="#a"/><defs><filter id="f"/></defs>`,
+      ),
+      "t",
+      { report },
+    );
+    expect(report.dropped.get("<style>")).toBe(1);
+    expect(report.dropped.get("filter attribute")).toBe(1);
+    expect(report.dropped.get("<use>")).toBe(1);
+    expect(report.dropped.has("<filter>")).toBe(false);
+  });
+
+  it("context carries image nodes over", () => {
+    const doc = createEmptyDocument(40, 40, "Img");
+    const image: ImageNode = {
+      id: "img1",
+      name: "img1",
+      type: "image",
+      visible: true,
+      locked: false,
+      opacity: 1,
+      blendMode: "normal",
+      transform: defaultTransform(0, 0),
+      href: "data:image/png;base64,abc=",
+      width: 10,
+      height: 10,
+    };
+    doc.nodes.img1 = image;
+    doc.rootChildIds = ["img1"];
+    const report: DropReport = { dropped: new Map() };
+    const back = svgStringToDocument(documentToSvgString(doc), "Img", {
+      report,
+      context: { nodes: doc.nodes, symbols: doc.symbols },
+    });
+    expect(back.nodes.img1?.type).toBe("image");
+    expect((back.nodes.img1 as ImageNode).href).toBe(image.href);
+    expect(report.dropped.size).toBe(0);
+  });
+
+  it("closed curved paths keep their point count across round trips", () => {
+    const doc = createEmptyDocument(100, 100, "Curve");
+    const path: PathNode = {
+      id: "p1",
+      name: "p1",
+      type: "path",
+      visible: true,
+      locked: false,
+      opacity: 1,
+      blendMode: "normal",
+      transform: defaultTransform(),
+      subpaths: [
+        {
+          closed: true,
+          points: [
+            { id: "a", x: 10, y: 10, handleIn: { x: 0, y: 10 }, handleOut: { x: 20, y: 10 }, type: "symmetric" },
+            { id: "b", x: 50, y: 10, handleIn: { x: 40, y: 0 }, handleOut: { x: 60, y: 20 }, type: "smooth" },
+            { id: "c", x: 50, y: 50, handleIn: { x: 60, y: 40 }, handleOut: { x: 40, y: 60 }, type: "smooth" },
+            { id: "d", x: 10, y: 50, handleIn: { x: 10, y: 60 }, handleOut: { x: 10, y: 40 }, type: "smooth" },
+          ],
+        },
+      ],
+      fill: { type: "none" },
+      stroke: defaultStroke("#000000", 1),
+      fillRule: "nonzero",
+    };
+    doc.nodes.p1 = path;
+    doc.rootChildIds = ["p1"];
+
+    const once = svgStringToDocument(documentToSvgString(doc), "Curve", { preserveIds: true });
+    const twice = svgStringToDocument(documentToSvgString(once), "Curve", { preserveIds: true });
+    const pathOnce = once.nodes.p1;
+    const pathTwice = twice.nodes.p1;
+    expect(pathOnce?.type).toBe("path");
+    expect(pathTwice?.type).toBe("path");
+    if (pathOnce?.type === "path" && pathTwice?.type === "path") {
+      expect(pathOnce.subpaths[0].points).toHaveLength(4);
+      expect(pathTwice.subpaths[0].points).toHaveLength(4);
+    }
+    expect(documentToSvgString(twice)).toBe(documentToSvgString(once));
   });
 });
