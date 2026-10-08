@@ -107,20 +107,20 @@ On a 1080p screen at **200%** display scaling, maximize the window if the work a
 ## 2. Workspace map
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│ Title bar: SaVaGe · File  Edit  Object  View  Help           │
-├──────────────────────────────────────────────────────────────┤
-│ Toolbar: Convert | Edit · Zoom · Fit · Grid · Snap · Persp   │
-├────┬───────────────────────────────────────────┬─────────────┤
-│    │                                           │ Layers      │
-│ T  │         Main: Convert UI or Canvas        │ Properties  │
-│ o  │                                           │ Artboards   │
-│ o  │                                           │ Symbols     │
-│ l  │                                           │ Plugins     │
-│ s  │                                           │ Align/Bool  │
-├────┴───────────────────────────────────────────┴─────────────┤
-│ Status: zoom · selection count · mode · tool · refresh time  │
-└──────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│ Title bar: SaVaGe · File  Edit  Object  View  Help                 │
+├────────────────────────────────────────────────────────────────────┤
+│ Toolbar: Convert | Edit | Code · Zoom · Fit · Grid · Snap · Persp  │
+├────┬─────────────────────────────────────────────────┬─────────────┤
+│    │                                                 │ Layers      │
+│ T  │         Main: Convert UI, Canvas, or Code       │ Properties  │
+│ o  │                                                 │ Artboards   │
+│ o  │                                                 │ Symbols     │
+│ l  │                                                 │ Plugins     │
+│ s  │                                                 │ Align/Bool  │
+├────┴─────────────────────────────────────────────────┴─────────────┤
+│ Status: zoom · selection count · mode · tool · refresh time        │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 The left tool rail is active in **Edit** mode only.
@@ -131,8 +131,9 @@ The left tool rail is active in **Edit** mode only.
 |---|---|
 | **Convert** | Import a bitmap and trace it to editable SVG |
 | **Edit** | Draw, style, boolean, symbols, and export |
+| **Code** | Edit the SVG source directly with a live preview |
 
-Switch with the **Convert | Edit** control in the toolbar. After a successful trace, stay on Convert to compare the preview, then click **Open in Editor** when you are ready.
+Switch with the **Convert | Edit | Code** control in the toolbar. After a successful trace, stay on Convert to compare the preview, then click **Open in Editor** when you are ready.
 
 ### 2.2 Status bar
 
@@ -153,6 +154,49 @@ Toasts over the main view use the same status colors as Convert: lime-adjacent s
 The window opens at **1440×900**. **1280×720** is the comfortable workspace. The smallest supported size is **960×600**, which still fits a 1080p monitor at **200%** display scaling (maximize if the taskbar eats the remainder). At narrower widths Convert stacks Trace options under the drop zone; the title bar, toolbar, and inspector tabs wrap instead of covering controls.
 
 The canvas follows monitor DPI. Windows High Contrast remaps chrome to system colors; the drawing on the artboard stays in document colors. **F10** focuses File for Narrator. Layers and Artboards are lists; the canvas is named **Artboard**; selection changes are announced politely.
+
+### 2.4 Code mode
+
+**Code** shows the current document as SVG source on the left and a live preview on the right. Edit the text; about a quarter of a second after you stop typing, SaVaGe parses it and updates the document and the preview. Switching away from Code discards text that still has parse errors (a warning toast says so).
+
+**What syncs both ways:** shapes, paths, groups, text, fills, strokes, transforms, names, and ids. Edits in Code appear on the Edit canvas, and canvas edits regenerate the code.
+
+**Kept from the canvas (not editable in code):** artboards, effects (blur, drop shadow), clip masks, lock state, blend mode, image contents, and symbol definitions. Their markup appears in the source — artboard rectangles, `<filter>`, `<clipPath>`, `<symbol>` definitions, and `<image>` references — but it is read-only: the canvas values win, so changing those lines has no effect.
+
+#### Status strip
+
+The strip under the editor reports the sync state:
+
+| State | Meaning |
+|---|---|
+| **Synced** | The text matches the document |
+| Red **✕** message | The SVG could not be parsed; the document and preview keep the last good state. Click **Go to line** to jump the caret to the problem |
+| Amber **⚠ Not supported, removed: …** | The SVG parsed but contained markup SaVaGe dropped (for example `<style>`); the preview shows the result without it |
+
+The right side of the strip shows the byte count. After a format action it also shows `before → after (−x%)` so you can see what you saved.
+
+#### Formatting toolbar
+
+- **Prettify** — re-indents the source with consistent nesting.
+- **Minify** — removes whitespace between tags for the smallest text; text content is preserved.
+- **Round numbers…** — rounds coordinates and sizes to 0–4 decimal places; ids, names, and colors are untouched.
+
+All three need valid SVG first — fix a red error before formatting. Formatting is a normal edit: it commits like typing and is one undo step.
+
+#### Keys in the editor
+
+| Key | Behavior |
+|---|---|
+| **Esc** | Leaves the editor (focus returns to the app) |
+| **Ctrl+S** | Saves the project, including your last keystrokes |
+| **Ctrl+Z** | Inside the editor, undoes your typing. With focus outside the editor (for example after clicking the preview), undoes document changes and the code regenerates |
+| **Tab** | Inserts two spaces |
+
+#### Selection and preview
+
+Clicking inside an element’s tag selects that object (the status bar shows the selection); selecting an object in Edit highlights its line in Code and scrolls it into view.
+
+The preview is sandboxed — scripts and external resources cannot run — with **Fit** / **100%** zoom and **Light** / **Dark** background toggles. It renders text in a fallback font; the Edit canvas shows the real fonts.
 
 ---
 
