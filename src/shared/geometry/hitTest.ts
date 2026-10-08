@@ -1,10 +1,32 @@
-import type { NodeId, SceneNode, SvgDocument } from "../document/types";
-import { nodeWorldBounds, pointInBounds } from "./bounds";
+import type { NodeId, SceneNode, SvgDocument, SymbolInstanceNode } from "../document/types";
+import { nodeWorldBounds, pointInBounds, type Bounds } from "./bounds";
 import { subpathsToPath2D } from "./path";
-import { invertMat, nodeWorldMatrix, type Mat2D } from "./transform";
+import { invertMat, multiply, nodeWorldMatrix, type Mat2D } from "./transform";
 
 function apply(m: Mat2D, x: number, y: number) {
   return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
+}
+
+/** Conservative world AABB of a symbol-space AABB under the instance matrix. */
+function aabbUnderMatrix(b: Bounds, m: Mat2D): Bounds {
+  const corners = [
+    apply(m, b.x, b.y),
+    apply(m, b.x + b.w, b.y),
+    apply(m, b.x + b.w, b.y + b.h),
+    apply(m, b.x, b.y + b.h),
+  ];
+  const xs = corners.map((c) => c.x);
+  const ys = corners.map((c) => c.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  return { x: minX, y: minY, w: Math.max(...xs) - minX, h: Math.max(...ys) - minY };
+}
+
+/** Symbol artwork as a standalone doc so world matrices/bounds resolve in symbol space. */
+function symbolMiniDoc(doc: SvgDocument, node: SymbolInstanceNode) {
+  const symbol = doc.symbols?.[node.symbolId];
+  if (!symbol) return null;
+  return { ...doc, rootChildIds: symbol.rootChildIds, nodes: symbol.nodes };
 }
 
 function paintOrder(doc: SvgDocument, ids: NodeId[]): NodeId[] {
@@ -60,7 +82,126 @@ export function nodeHitBoundsContains(
 ): boolean {
   const world = nodeWorldMatrix(doc, node.id);
   if (!world) return false;
+  if (node.type === "symbolInstance") {
+    const mini = symbolMiniDoc(doc, node);
+    if (mini) {
+      // The instance rect does not bound the artwork; test each leaf's world AABB.
+      for (const id of paintOrder(mini, mini.rootChildIds)) {
+        const art = mini.nodes[id];
+        if (!art || art.type === "group") continue;
+        const artWorld = nodeWorldMatrix(mini, id);
+        if (!artWorld) continue;
+        const placed = multiply(world, artWorld);
+        const wb = aabbUnderMatrix(nodeWorldBounds(mini, id), world);
+        if (pointInBounds(wb, wx, wy, hitTestWorldPad(art, zoom, placed))) return true;
+      }
+      return false;
+    }
+  }
   return pointInBounds(nodeWorldBounds(doc, node.id), wx, wy, hitTestWorldPad(node, zoom, world));
+}
+
+/** Precise canvas test at a point already in the node's local space. */
+function hitNodePrecise(
+  ctx: CanvasRenderingContext2D,
+  node: SceneNode,
+  lx: number,
+  ly: number,
+  zoom: number,
+): boolean {
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  let hit = false;
+  switch (node.type) {
+    case "rect": {
+      const path = new Path2D();
+      path.rect(0, 0, node.width, node.height);
+      hit = ctx.isPointInPath(path, lx, ly);
+      if (!hit && node.stroke.paint.type !== "none") {
+        ctx.lineWidth = Math.max(node.stroke.width, 4 / zoom);
+        hit = ctx.isPointInStroke(path, lx, ly);
+      }
+      break;
+    }
+    case "ellipse": {
+      const path = new Path2D();
+      path.ellipse(0, 0, Math.max(node.rx, 0.01), Math.max(node.ry, 0.01), 0, 0, Math.PI * 2);
+      hit = ctx.isPointInPath(path, lx, ly);
+      if (!hit && node.stroke.paint.type !== "none") {
+        ctx.lineWidth = Math.max(node.stroke.width, 4 / zoom);
+        hit = ctx.isPointInStroke(path, lx, ly);
+      }
+      break;
+    }
+    case "line": {
+      const path = new Path2D();
+      path.moveTo(0, 0);
+      path.lineTo(node.x2, node.y2);
+      ctx.lineWidth = Math.max(node.stroke.width, 6 / zoom);
+      hit = ctx.isPointInStroke(path, lx, ly);
+      break;
+    }
+    case "path": {
+      const path = subpathsToPath2D(node.subpaths);
+      if (node.fill.type !== "none") {
+        hit = ctx.isPointInPath(path, lx, ly, node.fillRule);
+      }
+      if (!hit && node.stroke.paint.type !== "none") {
+        ctx.lineWidth = Math.max(node.stroke.width, 4 / zoom);
+        hit = ctx.isPointInStroke(path, lx, ly);
+      }
+      // Empty-fill paths still selectable near stroke
+      if (!hit && node.fill.type === "none" && node.stroke.paint.type === "none") {
+        ctx.lineWidth = 6 / zoom;
+        hit = ctx.isPointInStroke(path, lx, ly);
+      }
+      break;
+    }
+    case "text": {
+      const w = Math.max(8, node.content.length * node.fontSize * 0.55);
+      const h = node.fontSize * node.lineHeight;
+      const path = new Path2D();
+      path.rect(0, -node.fontSize, w, h);
+      hit = ctx.isPointInPath(path, lx, ly);
+      break;
+    }
+    case "image":
+    case "symbolInstance": {
+      const path = new Path2D();
+      path.rect(0, 0, node.width, node.height);
+      hit = ctx.isPointInPath(path, lx, ly);
+      break;
+    }
+    case "group":
+      hit = false;
+      break;
+  }
+  ctx.restore();
+  return hit;
+}
+
+/** Hit-test the symbol artwork in world space; the topmost artwork leaf wins. */
+function hitSymbolArtwork(
+  ctx: CanvasRenderingContext2D,
+  mini: SvgDocument,
+  instanceWorld: Mat2D,
+  wx: number,
+  wy: number,
+  zoom: number,
+): boolean {
+  const order = paintOrder(mini, mini.rootChildIds);
+  for (let i = order.length - 1; i >= 0; i--) {
+    const art = mini.nodes[order[i]];
+    if (!art || art.type === "group" || !art.visible || art.locked) continue;
+    const artWorld = nodeWorldMatrix(mini, art.id);
+    if (!artWorld) continue;
+    const inv = invertMat(multiply(instanceWorld, artWorld));
+    if (!inv) continue;
+    const local = apply(inv, wx, wy);
+    if (hitNodePrecise(ctx, art, local.x, local.y, zoom)) return true;
+  }
+  return false;
 }
 
 function hitNode(
@@ -74,80 +215,15 @@ function hitNode(
   if (!node.visible || node.locked) return false;
   const world = nodeWorldMatrix(doc, node.id);
   if (!world) return false;
+  if (node.type === "symbolInstance") {
+    const mini = symbolMiniDoc(doc, node);
+    if (mini) return hitSymbolArtwork(ctx, mini, world, wx, wy, zoom);
+    // Missing symbol: fall back to the placeholder rect the renderer draws.
+  }
   const inv = invertMat(world);
   if (!inv) return false;
   const local = apply(inv, wx, wy);
-
-  ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-  let hit = false;
-  switch (node.type) {
-    case "rect": {
-      const path = new Path2D();
-      path.rect(0, 0, node.width, node.height);
-      hit = ctx.isPointInPath(path, local.x, local.y);
-      if (!hit && node.stroke.paint.type !== "none") {
-        ctx.lineWidth = Math.max(node.stroke.width, 4 / zoom);
-        hit = ctx.isPointInStroke(path, local.x, local.y);
-      }
-      break;
-    }
-    case "ellipse": {
-      const path = new Path2D();
-      path.ellipse(0, 0, Math.max(node.rx, 0.01), Math.max(node.ry, 0.01), 0, 0, Math.PI * 2);
-      hit = ctx.isPointInPath(path, local.x, local.y);
-      if (!hit && node.stroke.paint.type !== "none") {
-        ctx.lineWidth = Math.max(node.stroke.width, 4 / zoom);
-        hit = ctx.isPointInStroke(path, local.x, local.y);
-      }
-      break;
-    }
-    case "line": {
-      const path = new Path2D();
-      path.moveTo(0, 0);
-      path.lineTo(node.x2, node.y2);
-      ctx.lineWidth = Math.max(node.stroke.width, 6 / zoom);
-      hit = ctx.isPointInStroke(path, local.x, local.y);
-      break;
-    }
-    case "path": {
-      const path = subpathsToPath2D(node.subpaths);
-      if (node.fill.type !== "none") {
-        hit = ctx.isPointInPath(path, local.x, local.y, node.fillRule);
-      }
-      if (!hit && node.stroke.paint.type !== "none") {
-        ctx.lineWidth = Math.max(node.stroke.width, 4 / zoom);
-        hit = ctx.isPointInStroke(path, local.x, local.y);
-      }
-      // Empty-fill paths still selectable near stroke
-      if (!hit && node.fill.type === "none" && node.stroke.paint.type === "none") {
-        ctx.lineWidth = 6 / zoom;
-        hit = ctx.isPointInStroke(path, local.x, local.y);
-      }
-      break;
-    }
-    case "text": {
-      const w = Math.max(8, node.content.length * node.fontSize * 0.55);
-      const h = node.fontSize * node.lineHeight;
-      const path = new Path2D();
-      path.rect(0, -node.fontSize, w, h);
-      hit = ctx.isPointInPath(path, local.x, local.y);
-      break;
-    }
-    case "image":
-    case "symbolInstance": {
-      const path = new Path2D();
-      path.rect(0, 0, node.width, node.height);
-      hit = ctx.isPointInPath(path, local.x, local.y);
-      break;
-    }
-    case "group":
-      hit = false;
-      break;
-  }
-  ctx.restore();
-  return hit;
+  return hitNodePrecise(ctx, node, local.x, local.y, zoom);
 }
 
 export function hitTestTopNode(
