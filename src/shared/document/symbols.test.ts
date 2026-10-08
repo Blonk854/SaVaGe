@@ -8,6 +8,7 @@ import {
   type RectNode,
   type SymbolInstanceNode,
 } from "./types";
+import { selectionBounds } from "../geometry/bounds";
 import { applyMat, matrixToTransform, multiply, nodeWorldMatrix, transformToMatrix } from "../geometry/transform";
 import { useDocumentStore } from "../stores/documentStore";
 import { expandSymbolInstance } from "./symbols";
@@ -75,6 +76,49 @@ describe("createSymbolFromSelection", () => {
     if (instance?.type !== "symbolInstance") return;
     expect(instance.symbolId).toBe(symbol.id);
     expect(structuredClone(symbol.nodes)).toEqual(symbol.nodes);
+  });
+
+  it("rebases only the symbol root and keeps nested local transforms", () => {
+    const before = useDocumentStore.getState();
+    const groupId = before.selection[0];
+    const group = before.doc.nodes[groupId];
+    expect(group?.type).toBe("group");
+    if (group?.type !== "group") return;
+    const childId = group.children[0];
+    const child = before.doc.nodes[childId];
+    expect(child).toBeTruthy();
+    if (!child) return;
+    useDocumentStore.getState().setNodeTransform(childId, {
+      ...child.transform,
+      x: child.transform.x + 3,
+      rotation: 25,
+    });
+
+    const prepared = useDocumentStore.getState().doc;
+    const preparedGroup = prepared.nodes[groupId];
+    expect(preparedGroup?.type).toBe("group");
+    if (preparedGroup?.type !== "group") return;
+    const nested = preparedGroup.children.map((id) => ({ ...prepared.nodes[id].transform }));
+    const bounds = selectionBounds(prepared, [groupId]);
+
+    useDocumentStore.getState().createSymbolFromSelection("Mark");
+
+    const symbol = Object.values(useDocumentStore.getState().doc.symbols).find(
+      (entry) => entry.name === "Mark",
+    );
+    expect(symbol).toBeTruthy();
+    if (!symbol) return;
+    const cloned = symbol.nodes[symbol.rootChildIds[0]];
+    expect(cloned?.type).toBe("group");
+    if (cloned?.type !== "group") return;
+    expect(cloned.transform.x).toBeCloseTo(preparedGroup.transform.x - bounds.x);
+    expect(cloned.transform.y).toBeCloseTo(preparedGroup.transform.y - bounds.y);
+    expect(cloned.transform.rotation).toBe(preparedGroup.transform.rotation);
+    expect(cloned.transform.scaleX).toBe(preparedGroup.transform.scaleX);
+    expect(cloned.transform.scaleY).toBe(preparedGroup.transform.scaleY);
+    cloned.children.forEach((id, index) => {
+      expect(symbol.nodes[id]?.transform).toEqual(nested[index]);
+    });
   });
 });
 

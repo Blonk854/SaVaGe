@@ -25,9 +25,8 @@ export function ensureSymbols(doc: SvgDocument): SvgDocument {
 function cloneSubtree(
   sourceNodes: Record<NodeId, SceneNode>,
   rootId: NodeId,
-  originX: number,
-  originY: number,
   outNodes: Record<NodeId, SceneNode>,
+  origin: { x: number; y: number } | null,
 ): NodeId {
   const src = sourceNodes[rootId];
   const newId = nanoid(10);
@@ -35,14 +34,17 @@ function cloneSubtree(
   const plain = isDraft(src) ? current(src) : src;
   const clone = structuredClone(plain) as SceneNode;
   clone.id = newId;
-  clone.transform = {
-    ...clone.transform,
-    x: clone.transform.x - originX,
-    y: clone.transform.y - originY,
-  };
+  // Nested transforms are parent-local. Only the symbol root is shifted into symbol space.
+  if (origin) {
+    clone.transform = {
+      ...clone.transform,
+      x: clone.transform.x - origin.x,
+      y: clone.transform.y - origin.y,
+    };
+  }
   if (clone.type === "group") {
     clone.children = clone.children.map((cid) =>
-      cloneSubtree(sourceNodes, cid, originX, originY, outNodes),
+      cloneSubtree(sourceNodes, cid, outNodes, null),
     );
   }
   outNodes[newId] = clone;
@@ -61,7 +63,7 @@ export function buildSymbolFromSelection(
 
   const symbolNodes: Record<NodeId, SceneNode> = {};
   const rootChildIds = ids.map((id) =>
-    cloneSubtree(doc.nodes, id, bounds.x, bounds.y, symbolNodes),
+    cloneSubtree(doc.nodes, id, symbolNodes, { x: bounds.x, y: bounds.y }),
   );
 
   const symbol: SymbolDefinition = {
