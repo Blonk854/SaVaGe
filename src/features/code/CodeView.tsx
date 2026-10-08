@@ -9,6 +9,7 @@ import { CodeEditor, type CodeEditorHandle } from "./CodeEditor";
 import { CodePreview } from "./CodePreview";
 import { codeToDoc, docToCode, type CodeToDocResult } from "./codeSync";
 import { elementIdAtOffset, lineOfElementId, offsetOfLine } from "./caretElement";
+import { byteLength, minify, prettify, roundNumbers } from "./svgFormat";
 
 export interface CodeViewProps {
   onNotify: (message: string, kind?: NoticeKind) => void;
@@ -66,6 +67,7 @@ export function CodeView({ onNotify }: CodeViewProps) {
   const selection = useDocumentStore((s) => s.selection);
   const [text, setText] = useState(() => docToCode(useDocumentStore.getState().doc));
   const [status, setStatus] = useState<Status>({ kind: "synced" });
+  const [stats, setStats] = useState<{ before: number; after: number } | null>(null);
   const [scrollReq, setScrollReq] = useState<{ line: number; nonce: number } | null>(null);
   const textRef = useRef(text);
   const lastCommittedDocRef = useRef(useDocumentStore.getState().doc);
@@ -135,6 +137,18 @@ export function CodeView({ onNotify }: CodeViewProps) {
     schedule();
   };
 
+  /** Formatting rides the same handleChange path, so it commits through the same debounce. */
+  const applyFormat = (fn: (t: string) => string | null, label: string) => {
+    const before = byteLength(textRef.current);
+    const next = fn(textRef.current);
+    if (next === null) {
+      onNotifyRef.current(`${label} needs valid SVG first`, "warn");
+      return;
+    }
+    setStats({ before, after: byteLength(next) });
+    handleChange(next);
+  };
+
   useEffect(() => {
     if (doc === lastCommittedDocRef.current) return;
     if (timerRef.current !== null) {
@@ -167,12 +181,42 @@ export function CodeView({ onNotify }: CodeViewProps) {
     };
   }, []);
 
+  const statsText = stats
+    ? ` · ${stats.before} → ${stats.after} (${Math.round(((stats.after - stats.before) / stats.before) * 100)}%)`
+    : "";
+
   return (
     <div className="code-view">
       <SplitPane
         ratio={0.5}
         left={
           <div className="code-pane">
+            <div className="code-toolbar">
+              <button type="button" onClick={() => applyFormat(prettify, "Prettify")}>
+                Prettify
+              </button>
+              <button type="button" onClick={() => applyFormat(minify, "Minify")}>
+                Minify
+              </button>
+              <select
+                aria-label="Round numbers"
+                value=""
+                onChange={(event) => {
+                  const digits = event.target.value;
+                  if (digits === "") return;
+                  applyFormat((t) => roundNumbers(t, Number(digits)), "Round numbers");
+                }}
+              >
+                <option value="" disabled>
+                  Round numbers…
+                </option>
+                {[0, 1, 2, 3, 4].map((n) => (
+                  <option key={n} value={String(n)}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
             <CodeEditor
               ref={editorRef}
               value={text}
@@ -201,6 +245,7 @@ export function CodeView({ onNotify }: CodeViewProps) {
               ) : (
                 <span>Synced</span>
               )}
+              <span className="code-status__bytes">{`· ${byteLength(text)} bytes${statsText}`}</span>
             </div>
           </div>
         }
@@ -221,6 +266,22 @@ export function CodeView({ onNotify }: CodeViewProps) {
         .code-pane .code-editor {
           flex: 1;
         }
+        .code-toolbar {
+          flex: none;
+          display: flex;
+          gap: 0.4rem;
+          align-items: center;
+          margin-bottom: 0.4rem;
+        }
+        .code-toolbar button,
+        .code-toolbar select {
+          border: 1px solid var(--border);
+          background: var(--bg-2);
+          border-radius: 8px;
+          padding: 0.25rem 0.5rem;
+          font-size: var(--text-xs);
+          color: var(--fg-0);
+        }
         .code-status {
           flex: none;
           display: flex;
@@ -236,6 +297,9 @@ export function CodeView({ onNotify }: CodeViewProps) {
           border-radius: 8px;
           padding: 0.25rem 0.5rem;
           font-size: var(--text-xs);
+        }
+        .code-status__bytes {
+          color: var(--fg-disabled);
         }
       `}</style>
     </div>

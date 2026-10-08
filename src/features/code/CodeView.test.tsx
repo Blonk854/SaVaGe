@@ -102,6 +102,20 @@ describe("CodeView debounce", () => {
     return decodeURIComponent(img.getAttribute("src")?.split(",")[1] ?? "");
   }
 
+  function toolbarButton(label: string): HTMLButtonElement {
+    const btn = Array.from(host?.querySelectorAll<HTMLButtonElement>(".code-toolbar button") ?? []).find(
+      (b) => b.textContent === label,
+    );
+    if (!btn) throw new Error(`toolbar button "${label}" did not render`);
+    return btn;
+  }
+
+  function roundSelect(): HTMLSelectElement {
+    const el = host?.querySelector<HTMLSelectElement>("select[aria-label='Round numbers']");
+    if (!el) throw new Error("round select did not render");
+    return el;
+  }
+
   function fillColor(): string {
     const node = useDocumentStore.getState().doc.nodes.r1 as RectNode;
     if (node.fill.type !== "solid") throw new Error("expected a solid fill");
@@ -277,5 +291,59 @@ describe("CodeView debounce", () => {
       useDocumentStore.getState().setSelection(["r1"]);
     });
     expect(el.scrollTop).toBeGreaterThan(0);
+  });
+
+  it("applies Minify through the same debounced commit path", () => {
+    mount();
+    const past = useDocumentStore.temporal.getState().pastStates.length;
+    typeInto(textarea().value.replace('fill="#B8FF3C"', 'fill="#ff0000"'));
+    act(() => {
+      toolbarButton("Minify").click();
+    });
+    const minified = textarea().value;
+    expect(minified).not.toContain(">\n<");
+    expect(minified).toContain('fill="#ff0000"');
+    // The format only scheduled a commit; nothing has reached the store yet.
+    expect(fillColor()).toBe("#B8FF3C");
+
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    expect(fillColor()).toBe("#ff0000");
+    expect(useDocumentStore.temporal.getState().pastStates.length).toBe(past + 1);
+    expect(textarea().value).toBe(minified);
+    const status = host?.querySelector("[role='status']");
+    expect(status?.textContent).toContain("Synced");
+    expect(status?.textContent).toContain("bytes");
+    expect(status?.textContent).toMatch(/· \d+ → \d+ \(-?\d+%\)/);
+  });
+
+  it("rounds numbers from the select and resets it", () => {
+    mount();
+    typeInto(textarea().value.replace('width="100"', 'width="100.456"'));
+    const select = roundSelect();
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+    act(() => {
+      setter?.call(select, "1");
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(textarea().value).toContain('width="100.5"');
+    expect(select.value).toBe("");
+
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    expect((useDocumentStore.getState().doc.nodes.r1 as RectNode).width).toBe(100.5);
+  });
+
+  it("warns instead of formatting broken markup", () => {
+    mount();
+    const broken = textarea().value.replace('id="r1"', 'id="r1');
+    typeInto(broken);
+    act(() => {
+      toolbarButton("Prettify").click();
+    });
+    expect(onNotify).toHaveBeenCalledWith("Prettify needs valid SVG first", "warn");
+    expect(textarea().value).toBe(broken);
   });
 });
