@@ -2,7 +2,9 @@ import { current, isDraft } from "immer";
 import { nanoid } from "nanoid";
 import { selectionBounds } from "../geometry/bounds";
 import {
+  identity,
   invertMat,
+  matrixToTransform,
   multiply,
   nodeWorldMatrix,
   transformForNewParent,
@@ -51,6 +53,14 @@ function cloneSubtree(
   return newId;
 }
 
+function parentOf(doc: SvgDocument, id: NodeId): NodeId | null {
+  if (doc.rootChildIds.includes(id)) return null;
+  for (const node of Object.values(doc.nodes)) {
+    if (node.type === "group" && node.children.includes(id)) return node.id;
+  }
+  return null;
+}
+
 export function buildSymbolFromSelection(
   doc: SvgDocument,
   selection: NodeId[],
@@ -65,6 +75,15 @@ export function buildSymbolFromSelection(
   const rootChildIds = ids.map((id) =>
     cloneSubtree(doc.nodes, id, symbolNodes, { x: bounds.x, y: bounds.y }),
   );
+
+  const parents = ids.map((id) => parentOf(doc, id));
+  const sharedParent = parents.every((parent) => parent === parents[0]) ? (parents[0] ?? null) : null;
+  const parentWorld = sharedParent ? nodeWorldMatrix(doc, sharedParent) : identity();
+  if (!parentWorld) return null;
+  const instanceTransform = matrixToTransform(
+    multiply(parentWorld, transformToMatrix(defaultTransform(bounds.x, bounds.y))),
+  );
+  if (!instanceTransform) return null;
 
   const symbol: SymbolDefinition = {
     id: nanoid(10),
@@ -83,7 +102,7 @@ export function buildSymbolFromSelection(
     locked: false,
     opacity: 1,
     blendMode: "normal",
-    transform: defaultTransform(bounds.x, bounds.y),
+    transform: instanceTransform,
     symbolId: symbol.id,
     width: symbol.width,
     height: symbol.height,
