@@ -357,6 +357,71 @@ describe("hit-test bounds rejection", () => {
     expect(hitTestTopNode(ctx, doc, 97.5, 55, 1)).toBe("inst");
   });
 
+  it("pins the pad when rotation + skewX make both column norms exceed the diagonal", () => {
+    const doc = createEmptyDocument();
+    const art = rect("art", 0, 0, 20, 10, 4);
+    art.fill = { type: "none" };
+    doc.symbols.mark = {
+      id: "mark",
+      name: "Mark",
+      width: 20,
+      height: 10,
+      rootChildIds: ["art"],
+      nodes: { art },
+    };
+    doc.nodes.inst = {
+      id: "inst",
+      name: "Mark",
+      type: "symbolInstance",
+      visible: true,
+      locked: false,
+      opacity: 1,
+      blendMode: "normal",
+      transform: { ...defaultTransform(100, 50), rotation: 30, skewX: 45 },
+      symbolId: "mark",
+      width: 20,
+      height: 10,
+    };
+    doc.rootChildIds = ["inst"];
+
+    // rotate 30° * skewX 45° gives {a:√3/2, b:1/2, c:(√3−1)/2, d:(√3+1)/2}.
+    // Both column norms beat the diagonal terms at once: hypot(a,b)=1 > |a|
+    // and hypot(c,d)=√2 > |d|. A diagonal-only pad would be √3+1 ≈ 2.732;
+    // the column-norm pad is 2√2 ≈ 2.828.
+    const placed = nodeWorldMatrix(doc, "inst");
+    expect(placed).not.toBeNull();
+    const cos30 = Math.sqrt(3) / 2;
+    expect(placed!.a).toBeCloseTo(cos30);
+    expect(placed!.b).toBeCloseTo(0.5);
+    expect(placed!.c).toBeCloseTo(cos30 - 0.5);
+    expect(placed!.d).toBeCloseTo(cos30 + 0.5);
+    expect(Math.hypot(placed!.a, placed!.b)).toBeGreaterThan(Math.abs(placed!.a));
+    expect(Math.hypot(placed!.c, placed!.d)).toBeGreaterThan(Math.abs(placed!.d));
+    expect(hitTestWorldPad(art, 1, identity())).toBe(2);
+    expect(hitTestWorldPad(art, 1, placed!)).toBeCloseTo(2 * Math.SQRT2);
+
+    // World AABB spans x∈[100, 95+15√3 ≈ 120.98], y∈[50, 65+5√3 ≈ 73.66].
+    // Points in the (2.732, 2.828] pad band hit only with the column-norm pad.
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 97.2, 60, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 97.1, 60, 1)).toBe(false);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 123.75, 60, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 123.85, 60, 1)).toBe(false);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 110, 47.2, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 110, 47.1, 1)).toBe(false);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 110, 76.44, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 110, 76.55, 1)).toBe(false);
+
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      setTransform: vi.fn(),
+      lineWidth: 1,
+      isPointInPath: () => false,
+      isPointInStroke: () => true,
+    } as unknown as CanvasRenderingContext2D;
+    expect(hitTestTopNode(ctx, doc, 97.2, 60, 1)).toBe("inst");
+  });
+
   it("pads degenerate line bounds", () => {
     const doc = createEmptyDocument();
     doc.nodes.l = line("l", 0, 10, 80, 0);
