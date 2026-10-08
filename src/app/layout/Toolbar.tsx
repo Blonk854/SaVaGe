@@ -42,6 +42,15 @@ export function Toolbar() {
         >
           Edit
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "code"}
+          className={clsx(mode === "code" && "active")}
+          onClick={() => setMode("code")}
+        >
+          Code
+        </button>
       </div>
 
       {mode === "edit" && (

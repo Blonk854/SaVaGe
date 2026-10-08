@@ -6,7 +6,7 @@ import {
 } from "../geometry/perspective";
 import type { GrantedImageSource } from "../../features/converter/rasterFiles";
 
-export type AppMode = "convert" | "edit";
+export type AppMode = "convert" | "edit" | "code";
 export type RightTab = "layers" | "properties" | "artboards" | "symbols" | "plugins";
 export type ToolId =
   | "select"

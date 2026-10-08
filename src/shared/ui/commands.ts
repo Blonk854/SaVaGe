@@ -22,6 +22,7 @@ export const APP_COMMANDS: CommandSpec[] = [
   { id: "fit-artboard", label: "Fit artboard", group: "View", keywords: "zoom frame" },
   { id: "fit-selection", label: "Fit selection", group: "View", keywords: "zoom" },
   { id: "zoom-100", label: "Zoom 100%", group: "View", keywords: "actual size" },
+  { id: "code", label: "Edit SVG code", group: "View", keywords: "source markup xml live preview" },
   { id: "select-tool", label: "Select", group: "Tools", shortcut: "V", keywords: "move", tool: "select" },
   { id: "direct-select", label: "Direct select", group: "Tools", shortcut: "A", keywords: "anchors points", tool: "directSelect" },
   { id: "rect-tool", label: "Rectangle", group: "Tools", shortcut: "R", keywords: "shape", tool: "rect" },

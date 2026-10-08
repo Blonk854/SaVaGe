@@ -7,6 +7,7 @@ import { StatusBar } from "./StatusBar";
 import { ToolsRail } from "../../features/tools/ToolsRail";
 import { ConverterView } from "../../features/converter/ConverterView";
 import { EditorViewport } from "../../features/editor/EditorViewport";
+import { CodeView } from "../../features/code/CodeView";
 import { LayersPanel } from "../../features/layers/LayersPanel";
 import { PropertiesPanel } from "../../features/properties/PropertiesPanel";
 import { ArtboardsPanel } from "../../features/artboards/ArtboardsPanel";
@@ -196,9 +197,10 @@ export function AppShell() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return;
       const key = event.key.toLowerCase();
-      const searchingCommands =
-        event.target instanceof HTMLElement && event.target.getAttribute("aria-label") === "Search commands";
-      if (isTypingTarget(event.target) && !(key === "k" && searchingCommands)) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      const searchingCommands = target?.getAttribute("aria-label") === "Search commands";
+      const inCodeEditor = target?.dataset.codeEditor === "true";
+      if (isTypingTarget(event.target) && !(key === "k" && searchingCommands) && !(key === "s" && inCodeEditor)) return;
       if (key !== "s" && key !== "n" && key !== "o" && key !== "z" && key !== "y" && key !== "k") return;
       event.preventDefault();
       if (key === "k") {
@@ -264,6 +266,9 @@ export function AppShell() {
         break;
       case "convert":
         useUiStore.getState().setMode("convert");
+        break;
+      case "code":
+        useUiStore.getState().setMode("code");
         break;
       case "undo":
         temporal.getState().undo();
@@ -494,7 +499,7 @@ export function AppShell() {
       <div className="shell__body">
         <ToolsRail />
         <main className="shell__main">
-          {mode === "convert" ? <ConverterView /> : <EditorViewport />}
+          {mode === "convert" ? <ConverterView /> : mode === "code" ? <CodeView onNotify={flash} /> : <EditorViewport />}
           {toast && (
             <div
               className={`sv-toast sv-toast--${toast.kind}`}
