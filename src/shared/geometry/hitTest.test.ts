@@ -243,6 +243,59 @@ describe("hit-test bounds rejection", () => {
     expect(hitTestTopNode(ctx, doc, 77, 70, 1)).toBe("inst");
   });
 
+  it("uses the max column norm for the pad under a non-uniform instance scale", () => {
+    const doc = createEmptyDocument();
+    const art = rect("art", 0, 0, 20, 10, 4);
+    art.fill = { type: "none" };
+    doc.symbols.mark = {
+      id: "mark",
+      name: "Mark",
+      width: 20,
+      height: 10,
+      rootChildIds: ["art"],
+      nodes: { art },
+    };
+    doc.nodes.inst = {
+      id: "inst",
+      name: "Mark",
+      type: "symbolInstance",
+      visible: true,
+      locked: false,
+      opacity: 1,
+      blendMode: "normal",
+      transform: { ...defaultTransform(100, 50), scaleX: 3, scaleY: 0.5 },
+      symbolId: "mark",
+      width: 20,
+      height: 10,
+    };
+    doc.rootChildIds = ["inst"];
+
+    // Column norms are 3 and 0.5; the pad tracks the max (3), not the average (1.75).
+    const placed = nodeWorldMatrix(doc, "inst");
+    expect(placed).not.toBeNull();
+    expect(hitTestWorldPad(art, 1, identity())).toBe(2);
+    expect(hitTestWorldPad(art, 1, placed!)).toBeCloseTo(6);
+
+    // World AABB spans x∈[100,160], y∈[50,55]; pad 6 extends each side.
+    // An average-based pad of 3.5 would reject (95, 52) and (52.5, ...) style edges.
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 95, 52, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 93, 52, 1)).toBe(false);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 165, 52, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 167, 52, 1)).toBe(false);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 130, 60, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 130, 62, 1)).toBe(false);
+
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      setTransform: vi.fn(),
+      lineWidth: 1,
+      isPointInPath: () => false,
+      isPointInStroke: () => true,
+    } as unknown as CanvasRenderingContext2D;
+    expect(hitTestTopNode(ctx, doc, 95, 52, 1)).toBe("inst");
+  });
+
   it("pads degenerate line bounds", () => {
     const doc = createEmptyDocument();
     doc.nodes.l = line("l", 0, 10, 80, 0);
