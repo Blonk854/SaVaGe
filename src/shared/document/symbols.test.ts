@@ -31,6 +31,53 @@ function rect(id: string, x: number): RectNode {
   };
 }
 
+describe("createSymbolFromSelection", () => {
+  beforeEach(() => {
+    useDocumentStore.temporal.getState().clear();
+    const doc = createEmptyDocument();
+    useDocumentStore.setState({ doc, selection: [] });
+    useDocumentStore.getState().addNode(rect("a", 10));
+    useDocumentStore.getState().addNode(rect("b", 40));
+    useDocumentStore.getState().setSelection(["a", "b"]);
+    useDocumentStore.getState().groupSelection();
+  });
+
+  it("clones a plain subtree when the selected nodes are Immer drafts", () => {
+    const before = useDocumentStore.getState();
+    const groupId = before.selection[0];
+    const group = before.doc.nodes[groupId];
+    expect(group?.type).toBe("group");
+    if (group?.type !== "group") return;
+    const originalChildren = [...group.children];
+
+    useDocumentStore.getState().createSymbolFromSelection("Mark");
+
+    const after = useDocumentStore.getState().doc;
+    const symbol = Object.values(after.symbols).find((entry) => entry.name === "Mark");
+    expect(symbol).toBeTruthy();
+    if (!symbol) return;
+    expect(symbol.rootChildIds).toHaveLength(1);
+    const clonedRootId = symbol.rootChildIds[0];
+    expect(clonedRootId).not.toBe(groupId);
+    const cloned = symbol.nodes[clonedRootId];
+    expect(cloned?.type).toBe("group");
+    if (cloned?.type !== "group") return;
+    expect(cloned.children).toHaveLength(originalChildren.length);
+    for (const childId of cloned.children) {
+      expect(originalChildren.includes(childId)).toBe(false);
+      expect(symbol.nodes[childId]?.type).toBe("rect");
+      expect(after.nodes[childId]).toBeUndefined();
+    }
+    expect(after.nodes[groupId]).toBeUndefined();
+    for (const id of originalChildren) expect(after.nodes[id]).toBeUndefined();
+    const instance = after.nodes[after.rootChildIds[0]];
+    expect(instance?.type).toBe("symbolInstance");
+    if (instance?.type !== "symbolInstance") return;
+    expect(instance.symbolId).toBe(symbol.id);
+    expect(structuredClone(symbol.nodes)).toEqual(symbol.nodes);
+  });
+});
+
 describe("expandSymbolInstance", () => {
   beforeEach(() => {
     useDocumentStore.temporal.getState().clear();

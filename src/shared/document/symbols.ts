@@ -1,3 +1,4 @@
+import { current, isDraft } from "immer";
 import { nanoid } from "nanoid";
 import { selectionBounds } from "../geometry/bounds";
 import {
@@ -30,7 +31,9 @@ function cloneSubtree(
 ): NodeId {
   const src = sourceNodes[rootId];
   const newId = nanoid(10);
-  const clone = structuredClone(src) as SceneNode;
+  // Immer drafts are not structured-cloneable. Snapshot a plain node first.
+  const plain = isDraft(src) ? current(src) : src;
+  const clone = structuredClone(plain) as SceneNode;
   clone.id = newId;
   clone.transform = {
     ...clone.transform,
