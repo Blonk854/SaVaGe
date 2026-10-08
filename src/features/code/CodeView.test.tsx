@@ -87,6 +87,15 @@ describe("CodeView debounce", () => {
     });
   }
 
+  function moveCaret(offset: number) {
+    const el = textarea();
+    act(() => {
+      el.focus();
+      el.setSelectionRange(offset, offset);
+      el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+    });
+  }
+
   function previewSrc(): string {
     const img = host?.querySelector("img");
     if (!img) throw new Error("preview did not render");
@@ -228,5 +237,45 @@ describe("CodeView debounce", () => {
     root = null;
     expect(onNotify).toHaveBeenCalledWith("Code changes with errors were discarded", "warn");
     expect(fillColor()).toBe("#112233");
+  });
+
+  it("selects the element under the caret", () => {
+    mount();
+    act(() => {
+      useDocumentStore.getState().setSelection([]);
+    });
+    moveCaret(textarea().value.indexOf('id="r1"'));
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
+  });
+
+  it("leaves the selection alone when the caret is not on an element", () => {
+    mount();
+    moveCaret(0);
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
+  });
+
+  it("does not scroll when the selection came from the caret", () => {
+    mount();
+    const el = textarea();
+    act(() => {
+      useDocumentStore.getState().setSelection([]);
+    });
+    el.scrollTop = 0;
+    moveCaret(el.value.indexOf('id="r1"'));
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
+    expect(el.scrollTop).toBe(0);
+  });
+
+  it("scrolls to the element when the selection comes from the canvas", () => {
+    mount();
+    const el = textarea();
+    act(() => {
+      useDocumentStore.getState().setSelection([]);
+    });
+    el.scrollTop = 0;
+    act(() => {
+      useDocumentStore.getState().setSelection(["r1"]);
+    });
+    expect(el.scrollTop).toBeGreaterThan(0);
   });
 });

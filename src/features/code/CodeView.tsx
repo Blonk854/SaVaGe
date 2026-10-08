@@ -8,7 +8,7 @@ import type { NoticeKind } from "../../shared/ui/notice";
 import { CodeEditor, type CodeEditorHandle } from "./CodeEditor";
 import { CodePreview } from "./CodePreview";
 import { codeToDoc, docToCode, type CodeToDocResult } from "./codeSync";
-import { lineOfElementId, offsetOfLine } from "./caretElement";
+import { elementIdAtOffset, lineOfElementId, offsetOfLine } from "./caretElement";
 
 export interface CodeViewProps {
   onNotify: (message: string, kind?: NoticeKind) => void;
@@ -72,6 +72,7 @@ export function CodeView({ onNotify }: CodeViewProps) {
   const lastSyncedTextRef = useRef(text);
   const timerRef = useRef<number | null>(null);
   const editorRef = useRef<CodeEditorHandle>(null);
+  const selectionFromCaretRef = useRef(false);
   const onNotifyRef = useRef(onNotify);
   onNotifyRef.current = onNotify;
 
@@ -86,9 +87,25 @@ export function CodeView({ onNotify }: CodeViewProps) {
   }, [text, selectionKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    // A caret-driven selection already has the caret on the element; scrolling
+    // would yank the view, so swallow that one echo.
+    if (selectionFromCaretRef.current) {
+      selectionFromCaretRef.current = false;
+      return;
+    }
     if (highlightLine === null) return;
     setScrollReq((r) => ({ line: highlightLine, nonce: (r?.nonce ?? 0) + 1 }));
   }, [selectionKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCaret = (offset: number) => {
+    const id = elementIdAtOffset(textRef.current, offset);
+    if (!id) return;
+    const store = useDocumentStore.getState();
+    if (!store.doc.nodes[id]) return;
+    if (store.selection.length === 1 && store.selection[0] === id) return;
+    selectionFromCaretRef.current = true;
+    store.setSelection([id]);
+  };
 
   const commit = (value: string) => {
     const result = commitText(value, lastSyncedTextRef, lastCommittedDocRef);
@@ -160,7 +177,7 @@ export function CodeView({ onNotify }: CodeViewProps) {
               ref={editorRef}
               value={text}
               onChange={handleChange}
-              onCaretChange={() => {}}
+              onCaretChange={handleCaret}
               onFlush={flush}
               errorLine={errorLine}
               highlightLine={highlightLine}
