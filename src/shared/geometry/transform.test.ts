@@ -126,6 +126,43 @@ describe("matrixToTransform", () => {
     }
   });
 
+  it("returns the zero transform when both columns vanish", () => {
+    const source = {
+      ...defaultTransform(5, -3),
+      rotation: 40,
+      scaleX: 0,
+      scaleY: 0,
+    };
+    const m = transformToMatrix(source);
+
+    // R(40) * scale(0, 0): both columns vanish, so rotation is unrecoverable
+    // and decomposition must fall through to the zero-transform guard.
+    expect(Math.hypot(m.a, m.b)).toBeLessThan(1e-12);
+    expect(Math.hypot(m.c, m.d)).toBeLessThan(1e-12);
+
+    const recovered = matrixToTransform(m);
+    expect(recovered).toBeTruthy();
+    // Translation survives; rotation drops to 0 and both scales read zero.
+    expect(recovered!.x).toBeCloseTo(5);
+    expect(recovered!.y).toBeCloseTo(-3);
+    expect(recovered!.rotation).toBe(0);
+    expect(recovered!.scaleX).toBe(0);
+    expect(recovered!.scaleY).toBe(0);
+    expect(recovered!.skewX).toBe(0);
+    expect(recovered!.skewY).toBe(0);
+
+    // Rebuilding reproduces the original matrix: every point maps to (5, -3).
+    const rebuilt = transformToMatrix(recovered!);
+    for (const [px, py] of [
+      [0, 0],
+      [3, 7],
+      [-2, 5],
+    ]) {
+      expect(applyMat(rebuilt, px, py).x).toBeCloseTo(applyMat(m, px, py).x);
+      expect(applyMat(rebuilt, px, py).y).toBeCloseTo(applyMat(m, px, py).y);
+    }
+  });
+
   it("recovers a parent-relative local for mixed rotation and scale", () => {
     const parent = transformToMatrix({ ...defaultTransform(), rotation: 90, scaleX: 2, scaleY: 1 });
     const world = transformToMatrix({ ...defaultTransform(10, 0) });
