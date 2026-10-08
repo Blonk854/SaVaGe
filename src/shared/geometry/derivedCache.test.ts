@@ -13,6 +13,7 @@ import { computeNodeWorldBounds, nodeWorldBounds, type Bounds } from "./bounds";
 import {
   derivedCacheStats,
   invalidateDerivedCache,
+  isDocumentBulkFilled,
   resetDerivedCache,
   setDerivedCacheLimits,
 } from "./derivedCache";
@@ -141,6 +142,29 @@ describe("derived geometry cache", () => {
     expect(all.get("loose")).toEqual(transformToMatrix(loose.transform));
     expect(all.get("parent")).toEqual(computeNodeWorldMatrix(doc, "parent"));
     expect(all.get("child")).toEqual(computeNodeWorldMatrix(doc, "child"));
+  });
+
+  it("serves the same edge cases from the bulk-fill cache", () => {
+    const doc = createEmptyDocument();
+    const parent = group("parent", ["child", "ghost"], defaultTransform(10, 0));
+    const child = rect("child", 1, 2);
+    const loose = rect("loose", 7, 8);
+    doc.nodes = { parent, child, loose };
+    doc.rootChildIds = ["parent"];
+
+    // An attached lookup bulk-fills the snapshot. warmWorldMatrices is what
+    // stores nodes the tree walk never visits.
+    expect(nodeWorldMatrix(doc, "child")).toEqual(computeNodeWorldMatrix(doc, "child"));
+    expect(isDocumentBulkFilled(doc)).toBe(true);
+    const warmed = derivedCacheStats();
+    expect(warmed.matrixEntries).toBe(3);
+
+    expect(nodeWorldMatrix(doc, "loose")).toEqual(computeNodeWorldMatrix(doc, "loose"));
+    expect(derivedCacheStats().matrixMisses).toBe(warmed.matrixMisses);
+    expect(nodeWorldMatrix(doc, "ghost")).toBeNull();
+    expect(applyMat(nodeWorldMatrix(doc, "child")!, 0, 0)).toEqual({ x: 11, y: 2 });
+    expect(nodeWorldMatrix(doc, "parent")).toEqual(computeNodeWorldMatrix(doc, "parent"));
+    expect(derivedCacheStats().matrixEntries).toBe(3);
   });
 
   it("repeat lookups on one snapshot do not miss", () => {
