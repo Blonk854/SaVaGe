@@ -60,6 +60,38 @@ describe("matrixToTransform", () => {
     expect(applyMat(transformToMatrix(recovered!), 3, 7).y).toBeCloseTo(point.y);
   });
 
+  it("folds skewY into rotation and scale when the first column wins", () => {
+    const source = {
+      ...defaultTransform(4, 6),
+      rotation: 30,
+      skewY: 45,
+    };
+    const m = transformToMatrix(source);
+
+    // R(30) * skewY(45): hypot(a, b) = sqrt(2) must beat hypot(c, d) = 1,
+    // so decomposition takes the first-column branch.
+    expect(Math.hypot(m.a, m.b)).toBeGreaterThan(Math.hypot(m.c, m.d));
+
+    const recovered = matrixToTransform(m);
+    expect(recovered).toBeTruthy();
+    // skewY folds away: rotation shifts to 75 and skewX absorbs the shear.
+    expect(recovered!.rotation).toBeCloseTo(75);
+    expect(recovered!.scaleX).toBeCloseTo(Math.SQRT2);
+    expect(recovered!.scaleY).toBeCloseTo(Math.SQRT1_2);
+    expect(recovered!.skewX).toBeCloseTo((Math.atan(0.5) * 180) / Math.PI);
+    expect(recovered!.skewY).toBe(0);
+
+    const rebuilt = transformToMatrix(recovered!);
+    for (const [px, py] of [
+      [0, 0],
+      [3, 7],
+      [-2, 5],
+    ]) {
+      expect(applyMat(rebuilt, px, py).x).toBeCloseTo(applyMat(m, px, py).x);
+      expect(applyMat(rebuilt, px, py).y).toBeCloseTo(applyMat(m, px, py).y);
+    }
+  });
+
   it("recovers a parent-relative local for mixed rotation and scale", () => {
     const parent = transformToMatrix({ ...defaultTransform(), rotation: 90, scaleX: 2, scaleY: 1 });
     const world = transformToMatrix({ ...defaultTransform(10, 0) });
