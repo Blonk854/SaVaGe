@@ -296,6 +296,67 @@ describe("hit-test bounds rejection", () => {
     expect(hitTestTopNode(ctx, doc, 95, 52, 1)).toBe("inst");
   });
 
+  it("uses the full column norm for the pad under instance skewX", () => {
+    const doc = createEmptyDocument();
+    const art = rect("art", 0, 0, 20, 10, 4);
+    art.fill = { type: "none" };
+    doc.symbols.mark = {
+      id: "mark",
+      name: "Mark",
+      width: 20,
+      height: 10,
+      rootChildIds: ["art"],
+      nodes: { art },
+    };
+    doc.nodes.inst = {
+      id: "inst",
+      name: "Mark",
+      type: "symbolInstance",
+      visible: true,
+      locked: false,
+      opacity: 1,
+      blendMode: "normal",
+      transform: { ...defaultTransform(100, 50), skewX: 45 },
+      symbolId: "mark",
+      width: 20,
+      height: 10,
+    };
+    doc.rootChildIds = ["inst"];
+
+    // skewX 45° places the matrix {a:1, b:0, c:tan45°=1, d:1}. The diagonal
+    // terms alone give a scale of 1 (pad 2); the column norms are 1 and √2,
+    // so the pad is 2√2. This pins hypot(c, d), not max(|a|, |d|).
+    const placed = nodeWorldMatrix(doc, "inst");
+    expect(placed).not.toBeNull();
+    expect(placed!.a).toBeCloseTo(1);
+    expect(placed!.b).toBeCloseTo(0);
+    expect(placed!.c).toBeCloseTo(1);
+    expect(placed!.d).toBeCloseTo(1);
+    expect(hitTestWorldPad(art, 1, identity())).toBe(2);
+    expect(hitTestWorldPad(art, 1, placed!)).toBeCloseTo(2 * Math.SQRT2);
+
+    // Sheared world AABB spans x∈[100,130], y∈[50,60]; pad 2√2 ≈ 2.828
+    // extends each side. A diagonal-only pad of 2 would reject these.
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 97.5, 55, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 97, 55, 1)).toBe(false);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 132.5, 55, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 133, 55, 1)).toBe(false);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 115, 47.5, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 115, 47, 1)).toBe(false);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 115, 62.5, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 115, 63, 1)).toBe(false);
+
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      setTransform: vi.fn(),
+      lineWidth: 1,
+      isPointInPath: () => false,
+      isPointInStroke: () => true,
+    } as unknown as CanvasRenderingContext2D;
+    expect(hitTestTopNode(ctx, doc, 97.5, 55, 1)).toBe("inst");
+  });
+
   it("pads degenerate line bounds", () => {
     const doc = createEmptyDocument();
     doc.nodes.l = line("l", 0, 10, 80, 0);
