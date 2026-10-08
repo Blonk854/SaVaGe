@@ -163,6 +163,38 @@ describe("matrixToTransform", () => {
     }
   });
 
+  it("round-trips a reflection by folding the flip into a negative scaleY", () => {
+    // scaleX: -1 has determinant -1, but decomposition absorbs the flip as
+    // rotation 180 + scaleY -1, so the matricesClose guard accepts it.
+    const m = transformToMatrix({ ...defaultTransform(3, 4), scaleX: -1, scaleY: 1 });
+    expect(m.a * m.d - m.b * m.c).toBeLessThan(0);
+
+    const recovered = matrixToTransform(m);
+    expect(recovered).toBeTruthy();
+    expect(recovered!.x).toBeCloseTo(3);
+    expect(recovered!.y).toBeCloseTo(4);
+    expect(Math.abs(recovered!.rotation)).toBeCloseTo(180);
+    expect(recovered!.scaleX).toBeCloseTo(1);
+    expect(recovered!.scaleY).toBeCloseTo(-1);
+
+    const rebuilt = transformToMatrix(recovered!);
+    for (const [px, py] of [
+      [0, 0],
+      [3, 7],
+      [-2, 5],
+    ]) {
+      expect(applyMat(rebuilt, px, py).x).toBeCloseTo(applyMat(m, px, py).x);
+      expect(applyMat(rebuilt, px, py).y).toBeCloseTo(applyMat(m, px, py).y);
+    }
+  });
+
+  it("returns null when extreme shear exceeds the reconstruction guard", () => {
+    // u12/scaleX = 1e12 pushes skewX to within float noise of 90 degrees, so
+    // the atan -> tan round-trip cannot rebuild c within the 1e-6 epsilon.
+    const m = { a: 1, b: 0, c: 1e12, d: 1, e: 5, f: -3 };
+    expect(matrixToTransform(m)).toBeNull();
+  });
+
   it("recovers a parent-relative local for mixed rotation and scale", () => {
     const parent = transformToMatrix({ ...defaultTransform(), rotation: 90, scaleX: 2, scaleY: 1 });
     const world = transformToMatrix({ ...defaultTransform(10, 0) });
