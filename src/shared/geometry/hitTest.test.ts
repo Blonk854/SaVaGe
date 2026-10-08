@@ -150,6 +150,47 @@ describe("hit-test bounds rejection", () => {
     expect(nodeWorldBounds(inkDoc, "ink").w).toBe(20);
   });
 
+  it("pads stroke-only symbol artwork before rejecting instance hits", () => {
+    const doc = createEmptyDocument();
+    const art = rect("art", 0, 0, 20, 10, 4);
+    art.fill = { type: "none" };
+    doc.symbols.mark = {
+      id: "mark",
+      name: "Mark",
+      width: 20,
+      height: 10,
+      rootChildIds: ["art"],
+      nodes: { art },
+    };
+    doc.nodes.inst = {
+      id: "inst",
+      name: "Mark",
+      type: "symbolInstance",
+      visible: true,
+      locked: false,
+      opacity: 1,
+      blendMode: "normal",
+      transform: defaultTransform(100, 50),
+      symbolId: "mark",
+      width: 20,
+      height: 10,
+    };
+    doc.rootChildIds = ["inst"];
+
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 121, 55, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 123, 55, 1)).toBe(false);
+
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      setTransform: vi.fn(),
+      lineWidth: 1,
+      isPointInPath: () => false,
+      isPointInStroke: () => true,
+    } as unknown as CanvasRenderingContext2D;
+    expect(hitTestTopNode(ctx, doc, 121, 55, 1)).toBe("inst");
+  });
+
   it("pads degenerate line bounds", () => {
     const doc = createEmptyDocument();
     doc.nodes.l = line("l", 0, 10, 80, 0);
