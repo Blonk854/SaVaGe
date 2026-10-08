@@ -8,6 +8,7 @@ import type { NoticeKind } from "../../shared/ui/notice";
 import { CodeEditor, type CodeEditorHandle } from "./CodeEditor";
 import { CodePreview } from "./CodePreview";
 import { codeToDoc, docToCode, type CodeToDocResult } from "./codeSync";
+import { lineOfElementId, offsetOfLine } from "./caretElement";
 
 export interface CodeViewProps {
   onNotify: (message: string, kind?: NoticeKind) => void;
@@ -23,15 +24,6 @@ type Status =
 function formatDropped(dropped: Map<string, number>): string {
   const parts = [...dropped].map(([key, count]) => `${count} × ${key}`);
   return `Not supported, removed: ${parts.join(", ")}`;
-}
-
-function offsetOfLine(text: string, line: number): number {
-  if (line <= 1) return 0;
-  let current = 1;
-  for (let i = 0; i < text.length; i++) {
-    if (text.charCodeAt(i) === 10 && ++current === line) return i + 1;
-  }
-  return text.length;
 }
 
 function statusFromResult(result: CodeToDocResult): Status {
@@ -71,8 +63,10 @@ function commitText(
  */
 export function CodeView({ onNotify }: CodeViewProps) {
   const doc = useDocumentStore((s) => s.doc);
+  const selection = useDocumentStore((s) => s.selection);
   const [text, setText] = useState(() => docToCode(useDocumentStore.getState().doc));
   const [status, setStatus] = useState<Status>({ kind: "synced" });
+  const [scrollReq, setScrollReq] = useState<{ line: number; nonce: number } | null>(null);
   const textRef = useRef(text);
   const lastCommittedDocRef = useRef(useDocumentStore.getState().doc);
   const lastSyncedTextRef = useRef(text);
@@ -83,6 +77,18 @@ export function CodeView({ onNotify }: CodeViewProps) {
 
   const previewSvg = useMemo(() => documentToSvgString(doc), [doc]);
   const errorLine = status.kind === "error" && status.line != null ? status.line : null;
+
+  const selectionKey = selection.join("\n");
+  const highlightLine = useMemo(() => {
+    const id = useDocumentStore.getState().selection[0];
+    return id ? lineOfElementId(text, id) : null;
+    // selectionKey stands in for the selection array so the memo tracks it by value.
+  }, [text, selectionKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (highlightLine === null) return;
+    setScrollReq((r) => ({ line: highlightLine, nonce: (r?.nonce ?? 0) + 1 }));
+  }, [selectionKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const commit = (value: string) => {
     const result = commitText(value, lastSyncedTextRef, lastCommittedDocRef);
@@ -157,8 +163,8 @@ export function CodeView({ onNotify }: CodeViewProps) {
               onCaretChange={() => {}}
               onFlush={flush}
               errorLine={errorLine}
-              highlightLine={null}
-              scrollToLineRequest={null}
+              highlightLine={highlightLine}
+              scrollToLineRequest={scrollReq}
             />
             <div className="code-status" role="status" aria-live="polite">
               {status.kind === "error" ? (
