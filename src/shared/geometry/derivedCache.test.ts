@@ -16,7 +16,13 @@ import {
   resetDerivedCache,
   setDerivedCacheLimits,
 } from "./derivedCache";
-import { applyMat, collectWorldMatrices, computeNodeWorldMatrix, nodeWorldMatrix } from "./transform";
+import {
+  applyMat,
+  collectWorldMatrices,
+  computeNodeWorldMatrix,
+  nodeWorldMatrix,
+  transformToMatrix,
+} from "./transform";
 import { useDocumentStore } from "../stores/documentStore";
 
 function rect(id: string, x = 0, y = 0, width = 20, height = 10): RectNode {
@@ -112,6 +118,29 @@ describe("derived geometry cache", () => {
     for (const [id, matrix] of collectWorldMatrices(doc)) {
       expect(matrix).toEqual(computeNodeWorldMatrix(doc, id));
     }
+  });
+
+  it("handles unattached nodes and missing child ids", () => {
+    const doc = createEmptyDocument();
+    const parent = group("parent", ["child", "ghost"], defaultTransform(10, 0));
+    const child = rect("child", 1, 2);
+    const loose = rect("loose", 7, 8);
+    doc.nodes = { parent, child, loose };
+    doc.rootChildIds = ["parent"];
+
+    // Unattached node falls back to its own local transform.
+    expect(computeNodeWorldMatrix(doc, "loose")).toEqual(transformToMatrix(loose.transform));
+    // A child id with no node is skipped by the walk and resolves to null.
+    expect(computeNodeWorldMatrix(doc, "ghost")).toBeNull();
+    // The missing sibling does not disturb the attached child's world matrix.
+    expect(applyMat(computeNodeWorldMatrix(doc, "child")!, 0, 0)).toEqual({ x: 11, y: 2 });
+
+    const all = collectWorldMatrices(doc);
+    expect(all.size).toBe(3);
+    expect(all.has("ghost")).toBe(false);
+    expect(all.get("loose")).toEqual(transformToMatrix(loose.transform));
+    expect(all.get("parent")).toEqual(computeNodeWorldMatrix(doc, "parent"));
+    expect(all.get("child")).toEqual(computeNodeWorldMatrix(doc, "child"));
   });
 
   it("repeat lookups on one snapshot do not miss", () => {
