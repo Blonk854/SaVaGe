@@ -92,6 +92,40 @@ describe("matrixToTransform", () => {
     }
   });
 
+  it("recovers rotation from the second axis when scaleX collapses the first column", () => {
+    const source = {
+      ...defaultTransform(5, -3),
+      rotation: 40,
+      scaleX: 0,
+      scaleY: 2,
+    };
+    const m = transformToMatrix(source);
+
+    // R(40) * scale(0, 2): the first column vanishes, so decomposition must
+    // take the else branch and read rotation off the second column.
+    expect(Math.hypot(m.a, m.b)).toBeLessThan(1e-12);
+
+    const recovered = matrixToTransform(m);
+    expect(recovered).toBeTruthy();
+    expect(recovered!.x).toBeCloseTo(5);
+    expect(recovered!.y).toBeCloseTo(-3);
+    expect(recovered!.rotation).toBeCloseTo(40);
+    expect(recovered!.scaleX).toBe(0);
+    expect(recovered!.scaleY).toBeCloseTo(2);
+    expect(recovered!.skewX).toBe(0);
+    expect(recovered!.skewY).toBe(0);
+
+    const rebuilt = transformToMatrix(recovered!);
+    for (const [px, py] of [
+      [0, 0],
+      [3, 7],
+      [-2, 5],
+    ]) {
+      expect(applyMat(rebuilt, px, py).x).toBeCloseTo(applyMat(m, px, py).x);
+      expect(applyMat(rebuilt, px, py).y).toBeCloseTo(applyMat(m, px, py).y);
+    }
+  });
+
   it("recovers a parent-relative local for mixed rotation and scale", () => {
     const parent = transformToMatrix({ ...defaultTransform(), rotation: 90, scaleX: 2, scaleY: 1 });
     const world = transformToMatrix({ ...defaultTransform(10, 0) });
