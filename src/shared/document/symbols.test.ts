@@ -120,6 +120,58 @@ describe("createSymbolFromSelection", () => {
       expect(symbol.nodes[id]?.transform).toEqual(nested[index]);
     });
   });
+
+  it("keeps a node’s world point on the new instance when its parent is rotated", () => {
+    useDocumentStore.temporal.getState().clear();
+    useDocumentStore.setState({ doc: createEmptyDocument(), selection: [] });
+    const parent: GroupNode = {
+      id: "parent",
+      name: "parent",
+      type: "group",
+      visible: true,
+      locked: false,
+      opacity: 1,
+      blendMode: "normal",
+      transform: { ...defaultTransform(100, 50), rotation: 90 },
+      children: [],
+    };
+    useDocumentStore.getState().addNode(parent);
+    useDocumentStore.getState().addNode(rect("child", 20), "parent");
+    useDocumentStore.getState().setSelection(["child"]);
+
+    const before = useDocumentStore.getState().doc;
+    const childWorld = nodeWorldMatrix(before, "child");
+    expect(childWorld).toBeTruthy();
+    if (!childWorld) return;
+    const expected = applyMat(childWorld, 0, 0);
+    const expectedEdge = applyMat(childWorld, 10, 0);
+
+    useDocumentStore.getState().createSymbolFromSelection("Mark");
+
+    const afterState = useDocumentStore.getState();
+    const instance = afterState.doc.nodes[afterState.selection[0]];
+    expect(instance?.type).toBe("symbolInstance");
+    if (instance?.type !== "symbolInstance") return;
+    const symbol = afterState.doc.symbols[instance.symbolId];
+    expect(symbol).toBeTruthy();
+    if (!symbol) return;
+    const clonedId = symbol.rootChildIds[0];
+    const mini = {
+      ...afterState.doc,
+      rootChildIds: symbol.rootChildIds,
+      nodes: symbol.nodes,
+    };
+    const placed = multiply(
+      nodeWorldMatrix(afterState.doc, instance.id)!,
+      nodeWorldMatrix(mini, clonedId)!,
+    );
+    const origin = applyMat(placed, 0, 0);
+    expect(origin.x).toBeCloseTo(expected.x);
+    expect(origin.y).toBeCloseTo(expected.y);
+    const edge = applyMat(placed, 10, 0);
+    expect(edge.x).toBeCloseTo(expectedEdge.x);
+    expect(edge.y).toBeCloseTo(expectedEdge.y);
+  });
 });
 
 describe("expandSymbolInstance", () => {
