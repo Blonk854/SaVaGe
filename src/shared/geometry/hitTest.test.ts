@@ -10,8 +10,10 @@ import {
 import { nodeWorldBounds, pointInBounds } from "./bounds";
 import {
   hitTestTopNode,
+  hitTestWorldPad,
   nodeHitBoundsContains,
 } from "./hitTest";
+import { identity, nodeWorldMatrix } from "./transform";
 
 class Path2DStub {
   rect() {}
@@ -189,6 +191,56 @@ describe("hit-test bounds rejection", () => {
       isPointInStroke: () => true,
     } as unknown as CanvasRenderingContext2D;
     expect(hitTestTopNode(ctx, doc, 121, 55, 1)).toBe("inst");
+  });
+
+  it("scales symbol-artwork stroke pad under a rotated/scaled instance matrix", () => {
+    const doc = createEmptyDocument();
+    const art = rect("art", 0, 0, 20, 10, 4);
+    art.fill = { type: "none" };
+    doc.symbols.mark = {
+      id: "mark",
+      name: "Mark",
+      width: 20,
+      height: 10,
+      rootChildIds: ["art"],
+      nodes: { art },
+    };
+    doc.nodes.inst = {
+      id: "inst",
+      name: "Mark",
+      type: "symbolInstance",
+      visible: true,
+      locked: false,
+      opacity: 1,
+      blendMode: "normal",
+      transform: { ...defaultTransform(100, 50), rotation: 90, scaleX: 2, scaleY: 2 },
+      symbolId: "mark",
+      width: 20,
+      height: 10,
+    };
+    doc.rootChildIds = ["inst"];
+
+    // Placed matrix is rotate 90° * scale 2, so the stroke pad doubles.
+    const placed = nodeWorldMatrix(doc, "inst");
+    expect(placed).not.toBeNull();
+    expect(hitTestWorldPad(art, 1, identity())).toBe(2);
+    expect(hitTestWorldPad(art, 1, placed!)).toBeCloseTo(4);
+
+    // Rotated world AABB spans x∈[80,100], y∈[50,90]; pad 4 extends each side.
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 77, 70, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 75, 70, 1)).toBe(false);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 90, 47, 1)).toBe(true);
+    expect(nodeHitBoundsContains(doc, doc.nodes.inst, 90, 45, 1)).toBe(false);
+
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      setTransform: vi.fn(),
+      lineWidth: 1,
+      isPointInPath: () => false,
+      isPointInStroke: () => true,
+    } as unknown as CanvasRenderingContext2D;
+    expect(hitTestTopNode(ctx, doc, 77, 70, 1)).toBe("inst");
   });
 
   it("pads degenerate line bounds", () => {
