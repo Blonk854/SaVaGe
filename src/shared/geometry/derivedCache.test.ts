@@ -126,7 +126,8 @@ describe("derived geometry cache", () => {
     const parent = group("parent", ["child", "ghost"], defaultTransform(10, 0));
     const child = rect("child", 1, 2);
     const loose = rect("loose", 7, 8);
-    doc.nodes = { parent, child, loose };
+    const emptyGroup = group("emptyGroup", ["ghostOnly"]);
+    doc.nodes = { parent, child, loose, emptyGroup };
     doc.rootChildIds = ["parent"];
 
     // Unattached node falls back to its own local transform.
@@ -146,10 +147,14 @@ describe("derived geometry cache", () => {
     // The group union does not grow around the missing sibling.
     expect(nodeWorldBounds(doc, "parent")).toEqual({ x: 11, y: 2, w: 20, h: 10 });
     expect(computeNodeWorldBounds(doc, "parent")).toEqual({ x: 11, y: 2, w: 20, h: 10 });
+    // A group whose only child is missing unions to the empty box.
+    expect(nodeWorldBounds(doc, "emptyGroup")).toEqual(emptyBounds());
+    expect(computeNodeWorldBounds(doc, "emptyGroup")).toEqual(emptyBounds());
 
     const all = collectWorldMatrices(doc);
-    expect(all.size).toBe(3);
+    expect(all.size).toBe(4);
     expect(all.has("ghost")).toBe(false);
+    expect(all.has("ghostOnly")).toBe(false);
     expect(all.get("loose")).toEqual(transformToMatrix(loose.transform));
     expect(all.get("parent")).toEqual(computeNodeWorldMatrix(doc, "parent"));
     expect(all.get("child")).toEqual(computeNodeWorldMatrix(doc, "child"));
@@ -160,7 +165,8 @@ describe("derived geometry cache", () => {
     const parent = group("parent", ["child", "ghost"], defaultTransform(10, 0));
     const child = rect("child", 1, 2);
     const loose = rect("loose", 7, 8);
-    doc.nodes = { parent, child, loose };
+    const emptyGroup = group("emptyGroup", ["ghostOnly"]);
+    doc.nodes = { parent, child, loose, emptyGroup };
     doc.rootChildIds = ["parent"];
 
     // An attached lookup bulk-fills the snapshot. warmWorldMatrices is what
@@ -168,7 +174,7 @@ describe("derived geometry cache", () => {
     expect(nodeWorldMatrix(doc, "child")).toEqual(computeNodeWorldMatrix(doc, "child"));
     expect(isDocumentBulkFilled(doc)).toBe(true);
     const warmed = derivedCacheStats();
-    expect(warmed.matrixEntries).toBe(3);
+    expect(warmed.matrixEntries).toBe(4);
 
     expect(nodeWorldMatrix(doc, "loose")).toEqual(computeNodeWorldMatrix(doc, "loose"));
     expect(derivedCacheStats().matrixMisses).toBe(warmed.matrixMisses);
@@ -180,8 +186,10 @@ describe("derived geometry cache", () => {
     expect(nodeWorldBounds(doc, "child")).toEqual({ x: 11, y: 2, w: 20, h: 10 });
     // The group union does not grow around the missing sibling.
     expect(nodeWorldBounds(doc, "parent")).toEqual({ x: 11, y: 2, w: 20, h: 10 });
+    // A group whose only child is missing unions to the empty box.
+    expect(nodeWorldBounds(doc, "emptyGroup")).toEqual(emptyBounds());
     expect(nodeWorldMatrix(doc, "parent")).toEqual(computeNodeWorldMatrix(doc, "parent"));
-    expect(derivedCacheStats().matrixEntries).toBe(3);
+    expect(derivedCacheStats().matrixEntries).toBe(4);
   });
 
   it("repeat lookups on one snapshot do not miss", () => {
