@@ -122,11 +122,12 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  if (getUnsavedChangesPrompt()) resolveUnsavedChangesPrompt("cancel");
-  if (getSaveConflictPrompt()) resolveSaveConflictPrompt("cancel");
-  if (getConfirmAction()) resolveConfirmAction(false);
-  browserNative.releaseAll();
-  await flush();
+  await flush(() => {
+    if (getUnsavedChangesPrompt()) resolveUnsavedChangesPrompt("cancel");
+    if (getSaveConflictPrompt()) resolveSaveConflictPrompt("cancel");
+    if (getConfirmAction()) resolveConfirmAction(false);
+    browserNative.releaseAll();
+  });
   await act(async () => {
     root?.unmount();
   });
@@ -170,8 +171,9 @@ function resetWorld() {
   });
 }
 
-async function flush() {
+async function flush(trigger?: () => void) {
   await act(async () => {
+    trigger?.();
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 }
@@ -429,7 +431,7 @@ describe("browser-adapter journeys", () => {
     await waitFor(() => document.body.textContent?.includes("Tracing…") ?? false, "tracing status");
     expect(buttonNamed("Convert to SVG").disabled).toBe(true);
 
-    browserNative.release("convert_image_to_svg");
+    await flush(() => browserNative.release("convert_image_to_svg"));
     await waitFor(() => buttonNamedOrNull("Open in Editor") !== null, "traced preview");
     expect(document.querySelector('img[alt="Traced SVG preview"]')).toBeTruthy();
 
@@ -448,7 +450,9 @@ describe("browser-adapter journeys", () => {
       path: "C:\\projects\\journey.savage",
       projectDestinationGrantId: savedGrantId,
     });
-    useDocumentStore.getState().updateArtboard(useDocumentStore.getState().doc.activeArtboardId, { name: "Dirty" });
+    await flush(() =>
+      useDocumentStore.getState().updateArtboard(useDocumentStore.getState().doc.activeArtboardId, { name: "Dirty" }),
+    );
     await openMenu("file");
     await activateMenuItem("Open…");
     await waitFor(() => document.querySelector("[role='alertdialog'] h2")?.textContent === "Unsaved changes", "reopen prompt");
@@ -510,7 +514,10 @@ describe("browser-adapter journeys", () => {
     await flush();
     expect(layerLabels().some((label) => label.startsWith("Group,"))).toBe(true);
 
-    const closing = browserNative.requestClose();
+    let closing!: Promise<void>;
+    await flush(() => {
+      closing = browserNative.requestClose();
+    });
     await waitFor(() => document.querySelector("#sv-unsaved-title")?.textContent === "Unsaved changes", "close prompt");
     expect(browserNative.exited).toBe(false);
     await act(async () => {
@@ -520,7 +527,10 @@ describe("browser-adapter journeys", () => {
     expect(browserNative.exited).toBe(false);
     expect(layerLabels().some((label) => label.startsWith("Group,"))).toBe(true);
 
-    const exiting = browserNative.requestClose();
+    let exiting!: Promise<void>;
+    await flush(() => {
+      exiting = browserNative.requestClose();
+    });
     await waitFor(() => document.querySelector('[data-action="discard"]') !== null, "discard prompt");
     await act(async () => {
       document.querySelector<HTMLButtonElement>('[data-action="discard"]')?.click();
@@ -831,7 +841,7 @@ describe("visual contracts", () => {
       "pane SVG Tracing…",
       "convert disabled Convert to SVG",
     ]);
-    browserNative.release("convert_image_to_svg");
+    await flush(() => browserNative.release("convert_image_to_svg"));
     await waitFor(() => visualState().includes("action open-editor"), "completed contract");
     expect(visualState()).toEqual([
       "surface convert",
