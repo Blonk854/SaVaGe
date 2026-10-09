@@ -9,7 +9,7 @@ import {
   type SvgDocument,
   type SymbolInstanceNode,
 } from "../document/types";
-import { computeNodeWorldBounds, nodeWorldBounds, type Bounds } from "./bounds";
+import { computeNodeWorldBounds, emptyBounds, nodeWorldBounds, type Bounds } from "./bounds";
 import {
   derivedCacheStats,
   invalidateDerivedCache,
@@ -136,6 +136,12 @@ describe("derived geometry cache", () => {
     // The missing sibling does not disturb the attached child's world matrix.
     expect(applyMat(computeNodeWorldMatrix(doc, "child")!, 0, 0)).toEqual({ x: 11, y: 2 });
 
+    // Bounds follow the same rules: the unattached node uses its local
+    // transform, and the missing child id is an empty box.
+    expectBoundsEq(nodeWorldBounds(doc, "loose"), computeNodeWorldBounds(doc, "loose"));
+    expect(nodeWorldBounds(doc, "ghost")).toEqual(emptyBounds());
+    expect(computeNodeWorldBounds(doc, "ghost")).toEqual(emptyBounds());
+
     const all = collectWorldMatrices(doc);
     expect(all.size).toBe(3);
     expect(all.has("ghost")).toBe(false);
@@ -162,6 +168,8 @@ describe("derived geometry cache", () => {
     expect(nodeWorldMatrix(doc, "loose")).toEqual(computeNodeWorldMatrix(doc, "loose"));
     expect(derivedCacheStats().matrixMisses).toBe(warmed.matrixMisses);
     expect(nodeWorldMatrix(doc, "ghost")).toBeNull();
+    expectBoundsEq(nodeWorldBounds(doc, "loose"), computeNodeWorldBounds(doc, "loose"));
+    expect(nodeWorldBounds(doc, "ghost")).toEqual(emptyBounds());
     expect(applyMat(nodeWorldMatrix(doc, "child")!, 0, 0)).toEqual({ x: 11, y: 2 });
     expect(nodeWorldMatrix(doc, "parent")).toEqual(computeNodeWorldMatrix(doc, "parent"));
     expect(derivedCacheStats().matrixEntries).toBe(3);
