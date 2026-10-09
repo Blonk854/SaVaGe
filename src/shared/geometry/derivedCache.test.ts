@@ -143,6 +143,9 @@ describe("derived geometry cache", () => {
     expect(computeNodeWorldBounds(doc, "ghost")).toEqual(emptyBounds());
     // The missing sibling does not shift the attached child's AABB.
     expect(nodeWorldBounds(doc, "child")).toEqual({ x: 11, y: 2, w: 20, h: 10 });
+    // The group union does not grow around the missing sibling.
+    expect(nodeWorldBounds(doc, "parent")).toEqual({ x: 11, y: 2, w: 20, h: 10 });
+    expect(computeNodeWorldBounds(doc, "parent")).toEqual({ x: 11, y: 2, w: 20, h: 10 });
 
     const all = collectWorldMatrices(doc);
     expect(all.size).toBe(3);
@@ -175,6 +178,8 @@ describe("derived geometry cache", () => {
     expect(applyMat(nodeWorldMatrix(doc, "child")!, 0, 0)).toEqual({ x: 11, y: 2 });
     // The missing sibling does not shift the attached child's AABB.
     expect(nodeWorldBounds(doc, "child")).toEqual({ x: 11, y: 2, w: 20, h: 10 });
+    // The group union does not grow around the missing sibling.
+    expect(nodeWorldBounds(doc, "parent")).toEqual({ x: 11, y: 2, w: 20, h: 10 });
     expect(nodeWorldMatrix(doc, "parent")).toEqual(computeNodeWorldMatrix(doc, "parent"));
     expect(derivedCacheStats().matrixEntries).toBe(3);
   });
